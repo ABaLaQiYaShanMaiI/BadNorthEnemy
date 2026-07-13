@@ -37,10 +37,49 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] v1.0 loaded.");
+            Logger.LogInfo("[BlackSpearman] ====== v1.0 START ======");
+
+            // ===========================================
+            // 诊断日志：运行时环境 & 关键类型检查
+            // ===========================================
+            try
+            {
+                Logger.LogInfo($"[BlackSpearman] BepInEx version: {typeof(BaseUnityPlugin).Assembly.GetName().Version}");
+                Logger.LogInfo($"[BlackSpearman] Assembly-CSharp loaded: {typeof(Faction).Assembly.FullName}");
+                Logger.LogInfo($"[BlackSpearman] CLR: {Environment.Version}");
+                Logger.LogInfo($"[BlackSpearman] OS: {Environment.OSVersion}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[BlackSpearman] Env log failed: {ex}");
+            }
+
+            // 关键类型存在性扫描
+            // 注意：使用 (object) 转换避免调用 Type.op_Inequality（Mono 2.0 不支持）
+            try
+            {
+                Logger.LogInfo($"[BlackSpearman] === Type Check ===");
+                Logger.LogInfo($"[BlackSpearman] Faction type OK: {!ReferenceEquals(typeof(Faction), null)}");
+                Logger.LogInfo($"[BlackSpearman] VikingAgent type OK: {!ReferenceEquals(typeof(VikingAgent), null)}");
+                Logger.LogInfo($"[BlackSpearman] Agent type OK: {!ReferenceEquals(typeof(Agent), null)}");
+                Logger.LogInfo($"[BlackSpearman] Swordsman type OK: {!ReferenceEquals(typeof(Swordsman), null)}");
+                Logger.LogInfo($"[BlackSpearman] Stun type OK: {!ReferenceEquals(typeof(Stun), null)}");
+                Logger.LogInfo($"[BlackSpearman] Armor type OK: {!ReferenceEquals(typeof(Armor), null)}");
+                Logger.LogInfo($"[BlackSpearman] LevelStateObjectReferences.dict exists: {!ReferenceEquals(LevelStateObjectReferences.dict, null)}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[BlackSpearman] Type check failed: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            }
 
             // 每 3 秒扫描一次新小队
-            InvokeRepeating("PollForSquads", 1f, 3f);
+            try { InvokeRepeating("PollForSquads", 1f, 3f); }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[BlackSpearman] InvokeRepeating failed: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            }
+
+            Logger.LogInfo("[BlackSpearman] ====== INIT COMPLETE ======");
         }
 
         private void OnDestroy()
@@ -93,18 +132,19 @@ namespace BadNorthBlackSpearman
                 // 反射 probability
                 var guessableType = Type.GetType(
                     "Voxels.TowerDefense.CampaignGeneration.CampaignAc3.LevelGuessable, Assembly-CSharp");
-                if (guessableType != null)
+                // Mono 2.0 不支持 Type.op_Inequality，使用 ReferenceEquals
+                if (!ReferenceEquals(guessableType, null))
                 {
                     var guessable = vref.GetComponent(guessableType);
-                    if (guessable != null)
+                    if (!ReferenceEquals(guessable, null))
                     {
                         var probField = guessableType.GetField("probability",
                             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (probField != null &&
+                        if (!ReferenceEquals(probField, null) &&
                             LevelStateObjectReferences.dict.TryGetValue("Viking_AxeThrower", out UnityEngine.Object axeObj))
                         {
                             var axeGuessable = (axeObj as VikingReference)?.GetComponent(guessableType);
-                            if (axeGuessable != null)
+                            if (!ReferenceEquals(axeGuessable, null))
                                 probField.SetValue(guessable, probField.GetValue(axeGuessable));
                         }
                     }
@@ -113,21 +153,21 @@ namespace BadNorthBlackSpearman
                 // 反射 condition.expression
                 var ruleType = Type.GetType(
                     "Voxels.TowerDefense.CampaignGeneration.CampaignAc3.LevelRule, Assembly-CSharp");
-                if (ruleType != null)
+                if (!ReferenceEquals(ruleType, null))
                 {
                     var rule = vref.GetComponent(ruleType);
-                    if (rule != null)
+                    if (!ReferenceEquals(rule, null))
                     {
                         var condField = ruleType.GetField("condition",
                             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (condField != null)
+                        if (!ReferenceEquals(condField, null))
                         {
                             var condObj = condField.GetValue(rule);
-                            if (condObj != null)
+                            if (!ReferenceEquals(condObj, null))
                             {
                                 var exprField = condObj.GetType().GetField("expression",
                                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                                if (exprField != null)
+                                if (!ReferenceEquals(exprField, null))
                                     exprField.SetValue(condObj, "fraction > 0.25");
                             }
                         }
@@ -196,7 +236,7 @@ namespace BadNorthBlackSpearman
                 {
                     var prop = comp.GetType().GetProperty("color",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (prop != null)
+                    if (!ReferenceEquals(prop, null))
                         prop.SetValue(comp, BlackColor, null);
                 }
             }
@@ -221,7 +261,7 @@ namespace BadNorthBlackSpearman
                 _armorFieldAttempted = true;
             }
 
-            if (_armorField != null)
+            if (!ReferenceEquals(_armorField, null))
             {
                 var values = _armorField.GetValue(armor) as float[];
                 ScaleFloatArray(values, 1.3f);
