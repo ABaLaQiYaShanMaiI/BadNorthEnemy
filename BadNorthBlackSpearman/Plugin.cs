@@ -47,9 +47,6 @@ namespace BadNorthBlackSpearman
         /// <summary>已订阅 onAgentSpawned 的小队对象（防止重复订阅）</summary>
         private static readonly HashSet<object> _subscribedSquads = new HashSet<object>();
 
-        /// <summary>上次 Agent 轮询扫描时间</summary>
-        private float _lastAgentScanTime;
-
         /// <summary>约束修改重试计数（解决首次轮询时 dict 未就绪问题）</summary>
         private int _constraintRetryCount;
         private const int MaxConstraintRetries = 10;
@@ -57,15 +54,8 @@ namespace BadNorthBlackSpearman
         /// <summary>转化计数统计</summary>
         private int _totalConvertedCount;
 
-        /// <summary>转化统计上次打印时的值（防止每3秒重复打印）</summary>
-        private int _lastReportedConvertedCount;
-
         /// <summary>首次转化全量诊断是否已完成</summary>
         private static bool _firstConversionDiagnosticDone;
-
-        /// <summary>队列订阅成功计数</summary>
-        private int _squadSubscribedCount;
-        private int _lastReportedSquadCount;
 
         // ==============================
         // BepInEx 生命周期
