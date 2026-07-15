@@ -16,7 +16,7 @@ namespace BadNorthBlackSpearman
     /// 冲刺行为：
     ///   - 锁定冲刺方向（敌我连线方向）
     ///   - 高速移动（3.5x 正常速度）
-    ///   - 免疫眩晕
+    ///   - 免疫眩晕（反射探测 stunMultiplier → enabled fallback）
     ///   - 持续 1.5 秒
     /// </summary>
     public class SpearChargeComponent : MonoBehaviour
@@ -29,6 +29,16 @@ namespace BadNorthBlackSpearman
             Cooldown
         }
 
+        // ==============================
+        // 眩晕免疫策略枚举
+        // ==============================
+        private enum StunImmunityStrategy
+        {
+            None,               // 无法找到任何可用字段
+            StunMultiplier,     // Stun.stunMultiplier (float) — 设为0免疫
+            StunEnabled         // Stun.enabled (bool/property) — 设为false免疫
+        }
+
         private Agent _agent;
         private ChargeState _state = ChargeState.Idle;
         private float _stateTimer;
@@ -36,10 +46,21 @@ namespace BadNorthBlackSpearman
         private Vector3 _chargeDirection;
         private bool _setupDone;
 
-        // 反射缓存（Mono 2.0 兼容）
-        private static FieldInfo _stunMultiplierField;
+        // ==============================
+        // Stun 反射缓存（Multi-Fallback）
+        // ==============================
+
+        /// <summary>当前使用的眩晕免疫策略</summary>
+        private static StunImmunityStrategy _stunStrategy = StunImmunityStrategy.None;
         private static bool _stunFieldAttempted;
+
+        /// <summary>策略1：Stun.stunMultiplier 字段（原始值备份）</summary>
+        private static FieldInfo _stunMultiplierField;
         private float _originalStunMultiplier = 1f;
+
+        /// <summary>策略2：Stun.enabled 属性/字段</summary>
+        private static PropertyInfo _stunEnabledProp;
+        private static FieldInfo _stunEnabledField;
         private Stun _stunComponent;
 
         // 上次打印日志的时间（防止刷屏）
@@ -81,9 +102,11 @@ namespace BadNorthBlackSpearman
             _originalMaxSpeed = _agent.maxSpeed;
             _stunComponent = _agent.GetComponent<Stun>();
 
-            // 获取原始 stunMultiplier
-            CacheStunField();
-            if (!ReferenceEquals(_stunMultiplierField, null) && !ReferenceEquals(_stunComponent, null))
+            // 一次性反射检测最佳眩晕免疫策略
+            CacheStunStrategy();
+
+            // 备份原始值（仅当策略可用时）
+            if (_stunStrategy == StunImmunityStrategy.StunMultiplier && !ReferenceEquals(_stunComponent, null))
             {
                 object val = _stunMultiplierField.GetValue(_stunComponent);
                 if (val is float f)
@@ -245,7 +268,7 @@ namespace BadNorthBlackSpearman
         /// <summary>
         /// 结束冲刺：
         /// - 恢复 maxSpeed
-        /// - 恢复眩晕倍率
+        /// - 恢复眩晕状态
         /// </summary>
         private void EndCharge()
         {
@@ -255,42 +278,107 @@ namespace BadNorthBlackSpearman
 
         /// <summary>
         /// 设置/取消眩晕免疫。
-        /// 通过反射修改 Stun.stunMultiplier。
+        /// 按优先级尝试多种策略：
+        ///   1. Stun.stunMultiplier (float) — 设为 0 免疫
+        ///   2. Stun.enabled (bool) — 设为 false 免疫
+        /// 两种策略均不可用时，静默跳过（不影响冲刺核心功能）。
         /// </summary>
         private void SetStunImmunity(bool immune)
         {
-            CacheStunField();
-
-            if (ReferenceEquals(_stunMultiplierField, null) || ReferenceEquals(_stunComponent, null))
+            if (ReferenceEquals(_stunComponent, null))
                 return;
 
-            if (immune)
+            switch (_stunStrategy)
             {
-                // 设为极小值 ≈ 免疫眩晕
-                _stunMultiplierField.SetValue(_stunComponent, 0f);
-            }
-            else
-            {
-                // 恢复原始值
-                _stunMultiplierField.SetValue(_stunComponent, _originalStunMultiplier);
+                case StunImmunityStrategy.StunMultiplier:
+                    if (!ReferenceEquals(_stunMultiplierField, null))
+                    {
+                        if (immune)
+                            _stunMultiplierField.SetValue(_stunComponent, 0f);
+                        else
+                            _stunMultiplierField.SetValue(_stunComponent, _originalStunMultiplier);
+                    }
+                    break;
+
+                case StunImmunityStrategy.StunEnabled:
+                    if (!ReferenceEquals(_stunEnabledProp, null))
+                    {
+                        _stunEnabledProp.SetValue(_stunComponent, !immune, null);
+                    }
+                    else if (!ReferenceEquals(_stunEnabledField, null))
+                    {
+                        _stunEnabledField.SetValue(_stunComponent, !immune);
+                    }
+                    break;
+
+                case StunImmunityStrategy.None:
+                default:
+                    // 无可用的眩晕免疫策略，静默跳过
+                    break;
             }
         }
 
         /// <summary>
-        /// 缓存 Stun.stunMultiplier 的 FieldInfo（一次性反射）。
-        /// Mono 2.0 兼容：使用 ReferenceEquals 判空。
+        /// 一次性反射检测最佳的眩晕免疫策略。
+        /// 优先级：StunMultiplier > StunEnabled > None
         /// </summary>
-        private static void CacheStunField()
+        private static void CacheStunStrategy()
         {
             if (_stunFieldAttempted)
                 return;
 
             _stunFieldAttempted = true;
-            _stunMultiplierField = typeof(Stun).GetField("stunMultiplier",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-            if (ReferenceEquals(_stunMultiplierField, null))
-                Plugin.SharedLogger?.LogWarning("[BlackSpearman] Stun.stunMultiplier field not found (shown once).");
+            var stunType = typeof(Stun);
+
+            // 策略1：查找 stunMultiplier 字段
+            _stunMultiplierField = stunType.GetField("stunMultiplier",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(_stunMultiplierField, null))
+            {
+                _stunStrategy = StunImmunityStrategy.StunMultiplier;
+                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.stunMultiplier (float) strategy.");
+                return;
+            }
+
+            // 策略1 Fallback：查找名称包含 "Multiplier" 的浮点字段
+            foreach (var field in stunType.GetFields(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (field.FieldType == typeof(float) &&
+                    field.Name.IndexOf("Multiplier", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    _stunMultiplierField = field;
+                    _stunStrategy = StunImmunityStrategy.StunMultiplier;
+                    Plugin.SharedLogger?.LogInfo(
+                        $"[BlackSpearman] Stun immunity: using Stun.{field.Name} (float, found by name matching).");
+                    return;
+                }
+            }
+
+            // 策略2：尝试 Stun.enabled（bool 属性或字段）
+            _stunEnabledProp = stunType.GetProperty("enabled",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(_stunEnabledProp, null))
+            {
+                _stunStrategy = StunImmunityStrategy.StunEnabled;
+                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.enabled (bool property) strategy.");
+                return;
+            }
+
+            _stunEnabledField = stunType.GetField("enabled",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(_stunEnabledField, null))
+            {
+                _stunStrategy = StunImmunityStrategy.StunEnabled;
+                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.enabled (bool field) strategy.");
+                return;
+            }
+
+            // 所有策略均失败
+            _stunStrategy = StunImmunityStrategy.None;
+            Plugin.SharedLogger?.LogWarning(
+                "[BlackSpearman] Stun immunity: NO viable strategy found. Charge will NOT grant stun immunity.");
         }
 
         /// <summary>
