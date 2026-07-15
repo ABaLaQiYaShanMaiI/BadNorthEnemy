@@ -54,6 +54,19 @@ namespace BadNorthBlackSpearman
         private int _constraintRetryCount;
         private const int MaxConstraintRetries = 10;
 
+        /// <summary>转化计数统计</summary>
+        private int _totalConvertedCount;
+
+        /// <summary>转化统计上次打印时的值（防止每3秒重复打印）</summary>
+        private int _lastReportedConvertedCount;
+
+        /// <summary>首次转化全量诊断是否已完成</summary>
+        private static bool _firstConversionDiagnosticDone;
+
+        /// <summary>队列订阅成功计数</summary>
+        private int _squadSubscribedCount;
+        private int _lastReportedSquadCount;
+
         // ==============================
         // BepInEx 生命周期
         // ==============================
@@ -348,11 +361,115 @@ namespace BadNorthBlackSpearman
                 if (Instance != null)
                     Instance.Logger.LogError($"[BlackSpearman] Apply failed: {ex.Message}");
             }
+
+            // 每新增 10 个转化或首个转化时打印统计
+            if (Instance != null)
+            {
+                Instance._totalConvertedCount++;
+                if (Instance._totalConvertedCount == 1 ||
+                    Instance._totalConvertedCount % 10 == 0)
+                {
+                    Instance.Logger.LogInfo(
+                        $"[BlackSpearman] Converted #{Instance._totalConvertedCount}: " +
+                        $"type={va.type}, hp={agent.health:F1}/{agent.maxHealth:F1}, " +
+                        $"scale={agent.scale:F2}, squad={agent.squad?.name ?? "?"}");
+                }
+            }
         }
 
         // ==============================
         // 黑矛兵属性应用
         // ==============================
+
+        // ==============================
+        // 首次转化全量诊断（仅在第一个 Agent 转化后运行一次）
+        // ==============================
+        private static void RunFirstConversionDiagnostic(Agent agent)
+        {
+            var lines = new List<string>();
+            lines.Add("===== First Conversion Diagnostic =====");
+
+            // 1. Brain 类型检查
+            var swordsman = agent.brain as Swordsman;
+            if (swordsman != null)
+            {
+                lines.Add($"  [PASS] Brain: Swordsman (OK)");
+                lines.Add($"         damageLevels[0]={swordsman.damageLevels[0]:F2} " +
+                          $"knockbackLevels[0]={swordsman.knockbackLevels[0]:F2}");
+            }
+            else
+            {
+                var brainType = agent.brain != null ? agent.brain.GetType().FullName : "null";
+                lines.Add($"  [FAIL] Brain: expected Swordsman, got {brainType}");
+                lines.Add($"         Damage/knockback multipliers NOT applied!");
+            }
+
+            // 2. Armor 组件检查
+            var armor = agent.GetComponent<Armor>();
+            if (armor != null)
+            {
+                var armorField = typeof(Armor).GetField("armor",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(armorField, null))
+                {
+                    var vals = armorField.GetValue(armor) as float[];
+                    if (vals != null)
+                        lines.Add($"  [PASS] Armor: present, values=[{vals[0]:F2}, {vals[1]:F2}, {vals[2]:F2}]");
+                    else
+                        lines.Add($"  [WARN] Armor: component present but 'armor' field is null");
+                }
+                else
+                    lines.Add($"  [WARN] Armor: component present but 'armor' field not found by reflection");
+            }
+            else
+            {
+                lines.Add($"  [FAIL] Armor: component NOT found. Armor multiplier NOT applied!");
+            }
+
+            // 3. 颜色渲染检查
+            int batchedSpriteCount = 0;
+            int colorAppliedCount = 0;
+            var allComps = agent.GetComponentsInChildren<Component>(true);
+            foreach (var comp in allComps)
+            {
+                if (comp == null) continue;
+                var typeName = comp.GetType().Name;
+                if (typeName == "BatchedSprite" || typeName == "SpriteAnimator")
+                {
+                    batchedSpriteCount++;
+                    var prop = comp.GetType().GetProperty("color",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(prop, null))
+                    {
+                        colorAppliedCount++;
+                    }
+                }
+            }
+
+            if (batchedSpriteCount == 0)
+                lines.Add($"  [FAIL] Color: no BatchedSprite/SpriteAnimator found in children!");
+            else if (colorAppliedCount == batchedSpriteCount)
+                lines.Add($"  [PASS] Color: {colorAppliedCount}/{batchedSpriteCount} BatchedSprite/SpriteAnimator set to black");
+            else
+                lines.Add($"  [WARN] Color: only {colorAppliedCount}/{batchedSpriteCount} components set - " +
+                          $"color property reflection partially failed");
+
+            // 4. Stun 免疫策略（从 SpearChargeComponent 读取静态字段）
+            var stunStrategyField = typeof(SpearChargeComponent).GetField("_stunStrategy",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            if (!ReferenceEquals(stunStrategyField, null))
+            {
+                var strategyVal = stunStrategyField.GetValue(null);
+                lines.Add($"  [INFO] Stun immunity strategy: {strategyVal}");
+            }
+
+            // 5. 转化参数确认
+            lines.Add($"  [INFO] ConversionChance={ConversionChance} ScaleMultiplier={ScaleMultiplier} " +
+                      $"DamageMultiplier={DamageMultiplier} KnockbackMultiplier={KnockbackMultiplier}");
+
+            lines.Add("==========================================");
+            SharedLogger?.LogInfo(string.Join("\n", lines));
+        }
 
         internal static void ApplyBlackSpearman(Agent agent)
         {
@@ -372,6 +489,13 @@ namespace BadNorthBlackSpearman
 
             var charge = SpearChargeComponent.AddTo(agent);
             if (charge != null) charge.Setup(agent);
+
+            // 首个转化时运行完整诊断（一次性）
+            if (!_firstConversionDiagnosticDone)
+            {
+                _firstConversionDiagnosticDone = true;
+                RunFirstConversionDiagnostic(agent);
+            }
         }
 
         private static void ApplyBlackColor(Agent agent)
