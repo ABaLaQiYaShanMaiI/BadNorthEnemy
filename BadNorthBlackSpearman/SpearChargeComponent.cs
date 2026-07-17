@@ -342,10 +342,12 @@ namespace BadNorthBlackSpearman
             }
 
             // 策略1 Fallback：查找名称包含 "Multiplier" 的浮点字段
+            // 注意：Unity 2018.4 的 Mono CLR 2.0 不支持 Type.op_Equality，
+            // 必须使用 Equals() 而非 == 比较两个 Type 对象
             foreach (var field in stunType.GetFields(
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             {
-                if (field.FieldType == typeof(float) &&
+                if (field.FieldType.Equals(typeof(float)) &&
                     field.Name.IndexOf("Multiplier", System.StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     _stunMultiplierField = field;

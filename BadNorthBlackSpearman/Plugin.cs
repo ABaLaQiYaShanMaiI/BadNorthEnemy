@@ -47,10 +47,6 @@ namespace BadNorthBlackSpearman
         /// <summary>已订阅 onAgentSpawned 的小队对象（防止重复订阅）</summary>
         private static readonly HashSet<object> _subscribedSquads = new HashSet<object>();
 
-        /// <summary>约束修改重试计数（解决首次轮询时 dict 未就绪问题）</summary>
-        private int _constraintRetryCount;
-        private const int MaxConstraintRetries = 10;
-
         /// <summary>转化计数统计</summary>
         private int _totalConvertedCount;
 
@@ -91,7 +87,6 @@ namespace BadNorthBlackSpearman
                 Logger.LogInfo($"[BlackSpearman] Swordsman type OK: {!ReferenceEquals(typeof(Swordsman), null)}");
                 Logger.LogInfo($"[BlackSpearman] Stun type OK: {!ReferenceEquals(typeof(Stun), null)}");
                 Logger.LogInfo($"[BlackSpearman] Armor type OK: {!ReferenceEquals(typeof(Armor), null)}");
-                Logger.LogInfo($"[BlackSpearman] LevelStateObjectReferences.dict exists: {!ReferenceEquals(LevelStateObjectReferences.dict, null)}");
             }
             catch (Exception ex)
             {
@@ -181,8 +176,6 @@ namespace BadNorthBlackSpearman
                 }
             }
 
-            // 约束修改（带重试）
-            TryUpdateConstraints();
         }
 
         /// <summary>
@@ -230,97 +223,6 @@ namespace BadNorthBlackSpearman
             catch (Exception ex)
             {
                 SharedLogger?.LogWarning($"[BlackSpearman] onAgentSpawned detection error: {ex.Message}. Using Agent polling fallback.");
-            }
-        }
-
-        // ==============================
-        // 战役约束修改（带重试）
-        // ==============================
-
-        private void TryUpdateConstraints()
-        {
-            if (_constraintRetryCount >= MaxConstraintRetries) return;
-
-            try
-            {
-                if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out UnityEngine.Object obj))
-                {
-                    // dict 中还没有 SwordShield 引用，等待下次轮询重试
-                    _constraintRetryCount++;
-                    if (_constraintRetryCount == 1)
-                        SharedLogger?.LogInfo($"[BlackSpearman] Constraints: Waiting for Viking_SwordShield in dict... (retry {_constraintRetryCount}/{MaxConstraintRetries})");
-                    return;
-                }
-
-                _constraintRetryCount = MaxConstraintRetries; // 成功，标记完成
-
-                var vref = obj as VikingReference;
-                if (vref == null) return;
-
-                // 反射 LevelGuessable.probability
-                var guessableType = Type.GetType(
-                    "Voxels.TowerDefense.CampaignGeneration.CampaignAc3.LevelGuessable, Assembly-CSharp");
-                if (!ReferenceEquals(guessableType, null))
-                {
-                    var guessable = vref.GetComponent(guessableType);
-                    if (!ReferenceEquals(guessable, null))
-                    {
-                        var probField = guessableType.GetField("probability",
-                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (!ReferenceEquals(probField, null) &&
-                            LevelStateObjectReferences.dict.TryGetValue("Viking_AxeThrower", out UnityEngine.Object axeObj))
-                        {
-                            var axeGuessable = (axeObj as VikingReference)?.GetComponent(guessableType);
-                            if (!ReferenceEquals(axeGuessable, null))
-                                probField.SetValue(guessable, probField.GetValue(axeGuessable));
-                        }
-                    }
-                }
-
-                // ============================================
-                // 关键：不覆盖 LevelRule.condition.expression！
-                // SwordShield 不是 Berserker——它原版已有正常的出现条件。
-                // 覆盖 condition 会永久改变原版 SwordShield 的战役平衡。
-                //
-                // 黑矛兵作为 SwordShield 的 40% 变体，随着 SwordShield
-                // 正常出现即可。不需要额外修改条件表达式。
-                //
-                // 只调整 probability 以匹配 AxeThrower 的频率。
-                // ============================================
-
-                // 读取原版 condition 用于诊断日志
-                var ruleType = Type.GetType(
-                    "Voxels.TowerDefense.CampaignGeneration.CampaignAc3.LevelRule, Assembly-CSharp");
-                string origCondition = "(unknown)";
-                if (!ReferenceEquals(ruleType, null))
-                {
-                    var rule = vref.GetComponent(ruleType);
-                    if (!ReferenceEquals(rule, null))
-                    {
-                        var condField = ruleType.GetField("condition",
-                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (!ReferenceEquals(condField, null))
-                        {
-                            var condObj = condField.GetValue(rule);
-                            if (!ReferenceEquals(condObj, null))
-                            {
-                                var exprField = condObj.GetType().GetField("expression",
-                                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                                if (!ReferenceEquals(exprField, null))
-                                    origCondition = exprField.GetValue(condObj) as string ?? "(null)";
-                            }
-                        }
-                    }
-                }
-
-                SharedLogger?.LogInfo($"[BlackSpearman] Campaign constraints updated. " +
-                    $"Original condition preserved: '{origCondition}'. " +
-                    $"Probability synced to AxeThrower.");
-            }
-            catch (Exception ex)
-            {
-                SharedLogger?.LogWarning($"[BlackSpearman] Constraints error (retry {_constraintRetryCount}): {ex.Message}");
-                _constraintRetryCount++;
             }
         }
 
