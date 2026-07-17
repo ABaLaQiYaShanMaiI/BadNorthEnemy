@@ -5,19 +5,24 @@ using Voxels.TowerDefense;
 namespace BadNorthBlackSpearman
 {
     /// <summary>
-    /// 黑色矛兵冲刺组件。
+    /// 黑色矛兵冲刺组件 — 直线突进版。
     /// 
     /// 状态机：
-    ///   Idle → Watching（等待 Agent 生成完毕）
-    ///   Watching → Charging（检测到登岛，开始冲刺）
-    ///   Charging → Cooldown（冲刺 1.5 秒后进入冷却）
-    ///   Cooldown → Watching（冷却 8 秒后可再次冲刺）
+    ///   Idle → Watching（等待登岛）
+    ///   Watching → Charging（检测到敌方单位在范围内，锁定方向直线冲刺）
+    ///   Charging → Cooldown（冲刺到达终点或撞墙后进入冷却）
+    ///   Cooldown → Watching（冷却结束，重新寻找目标）
     /// 
-    /// 冲刺行为：
-    ///   - 锁定冲刺方向（敌我连线方向）
-    ///   - 高速移动（3.5x 正常速度）
-    ///   - 免疫眩晕（反射探测 stunMultiplier → enabled fallback）
-    ///   - 持续 1.5 秒
+    /// 冲刺行为（v2.0 直线突进）：
+    ///   - 锁定敌人方向，直接控制 transform.position 沿直线移动
+    ///   - 冲刺期间禁用 AI 移动（冻结 walkDir，覆盖位置）
+    ///   - 固定冲刺距离（ChargeDistance），而非固定时间
+    ///   - 撞到建筑物/地形阻挡时提前结束
+    ///   - 免疫眩晕
+    ///   
+    /// 与 v1.0 的区别：
+    ///   v1.0: walkDir + maxSpeed ×3.5 → AI 仍可干预，拐弯
+    ///   v2.0: transform.position += direction * speed * dt → 纯直线，不受 AI 影响
     /// </summary>
     public class SpearChargeComponent : MonoBehaviour
     {
@@ -34,41 +39,65 @@ namespace BadNorthBlackSpearman
         // ==============================
         private enum StunImmunityStrategy
         {
-            None,               // 无法找到任何可用字段
-            StunMultiplier,     // Stun.stunMultiplier (float) — 设为0免疫
-            StunEnabled         // Stun.enabled (bool/property) — 设为false免疫
+            None,
+            StunMultiplier,
+            StunEnabled
         }
+
+        // ==============================
+        // 冲刺参数（可通过 Plugin 常量覆盖）
+        // ==============================
+
+        /// <summary>冲刺距离（世界单位）</summary>
+        private const float ChargeDistance = 3.5f;
+
+        /// <summary>冲刺速度（米/秒）</summary>
+        private const float ChargeSpeed = 6.0f;
+
+        /// <summary>冲刺冷却时间（秒）</summary>
+        private const float ChargeCooldown = 8.0f;
+
+        /// <summary>触发冲刺的检测半径</summary>
+        private const float DetectionRadius = 5.0f;
+
+        /// <summary>冲刺结束后的短暂硬直时间</summary>
+        private const float RecoveryTime = 0.4f;
+
+        // ==============================
+        // 实例字段
+        // ==============================
 
         private Agent _agent;
         private ChargeState _state = ChargeState.Idle;
         private float _stateTimer;
-        private float _originalMaxSpeed;
         private Vector3 _chargeDirection;
+        private Vector3 _chargeStartPos;
+        private float _chargeDistanceTraveled;
         private bool _setupDone;
 
+        // 冲刺期间保存的原始值
+        private float _originalMaxSpeed;
+        private Vector3 _originalWalkDir;
+
         // ==============================
-        // Stun 反射缓存（Multi-Fallback）
+        // Stun 反射缓存
         // ==============================
 
-        /// <summary>当前使用的眩晕免疫策略</summary>
         private static StunImmunityStrategy _stunStrategy = StunImmunityStrategy.None;
         private static bool _stunFieldAttempted;
-
-        /// <summary>策略1：Stun.stunMultiplier 字段（原始值备份）</summary>
         private static FieldInfo _stunMultiplierField;
         private float _originalStunMultiplier = 1f;
-
-        /// <summary>策略2：Stun.enabled 属性/字段</summary>
         private static PropertyInfo _stunEnabledProp;
         private static FieldInfo _stunEnabledField;
         private Stun _stunComponent;
 
-        // 上次打印日志的时间（防止刷屏）
+        // 日志防刷屏
         private float _lastLogTime = -999f;
 
-        /// <summary>
-        /// 静态工厂方法：为目标 Agent 添加 SpearChargeComponent。
-        /// </summary>
+        // ==============================
+        // 公共 API
+        // ==============================
+
         public static SpearChargeComponent AddTo(Agent agent)
         {
             if (ReferenceEquals(agent, null))
@@ -81,13 +110,9 @@ namespace BadNorthBlackSpearman
             return agent.gameObject.AddComponent<SpearChargeComponent>();
         }
 
-        /// <summary>
-        /// 初始化组件，绑定 Agent 引用。
-        /// </summary>
         public void Setup(Agent agent)
         {
-            if (_setupDone)
-                return;
+            if (_setupDone) return;
 
             _agent = agent;
             _setupDone = true;
@@ -101,69 +126,55 @@ namespace BadNorthBlackSpearman
 
             _originalMaxSpeed = _agent.maxSpeed;
             _stunComponent = _agent.GetComponent<Stun>();
-
-            // 一次性反射检测最佳眩晕免疫策略
             CacheStunStrategy();
 
-            // 备份原始值（仅当策略可用时）
             if (_stunStrategy == StunImmunityStrategy.StunMultiplier && !ReferenceEquals(_stunComponent, null))
             {
                 object val = _stunMultiplierField.GetValue(_stunComponent);
-                if (val is float f)
-                    _originalStunMultiplier = f;
+                if (val is float f) _originalStunMultiplier = f;
             }
 
             _state = ChargeState.Idle;
             LogStatus("Setup complete. Waiting for spawn...");
         }
 
+        // ==============================
+        // Update 主循环
+        // ==============================
+
         private void Update()
         {
-            if (!_setupDone || ReferenceEquals(_agent, null))
-                return;
+            if (!_setupDone || ReferenceEquals(_agent, null)) return;
 
-            // 检查 Agent 是否存活
+            // 检查死亡
             if (!ReferenceEquals(_agent.aliveState, null) && !_agent.aliveState.active)
             {
-                // Agent 已死亡，清除组件
-                if (_state == ChargeState.Charging)
-                    EndCharge();
+                if (_state == ChargeState.Charging) EndCharge();
                 Destroy(this);
                 return;
             }
 
             switch (_state)
             {
-                case ChargeState.Idle:
-                    UpdateIdle();
-                    break;
-                case ChargeState.Watching:
-                    UpdateWatching();
-                    break;
-                case ChargeState.Charging:
-                    UpdateCharging();
-                    break;
-                case ChargeState.Cooldown:
-                    UpdateCooldown();
-                    break;
+                case ChargeState.Idle:      UpdateIdle();      break;
+                case ChargeState.Watching:  UpdateWatching();  break;
+                case ChargeState.Charging:  UpdateCharging();  break;
+                case ChargeState.Cooldown:  UpdateCooldown();  break;
             }
         }
 
         private void OnDestroy()
         {
-            // 确保在销毁时恢复属性
             if (_state == ChargeState.Charging)
-            {
                 EndCharge();
-            }
         }
 
-        /// <summary>
-        /// Idle 状态：等待 Agent 完全生成（spawned 状态激活）。
-        /// </summary>
+        // ==============================
+        // 状态机实现
+        // ==============================
+
         private void UpdateIdle()
         {
-            // 检查 spawned 状态是否已激活
             if (!ReferenceEquals(_agent.spawned, null) && _agent.spawned.active)
             {
                 _state = ChargeState.Watching;
@@ -172,166 +183,213 @@ namespace BadNorthBlackSpearman
             }
         }
 
-        /// <summary>
-        /// Watching 状态：检测 Agent 是否已经下船登岛。
-        /// Agent 在船上时 navPos.island 为 false，登岛后变为 true。
-        /// </summary>
         private void UpdateWatching()
         {
             _stateTimer += Time.deltaTime;
 
-            // 最多等待 30 秒，超时则放弃（防止永久卡在 watching）
+            // 30秒超时
             if (_stateTimer > 30f)
             {
-                LogStatus("Watching timeout (30s). Giving up.");
+                LogStatus("Watching timeout. Giving up.");
                 Destroy(this);
                 return;
             }
 
-            // 检测是否已登岛
-            if (_agent.navPos.island)
-            {
-                // 额外等待 0.3 秒，确保 AI 已初始化并获取到 enemyDir
-                if (_stateTimer < 0.3f)
-                    return;
+            // 必须已登岛
+            if (!_agent.navPos.island) return;
 
-                // 确定冲刺方向
-                if (_agent.enemyDir.sqrMagnitude > 0.01f)
-                {
-                    _chargeDirection = _agent.enemyDir.normalized;
-                }
-                else
-                {
-                    // 没有敌人方向，朝前方冲刺
-                    _chargeDirection = _agent.transform.forward.normalized;
-                }
+            // 额外等待确保AI初始化
+            if (_stateTimer < 0.3f) return;
 
-                StartCharge();
-            }
+            // 检测附近是否有敌方单位（玩家的单位）
+            if (!HasNearbyEnemy(out _chargeDirection))
+                return;
+
+            // 开始直线冲刺！
+            StartCharge();
         }
 
-        /// <summary>
-        /// Charging 状态：高速冲刺中，每帧覆盖移动方向和速度。
-        /// </summary>
         private void UpdateCharging()
         {
             _stateTimer -= Time.deltaTime;
 
-            if (_stateTimer <= 0f)
+            // 计算本帧移动距离
+            float moveDelta = ChargeSpeed * Time.deltaTime;
+            _chargeDistanceTraveled += moveDelta;
+
+            // 检查是否到达冲刺距离终点
+            if (_chargeDistanceTraveled >= ChargeDistance || _stateTimer <= 0f)
             {
-                // 冲刺结束
                 EndCharge();
                 _state = ChargeState.Cooldown;
-                _stateTimer = Plugin.ChargeCooldown;
-                LogStatus($"Charge complete. Cooldown {Plugin.ChargeCooldown}s.");
+                _stateTimer = ChargeCooldown;
+                LogStatus($"Charge complete. Distance={_chargeDistanceTraveled:F1}m. Cooldown {ChargeCooldown}s.");
                 return;
             }
 
-            // 每帧设置移动方向和速度（覆盖 AI 指令）
-            _agent.walkDir = _chargeDirection;
-            _agent.maxSpeed = _originalMaxSpeed * Plugin.ChargeSpeedMultiplier;
+            // ✅ 核心：直接控制 Transform 位置沿直线移动
+            // 完全绕过 Agent 的 AI 移动系统
+            Vector3 newPos = _agent.transform.position + _chargeDirection * moveDelta;
+
+            // 碰撞检测：前方是否有障碍物
+            // 使用 NavMesh 或简单 raycast 检测
+            RaycastHit hit;
+            float checkDist = moveDelta + 0.3f; // 稍微提前检测
+            if (Physics.Raycast(_agent.transform.position, _chargeDirection, out hit, checkDist,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                // 撞到东西，提前结束冲刺
+                _agent.transform.position = hit.point - _chargeDirection * 0.2f;
+                EndCharge();
+                _state = ChargeState.Cooldown;
+                _stateTimer = ChargeCooldown;
+                LogStatus($"Charge BLOCKED by {hit.collider.name}. Cooldown {ChargeCooldown}s.");
+                return;
+            }
+
+            _agent.transform.position = newPos;
+
+            // 让朝向跟随冲刺方向（旋转脸朝敌人）
+            if (_chargeDirection.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(_chargeDirection, Vector3.up);
+                _agent.transform.rotation = Quaternion.Slerp(
+                    _agent.transform.rotation, targetRot, Time.deltaTime * 10f);
+            }
+
+            // 冲刺期间：冻结AI移动
+            _agent.walkDir = Vector3.zero;
+            _agent.maxSpeed = 0f;
         }
 
-        /// <summary>
-        /// Cooldown 状态：冲刺冷却中。冷却结束后回到 Watching 状态。
-        /// </summary>
         private void UpdateCooldown()
         {
             _stateTimer -= Time.deltaTime;
+
+            // 恢复期内让 Agent 短暂不能动（硬直效果）
+            if (_stateTimer > ChargeCooldown - RecoveryTime)
+            {
+                _agent.walkDir = Vector3.zero;
+                _agent.maxSpeed = 0f;
+            }
+            else
+            {
+                // 恢复正常移动
+                _agent.maxSpeed = _originalMaxSpeed;
+            }
 
             if (_stateTimer <= 0f)
             {
                 _state = ChargeState.Watching;
                 _stateTimer = 0f;
-                LogStatus("Cooldown ended. Watching for next charge opportunity...");
+                _chargeDistanceTraveled = 0f;
+                LogStatus("Cooldown ended. Watching for next target...");
             }
         }
 
-        /// <summary>
-        /// 开始冲刺：
-        /// - 记录原始 maxSpeed
-        /// - 设置冲刺状态和计时器
-        /// - 免疫眩晕
-        /// </summary>
+        // ==============================
+        // 冲刺控制
+        // ==============================
+
         private void StartCharge()
         {
             _state = ChargeState.Charging;
-            _stateTimer = Plugin.ChargeDuration;
+            _stateTimer = ChargeDistance / ChargeSpeed; // 根据距离和速度计算持续时间
+            _chargeStartPos = _agent.transform.position;
+            _chargeDistanceTraveled = 0f;
+
+            // 保存原始移动状态
             _originalMaxSpeed = _agent.maxSpeed;
+            _originalWalkDir = _agent.walkDir;
 
             // 免疫眩晕
             SetStunImmunity(true);
 
-            LogStatus($"CHARGE! Direction: {_chargeDirection}, Speed: x{Plugin.ChargeSpeedMultiplier}");
+            LogStatus($"CHARGE! Dir={_chargeDirection.ToString("F1")}, " +
+                      $"Speed={ChargeSpeed}m/s, MaxDist={ChargeDistance}m, " +
+                      $"Duration={_stateTimer:F2}s");
         }
 
-        /// <summary>
-        /// 结束冲刺：
-        /// - 恢复 maxSpeed
-        /// - 恢复眩晕状态
-        /// </summary>
         private void EndCharge()
         {
+            // 恢复AI控制
             _agent.maxSpeed = _originalMaxSpeed;
+
+            // 解除眩晕免疫
             SetStunImmunity(false);
+
+            LogStatus($"Charge ended. Pos delta={Vector3.Distance(_agent.transform.position, _chargeStartPos):F1}m");
         }
 
+        // ==============================
+        // 敌人检测
+        // ==============================
+
         /// <summary>
-        /// 设置/取消眩晕免疫。
-        /// 按优先级尝试多种策略：
-        ///   1. Stun.stunMultiplier (float) — 设为 0 免疫
-        ///   2. Stun.enabled (bool) — 设为 false 免疫
-        /// 两种策略均不可用时，静默跳过（不影响冲刺核心功能）。
+        /// 检测附近是否有敌方单位（玩家的士兵）。
+        /// 遍历所有 Agent，找到最近的玩家方 Agent，设置冲刺方向。
         /// </summary>
+        private bool HasNearbyEnemy(out Vector3 direction)
+        {
+            direction = Vector3.zero;
+
+            var allAgents = Object.FindObjectsOfType<Agent>();
+            Agent closestEnemy = null;
+            float closestDist = DetectionRadius;
+
+            foreach (var other in allAgents)
+            {
+                if (ReferenceEquals(other, null)) continue;
+                if (ReferenceEquals(other, _agent)) continue;
+                if (other.isViking) continue; // 跳过维京人，只找玩家方的
+                if (!ReferenceEquals(other.aliveState, null) && !other.aliveState.active) continue;
+
+                float dist = Vector3.Distance(_agent.transform.position, other.transform.position);
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                    closestEnemy = other;
+                }
+            }
+
+            if (closestEnemy == null)
+                return false;
+
+            direction = (closestEnemy.transform.position - _agent.transform.position).normalized;
+            return true;
+        }
+
+        // ==============================
+        // 眩晕免疫
+        // ==============================
+
         private void SetStunImmunity(bool immune)
         {
-            if (ReferenceEquals(_stunComponent, null))
-                return;
+            if (ReferenceEquals(_stunComponent, null)) return;
 
             switch (_stunStrategy)
             {
                 case StunImmunityStrategy.StunMultiplier:
                     if (!ReferenceEquals(_stunMultiplierField, null))
-                    {
-                        if (immune)
-                            _stunMultiplierField.SetValue(_stunComponent, 0f);
-                        else
-                            _stunMultiplierField.SetValue(_stunComponent, _originalStunMultiplier);
-                    }
+                        _stunMultiplierField.SetValue(_stunComponent, immune ? 0f : _originalStunMultiplier);
                     break;
 
                 case StunImmunityStrategy.StunEnabled:
                     if (!ReferenceEquals(_stunEnabledProp, null))
-                    {
                         _stunEnabledProp.SetValue(_stunComponent, !immune, null);
-                    }
                     else if (!ReferenceEquals(_stunEnabledField, null))
-                    {
                         _stunEnabledField.SetValue(_stunComponent, !immune);
-                    }
-                    break;
-
-                case StunImmunityStrategy.None:
-                default:
-                    // 无可用的眩晕免疫策略，静默跳过
                     break;
             }
         }
 
-        /// <summary>
-        /// 一次性反射检测最佳的眩晕免疫策略。
-        /// 优先级：StunMultiplier > StunEnabled > None
-        /// </summary>
         private static void CacheStunStrategy()
         {
-            if (_stunFieldAttempted)
-                return;
-
+            if (_stunFieldAttempted) return;
             _stunFieldAttempted = true;
 
             var stunType = typeof(Stun);
 
-            // 策略1：查找 stunMultiplier 字段
             _stunMultiplierField = stunType.GetField("stunMultiplier",
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (!ReferenceEquals(_stunMultiplierField, null))
@@ -341,9 +399,6 @@ namespace BadNorthBlackSpearman
                 return;
             }
 
-            // 策略1 Fallback：查找名称包含 "Multiplier" 的浮点字段
-            // 注意：Unity 2018.4 的 Mono CLR 2.0 不支持 Type.op_Equality，
-            // 必须使用 Equals() 而非 == 比较两个 Type 对象
             foreach (var field in stunType.GetFields(
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             {
@@ -353,18 +408,17 @@ namespace BadNorthBlackSpearman
                     _stunMultiplierField = field;
                     _stunStrategy = StunImmunityStrategy.StunMultiplier;
                     Plugin.SharedLogger?.LogInfo(
-                        $"[BlackSpearman] Stun immunity: using Stun.{field.Name} (float, found by name matching).");
+                        $"[BlackSpearman] Stun immunity: using Stun.{field.Name} (float).");
                     return;
                 }
             }
 
-            // 策略2：尝试 Stun.enabled（bool 属性或字段）
             _stunEnabledProp = stunType.GetProperty("enabled",
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (!ReferenceEquals(_stunEnabledProp, null))
             {
                 _stunStrategy = StunImmunityStrategy.StunEnabled;
-                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.enabled (bool property) strategy.");
+                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.enabled (bool property).");
                 return;
             }
 
@@ -373,24 +427,22 @@ namespace BadNorthBlackSpearman
             if (!ReferenceEquals(_stunEnabledField, null))
             {
                 _stunStrategy = StunImmunityStrategy.StunEnabled;
-                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.enabled (bool field) strategy.");
+                Plugin.SharedLogger?.LogInfo("[BlackSpearman] Stun immunity: using Stun.enabled (bool field).");
                 return;
             }
 
-            // 所有策略均失败
             _stunStrategy = StunImmunityStrategy.None;
             Plugin.SharedLogger?.LogWarning(
-                "[BlackSpearman] Stun immunity: NO viable strategy found. Charge will NOT grant stun immunity.");
+                "[BlackSpearman] Stun immunity: NO viable strategy found.");
         }
 
-        /// <summary>
-        /// 状态日志（防止刷屏：相同消息最多每 2 秒打印一次）。
-        /// </summary>
+        // ==============================
+        // 工具
+        // ==============================
+
         private void LogStatus(string msg)
         {
-            if (Time.time - _lastLogTime < 2f)
-                return;
-
+            if (Time.time - _lastLogTime < 2f) return;
             _lastLogTime = Time.time;
             Plugin.SharedLogger?.LogInfo($"[BlackSpearman] [Charge] {msg}");
         }

@@ -318,24 +318,90 @@ namespace BadNorthBlackSpearman
                 lines.Add($"  [FAIL] Armor: component NOT found. Armor multiplier NOT applied!");
             }
 
-            // 3. 颜色渲染检查
+            // 3. 渲染组件全面扫描（按 GameObject 层级树打印）
             int batchedSpriteCount = 0;
             int colorAppliedCount = 0;
             var allComps = agent.GetComponentsInChildren<Component>(true);
+            lines.Add("  [DIAG] Render Component Tree:");
             foreach (var comp in allComps)
             {
                 if (comp == null) continue;
-                var typeName = comp.GetType().Name;
-                if (typeName == "BatchedSprite" || typeName == "SpriteAnimator")
+                var compType = comp.GetType();
+                var typeFullName = compType.FullName;
+
+                // 只记录渲染相关组件
+                bool isRenderRelated =
+                    typeFullName.EndsWith(".BatchedSprite") ||
+                    typeFullName.EndsWith(".SpriteAnimator") ||
+                    typeFullName.EndsWith(".SpriteRenderer") ||
+                    typeFullName.EndsWith(".MeshRenderer") ||
+                    typeFullName.EndsWith(".SkinnedMeshRenderer") ||
+                    typeFullName.Contains("Render") ||
+                    typeFullName.Contains("Sprite") ||
+                    typeFullName.Contains("Mesh");
+
+                if (!isRenderRelated) continue;
+
+                // 记录 GameObject 层级路径
+                var goName = comp.gameObject != null ? comp.gameObject.name : "?";
+                var parentName = comp.transform != null && comp.transform.parent != null
+                    ? comp.transform.parent.name : "root";
+                var pathStr = $"{parentName}/{goName}";
+
+                // 检查该组件的所有公共属性
+                var props = compType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                List<string> propInfos = new List<string>();
+                bool hasColorProp = false;
+
+                foreach (var prop in props)
+                {
+                    if (prop == null) continue;
+                    var propName = prop.Name.ToLower();
+                    try
+                    {
+                        if (propName == "color")
+                        {
+                            hasColorProp = true;
+                            var currentColor = prop.GetValue(comp, null);
+                            propInfos.Add($"color={currentColor}");
+                        }
+                        else if (propName == "sprite" || propName == "texture" || propName == "maintexture")
+                        {
+                            var currentSprite = prop.GetValue(comp, null);
+                            if (currentSprite != null)
+                            {
+                                var spriteStr = currentSprite.ToString();
+                                if (spriteStr.Length > 40)
+                                    spriteStr = spriteStr.Substring(0, 37) + "...";
+                                propInfos.Add($"sprite={currentSprite.GetType().Name}:'{spriteStr}'");
+                            }
+                            else
+                                propInfos.Add("sprite=NULL");
+                        }
+                        else if (propName == "material" || propName == "sharedmaterial")
+                        {
+                            var mat = prop.GetValue(comp, null) as Material;
+                            if (mat != null)
+                            {
+                                var matColor = mat.HasProperty("_Color") ? mat.GetColor("_Color").ToString() : "N/A";
+                                propInfos.Add($"material._Color={matColor}");
+                            }
+                            else
+                                propInfos.Add("material=NULL");
+                        }
+                    }
+                    catch { /* skip inaccessible properties */ }
+                }
+
+                // 统计 BatchedSprite/SpriteAnimator
+                if (typeFullName.EndsWith(".BatchedSprite") || typeFullName.EndsWith(".SpriteAnimator"))
                 {
                     batchedSpriteCount++;
-                    var prop = comp.GetType().GetProperty("color",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(prop, null))
-                    {
+                    if (hasColorProp)
                         colorAppliedCount++;
-                    }
                 }
+
+                lines.Add($"    [{compType.Name}] {pathStr}  props=[{string.Join(", ", propInfos.ToArray())}]");
             }
 
             if (batchedSpriteCount == 0)
@@ -343,8 +409,7 @@ namespace BadNorthBlackSpearman
             else if (colorAppliedCount == batchedSpriteCount)
                 lines.Add($"  [PASS] Color: {colorAppliedCount}/{batchedSpriteCount} BatchedSprite/SpriteAnimator set to black");
             else
-                lines.Add($"  [WARN] Color: only {colorAppliedCount}/{batchedSpriteCount} components set - " +
-                          $"color property reflection partially failed");
+                lines.Add($"  [WARN] Color: only {colorAppliedCount}/{batchedSpriteCount} components have color property");
 
             // 4. Stun 免疫策略（从 SpearChargeComponent 读取静态字段）
             var stunStrategyField = typeof(SpearChargeComponent).GetField("_stunStrategy",
@@ -360,7 +425,7 @@ namespace BadNorthBlackSpearman
                       $"DamageMultiplier={DamageMultiplier} KnockbackMultiplier={KnockbackMultiplier}");
 
             lines.Add("==========================================");
-            SharedLogger?.LogInfo(string.Join("\n", lines));
+            SharedLogger?.LogInfo(string.Join("\n", lines.ToArray()));
         }
 
         internal static void ApplyBlackSpearman(Agent agent)
@@ -396,13 +461,42 @@ namespace BadNorthBlackSpearman
             foreach (var comp in allComps)
             {
                 if (comp == null) continue;
-                var typeName = comp.GetType().Name;
-                if (typeName == "BatchedSprite" || typeName == "SpriteAnimator")
+                var compType = comp.GetType();
+                var typeName = compType.FullName;
+
+                if (typeName.EndsWith(".BatchedSprite") || typeName.EndsWith(".SpriteAnimator"))
                 {
-                    var prop = comp.GetType().GetProperty("color",
+                    var prop = compType.GetProperty("color",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                     if (!ReferenceEquals(prop, null))
                         prop.SetValue(comp, BlackColor, null);
+                    else
+                        SharedLogger?.LogDebug($"[BlackSpearman] [Color] {typeName}: has NO 'color' property");
+                }
+                else if (typeName.EndsWith(".SpriteRenderer") || typeName.EndsWith(".MeshRenderer") ||
+                         typeName.EndsWith(".SkinnedMeshRenderer") || typeName.Contains("Render"))
+                {
+                    // 尝试设置 material.color
+                    var matProp = compType.GetProperty("material",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(matProp, null))
+                    {
+                        var mat = matProp.GetValue(comp, null) as Material;
+                        if (mat != null && mat.HasProperty("_Color"))
+                        {
+                            mat.SetColor("_Color", BlackColor);
+                            SharedLogger?.LogDebug($"[BlackSpearman] [Color] {typeName}: set material._Color to black");
+                        }
+                    }
+
+                    // 尝试直接设置 color 属性
+                    var colorProp = compType.GetProperty("color",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(colorProp, null))
+                    {
+                        colorProp.SetValue(comp, BlackColor, null);
+                        SharedLogger?.LogDebug($"[BlackSpearman] [Color] {typeName}: set .color to black");
+                    }
                 }
             }
         }
