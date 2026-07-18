@@ -4,26 +4,7 @@ using Voxels.TowerDefense;
 
 namespace BadNorthBlackSpearman
 {
-    /// <summary>
-    /// 黑色矛兵冲刺组件 — 直线突进版。
-    /// 
-    /// 状态机：
-    ///   Idle → Watching（等待登岛）
-    ///   Watching → Charging（检测到敌方单位在范围内，锁定方向直线冲刺）
-    ///   Charging → Cooldown（冲刺到达终点或撞墙后进入冷却）
-    ///   Cooldown → Watching（冷却结束，重新寻找目标）
-    /// 
-    /// 冲刺行为（v2.0 直线突进）：
-    ///   - 锁定敌人方向，直接控制 transform.position 沿直线移动
-    ///   - 冲刺期间禁用 AI 移动（冻结 walkDir，覆盖位置）
-    ///   - 固定冲刺距离（ChargeDistance），而非固定时间
-    ///   - 撞到建筑物/地形阻挡时提前结束
-    ///   - 免疫眩晕
-    ///   
-    /// 与 v1.0 的区别：
-    ///   v1.0: walkDir + maxSpeed ×3.5 → AI 仍可干预，拐弯
-    ///   v2.0: transform.position += direction * speed * dt → 纯直线，不受 AI 影响
-    /// </summary>
+
     public class SpearChargeComponent : MonoBehaviour
     {
         private enum ChargeState
@@ -34,9 +15,6 @@ namespace BadNorthBlackSpearman
             Cooldown
         }
 
-        // ==============================
-        // 眩晕免疫策略枚举
-        // ==============================
         private enum StunImmunityStrategy
         {
             None,
@@ -44,11 +22,6 @@ namespace BadNorthBlackSpearman
             StunEnabled
         }
 
-        // ==============================
-        // 冲刺参数（可通过 Plugin 常量覆盖）
-        // ==============================
-
-        /// <summary>冲刺距离（世界单位）</summary>
         private const float ChargeDistance = 3.5f;
 
         /// <summary>冲刺速度（米/秒）</summary>
@@ -62,10 +35,6 @@ namespace BadNorthBlackSpearman
 
         /// <summary>冲刺结束后的短暂硬直时间</summary>
         private const float RecoveryTime = 0.4f;
-
-        // ==============================
-        // 实例字段
-        // ==============================
 
         private Agent _agent;
         private ChargeState _state = ChargeState.Idle;
@@ -235,8 +204,14 @@ namespace BadNorthBlackSpearman
             // 使用 NavMesh 或简单 raycast 检测
             RaycastHit hit;
             float checkDist = moveDelta + 0.3f; // 稍微提前检测
+            // 只检测地形/建筑物，避免被队友或尸体阻挡
+            // Bad North 地形层: Voxels + Houses（文档 08 §4.1）：arrowLow = Voxels + Houses + ArrowBlocker
+            int v = LayerMask.NameToLayer("Voxels");
+            int h = LayerMask.NameToLayer("Houses");
+            int ab = LayerMask.NameToLayer("ArrowBlocker");
+            int terrainLayer = (1 << (v >= 0 ? v : 0)) | (1 << (h >= 0 ? h : 0)) | (1 << (ab >= 0 ? ab : 0));
             if (Physics.Raycast(_agent.transform.position, _chargeDirection, out hit, checkDist,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                terrainLayer, QueryTriggerInteraction.Ignore))
             {
                 // 撞到东西，提前结束冲刺
                 _agent.transform.position = hit.point - _chargeDirection * 0.2f;

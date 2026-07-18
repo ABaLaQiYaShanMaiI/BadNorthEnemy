@@ -4,54 +4,35 @@ using System.Reflection;
 using BepInEx;
 using UnityEngine;
 using Voxels.TowerDefense;
+using Voxels.TowerDefense.CampaignGeneration.CampaignAc3;
 
 namespace BadNorthBlackSpearman
 {
-    /// <summary>
-    /// Bad North 黑色长矛手敌人 Mod
-    /// 纯 BepInEx + 事件订阅 + Agent轮询fallback，不含 Harmony
-    /// </summary>
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.0")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.1")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
-
-        /// <summary>SpearChargeComponent 可用的公共日志</summary>
         public static BepInEx.Logging.ManualLogSource SharedLogger;
+
+        internal const string BlackSpearmanRefName = "Viking_BlackSpearman";
+        internal const float ConversionChance = 0.4f;
+        internal const float DamageMultiplier = 1.6f;
+        internal const float KnockbackMultiplier = 2.5f;
+        internal const float ArmorMultiplier = 1.3f;
+        internal const float ScaleMultiplier = 1.2f;
 
         internal static readonly HashSet<Agent> ConvertedAgents = new HashSet<Agent>();
 
-        internal const float ConversionChance = 0.4f;
-        internal static readonly Color BlackColor = new Color(0.08f, 0.02f, 0.02f, 1f);
-        internal const float DamageMultiplier = 1.6f;
-        internal const float KnockbackMultiplier = 2.5f;
-        internal const float ScaleMultiplier = 1.2f;
-        internal const float ChargeSpeedMultiplier = 3.5f;
-        internal const float ChargeDuration = 1.5f;
-        internal const float ChargeCooldown = 8.0f;
-
-        // ==============================
-        // 反射缓存
-        // ==============================
-
         private static FieldInfo _armorField;
         private static bool _armorFieldAttempted;
-
-        /// <summary>onAgentSpawned 字段的 FieldInfo（通过反射检测运行时是否真实存在）</summary>
-        private static FieldInfo _onAgentSpawnedField;
-        private static bool _onAgentSpawnedFieldAttempted;
-
-        /// <summary>运行时确认 onAgentSpawned 事件可用（false 时走 Agent 轮询 fallback）</summary>
-        internal static bool OnAgentSpawnedAvailable;
-
-        /// <summary>已订阅 onAgentSpawned 的小队对象（防止重复订阅）</summary>
-        private static readonly HashSet<object> _subscribedSquads = new HashSet<object>();
-
-        /// <summary>转化计数统计</summary>
         private int _totalConvertedCount;
-
-        /// <summary>首次转化全量诊断是否已完成</summary>
         private static bool _firstConversionDiagnosticDone;
+        private static bool _hooksRegistered;
+
+        // LevelRule / LevelGuessable 私有字段缓存
+        private static FieldInfo _levelRuleConditionField;
+        private static FieldInfo _levelGuessableProbabilityField;
+        private static bool _levelFieldsCached;
 
         // ==============================
         // BepInEx 生命周期
@@ -61,168 +42,190 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.0 START ======");
-
-            // 诊断日志：运行时环境 & 关键类型检查
-            try
-            {
-                Logger.LogInfo($"[BlackSpearman] BepInEx version: {typeof(BaseUnityPlugin).Assembly.GetName().Version}");
-                Logger.LogInfo($"[BlackSpearman] Assembly-CSharp loaded: {typeof(Faction).Assembly.FullName}");
-                Logger.LogInfo($"[BlackSpearman] CLR: {Environment.Version}");
-                Logger.LogInfo($"[BlackSpearman] OS: {Environment.OSVersion}");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"[BlackSpearman] Env log failed: {ex}");
-            }
-
-            // 关键类型存在性扫描
-            // 使用 ReferenceEquals 判空避免 Mono 2.0 的 Type.op_Inequality 问题
-            try
-            {
-                Logger.LogInfo($"[BlackSpearman] === Type Check ===");
-                Logger.LogInfo($"[BlackSpearman] Faction type OK: {!ReferenceEquals(typeof(Faction), null)}");
-                Logger.LogInfo($"[BlackSpearman] VikingAgent type OK: {!ReferenceEquals(typeof(VikingAgent), null)}");
-                Logger.LogInfo($"[BlackSpearman] Agent type OK: {!ReferenceEquals(typeof(Agent), null)}");
-                Logger.LogInfo($"[BlackSpearman] Swordsman type OK: {!ReferenceEquals(typeof(Swordsman), null)}");
-                Logger.LogInfo($"[BlackSpearman] Stun type OK: {!ReferenceEquals(typeof(Stun), null)}");
-                Logger.LogInfo($"[BlackSpearman] Armor type OK: {!ReferenceEquals(typeof(Armor), null)}");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"[BlackSpearman] Type check failed: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-            }
-
-            // 每 3 秒轮询一次
-            try { InvokeRepeating("PollForSquads", 1f, 3f); }
-            catch (Exception ex)
-            {
-                Logger.LogError($"[BlackSpearman] InvokeRepeating failed: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-            }
-
+            Logger.LogInfo("[BlackSpearman] ====== v1.1 MMHOOK START ======");
+            LogEnvironmentInfo();
+            RegisterHooks();
             Logger.LogInfo("[BlackSpearman] ====== INIT COMPLETE ======");
         }
 
         private void OnDestroy()
         {
-            CancelInvoke("PollForSquads");
+            try
+            {
+                On.Voxels.TowerDefense.GameSetup.Awake -= OnGameSetupAwake;
+                On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn -= OnLandingSpawn;
+            }
+            catch { }
+            _hooksRegistered = false;
         }
 
         // ==============================
-        // 主轮询逻辑
+        // MMHOOK 注册
         // ==============================
 
-        /// <summary>
-        /// 轮询扫描所有 Viking Squad，尝试两种途径捕获新 Agent：
-        /// 1. 通过 squad.onAgentSpawned 事件订阅（运行时反射验证存在性）
-        /// 2. Fallback：每 3 秒直接扫描所有 Viking Agent（独立于事件订阅）
-        /// </summary>
-        private void PollForSquads()
+        private void RegisterHooks()
         {
-            // 途径 1：尝试订阅 onAgentSpawned 事件
-            // 使用反射运行时检测字段是否存在，而非依赖源文件
-            EnsureOnAgentSpawnedAvailable();
-
-            if (OnAgentSpawnedAvailable)
-            {
-                var factions = FindObjectsOfType<Faction>();
-                foreach (var faction in factions)
-                {
-                    if (faction == null || faction.allSquads == null) continue;
-
-                    foreach (var squad in faction.allSquads)
-                    {
-                        if (squad == null) continue;
-                        if (squad.faction.side != Faction.Side.Viking) continue;
-
-                        // 防止重复订阅
-                        if (_subscribedSquads.Contains(squad)) continue;
-                        _subscribedSquads.Add(squad);
-
-                        try
-                        {
-                            var action = _onAgentSpawnedField.GetValue(squad) as Action<Agent>;
-                            if (action != null)
-                            {
-                                action -= OnAgentSpawnedHandler;
-                                action += OnAgentSpawnedHandler;
-                                _onAgentSpawnedField.SetValue(squad, action);
-                            }
-                            else
-                            {
-                                // 首次订阅：直接通过 += 委托组合
-                                var newAction = new Action<Agent>(OnAgentSpawnedHandler);
-                                _onAgentSpawnedField.SetValue(squad, newAction);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            SharedLogger?.LogWarning($"[BlackSpearman] Squad subscribe failed: {ex.Message}");
-                            continue;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // 途径 2 Fallback：直接扫描所有 Agent
-                // onAgentSpawned 字段不存在时使用此方式
-                // 仅每 3 秒扫描一次新出现的 Agent
-                var agents = FindObjectsOfType<Agent>();
-                foreach (var agent in agents)
-                {
-                    if (agent == null) continue;
-                    OnAgentSpawnedHandler(agent);
-                }
-            }
-
-        }
-
-        /// <summary>
-        /// 运行时验证 onAgentSpawned 字段是否存在。
-        /// 使用反射从 Squad 类型中查找，比依赖源文件更可靠。
-        /// </summary>
-        private void EnsureOnAgentSpawnedAvailable()
-        {
-            if (_onAgentSpawnedFieldAttempted) return;
-            _onAgentSpawnedFieldAttempted = true;
+            if (_hooksRegistered) return;
+            _hooksRegistered = true;
 
             try
             {
-                // 从 Faction.allSquads 获取一个 Squad 实例来检查其类型
-                var factions = FindObjectsOfType<Faction>();
-                foreach (var faction in factions)
-                {
-                    if (faction == null || faction.allSquads == null) continue;
-                    foreach (var squad in faction.allSquads)
-                    {
-                        if (squad == null) continue;
-                        var squadType = squad.GetType();
-                        // 查找所有字段中含 "AgentSpawned" 的（不区分大小写）
-                        foreach (var field in squadType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-                        {
-                            if (field.Name.IndexOf("AgentSpawned", StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                _onAgentSpawnedField = field;
-                                OnAgentSpawnedAvailable = true;
-                                SharedLogger?.LogInfo($"[BlackSpearman] Found onAgentSpawned field: '{field.Name}' on {squadType.Name}");
-                                return;
-                            }
-                        }
-                        // 只检查第一个找到的 Squad 实例
-                        break;
-                    }
-                    break;
-                }
+                On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake;
+                Logger.LogInfo("[BlackSpearman] Hook: GameSetup.Awake (MMHOOK)");
 
-                if (!OnAgentSpawnedAvailable)
+                On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn += OnLandingSpawn;
+                Logger.LogInfo("[BlackSpearman] Hook: Landing.Spawn (MMHOOK)");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[BlackSpearman] Hook registration failed: {ex.GetType().Name}: {ex.Message}");
+                _hooksRegistered = false;
+            }
+        }
+
+        // ==============================
+        // Hook 1: GameSetup.Awake
+        // ==============================
+
+        private void OnGameSetupAwake(
+            On.Voxels.TowerDefense.GameSetup.orig_Awake orig,
+            GameSetup self)
+        {
+            orig(self);
+            try
+            {
+                EnsureSwordShieldAlwaysAvailable();
+                RegisterBlackSpearmanReference();
+            }
+            catch (Exception ex)
+            {
+                SharedLogger?.LogError($"[BlackSpearman] GameSetup hook: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        // ==============================
+        // Hook 2: Landing.Spawn
+        // ==============================
+
+        private Voxels.TowerDefense.Longship OnLandingSpawn(
+            On.Voxels.TowerDefense.RaidGeneration.Landing.orig_Spawn orig,
+            Voxels.TowerDefense.RaidGeneration.Landing self)
+        {
+            Voxels.TowerDefense.Longship longship = orig(self);
+
+            try
+            {
+                if (!ReferenceEquals(longship, null) && longship.agents != null)
                 {
-                    SharedLogger?.LogWarning("[BlackSpearman] onAgentSpawned field NOT found. Using Agent polling fallback.");
+                    foreach (var agent in longship.agents)
+                    {
+                        if (!ReferenceEquals(agent, null))
+                            OnAgentSpawnedHandler(agent);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                SharedLogger?.LogWarning($"[BlackSpearman] onAgentSpawned detection error: {ex.Message}. Using Agent polling fallback.");
+                SharedLogger?.LogError($"[BlackSpearman] Landing.Spawn handler: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            return longship;
+        }
+
+        // ==============================
+        // LevelExpression 反射工具
+        // ==============================
+
+        private static void CacheLevelFields()
+        {
+            if (_levelFieldsCached) return;
+            _levelFieldsCached = true;
+
+            _levelRuleConditionField = typeof(LevelRule).GetField("condition",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            _levelGuessableProbabilityField = typeof(LevelGuessable).GetField("probability",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        }
+
+        private static FieldInfo _levelExpressionField;
+
+        private static void SetLevelExpr(Component comp, FieldInfo field, string expr)
+        {
+            if (ReferenceEquals(comp, null) || ReferenceEquals(field, null)) return;
+            var le = field.GetValue(comp);
+            if (ReferenceEquals(le, null)) return;
+
+            if (ReferenceEquals(_levelExpressionField, null))
+                _levelExpressionField = le.GetType().GetField("expression",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            if (!ReferenceEquals(_levelExpressionField, null))
+                _levelExpressionField.SetValue(le, expr);
+        }
+
+        // ==============================
+        // SwordShield 永驻 + 黑矛兵注册
+        // ==============================
+
+        private void EnsureSwordShieldAlwaysAvailable()
+        {
+            CacheLevelFields();
+
+            UnityEngine.Object obj;
+            if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out obj))
+            {
+                SharedLogger?.LogWarning("[BlackSpearman] Viking_SwordShield not found in dict.");
+                return;
+            }
+
+            var swordShieldRef = obj as VikingReference;
+            if (ReferenceEquals(swordShieldRef, null)) return;
+
+            SetLevelExpr(swordShieldRef.GetComponent<LevelRule>(), _levelRuleConditionField, "true");
+            SetLevelExpr(swordShieldRef.GetComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
+            SharedLogger?.LogInfo("[BlackSpearman] SwordShield LevelRule/LevelGuessable set to always available.");
+        }
+
+        private void RegisterBlackSpearmanReference()
+        {
+            if (LevelStateObjectReferences.dict.ContainsKey(BlackSpearmanRefName))
+            {
+                SharedLogger?.LogDebug($"[BlackSpearman] '{BlackSpearmanRefName}' already registered.");
+                return;
+            }
+            CacheLevelFields();
+
+            UnityEngine.Object swordObj;
+            if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out swordObj))
+            {
+                SharedLogger?.LogWarning("[BlackSpearman] Cannot find Viking_SwordShield to clone.");
+                return;
+            }
+
+            var origRef = swordObj as VikingReference;
+            if (ReferenceEquals(origRef, null)) return;
+
+            var newGo = new GameObject(BlackSpearmanRefName);
+            DontDestroyOnLoad(newGo);
+
+            var newRef = newGo.AddComponent<VikingReference>();
+            CopyVikingReferenceFields(origRef, newRef);
+
+            SetLevelExpr(newGo.AddComponent<LevelRule>(), _levelRuleConditionField, "true");
+            SetLevelExpr(newGo.AddComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
+
+            LevelStateObjectReferences.AddToDict(newRef);
+            SharedLogger?.LogInfo($"[BlackSpearman] Registered independent VikingReference: '{BlackSpearmanRefName}'.");
+        }
+
+        private void CopyVikingReferenceFields(VikingReference src, VikingReference dst)
+        {
+            foreach (var name in new[] { "type", "viking", "bounty" })
+            {
+                var f = typeof(VikingReference).GetField(name,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(f, null))
+                    f.SetValue(dst, f.GetValue(src));
             }
         }
 
@@ -230,17 +233,12 @@ namespace BadNorthBlackSpearman
         // Agent 生成处理
         // ==============================
 
-        /// <summary>
-        /// 当新的 Viking Agent 生成时处理。
-        /// 同时支持 onAgentSpawned 事件回调 和 Agent 轮询 fallback。
-        /// ConvertedAgents HashSet 保证幂等性。
-        /// </summary>
         internal static void OnAgentSpawnedHandler(Agent agent)
         {
-            if (agent == null || !agent.isViking) return;
+            if (ReferenceEquals(agent, null) || !agent.isViking) return;
 
             var va = agent.GetComponent<VikingAgent>();
-            if (va == null || va.type != VikingAgent.Type.SwordShield) return;
+            if (ReferenceEquals(va, null) || va.type != VikingAgent.Type.SwordShield) return;
 
             if (ConvertedAgents.Contains(agent)) return;
             if (UnityEngine.Random.value > ConversionChance) return;
@@ -248,195 +246,30 @@ namespace BadNorthBlackSpearman
             ConvertedAgents.Add(agent);
 
             try { ApplyBlackSpearman(agent); }
-            catch (Exception ex)
-            {
-                if (Instance != null)
-                    Instance.Logger.LogError($"[BlackSpearman] Apply failed: {ex.Message}");
-            }
+            catch (Exception ex) { SharedLogger?.LogError($"[BlackSpearman] Apply: {ex.Message}"); }
 
-            // 每新增 10 个转化或首个转化时打印统计
             if (Instance != null)
             {
                 Instance._totalConvertedCount++;
-                if (Instance._totalConvertedCount == 1 ||
-                    Instance._totalConvertedCount % 10 == 0)
-                {
-                    Instance.Logger.LogInfo(
-                        $"[BlackSpearman] Converted #{Instance._totalConvertedCount}: " +
-                        $"type={va.type}, hp={agent.health:F1}/{agent.maxHealth:F1}, " +
-                        $"scale={agent.scale:F2}, squad={agent.squad?.name ?? "?"}");
-                }
+                if (Instance._totalConvertedCount % 10 == 1 || Instance._totalConvertedCount <= 1)
+                    Instance.Logger.LogInfo($"[BlackSpearman] Converted #{Instance._totalConvertedCount}: " +
+                        $"type={va.type}, hp={agent.health:F1}/{agent.maxHealth:F1}, scale={agent.scale:F2}");
             }
         }
 
         // ==============================
-        // 黑矛兵属性应用
+        // 五步转化链
         // ==============================
-
-        // ==============================
-        // 首次转化全量诊断（仅在第一个 Agent 转化后运行一次）
-        // ==============================
-        private static void RunFirstConversionDiagnostic(Agent agent)
-        {
-            var lines = new List<string>();
-            lines.Add("===== First Conversion Diagnostic =====");
-
-            // 1. Brain 类型检查
-            var swordsman = agent.brain as Swordsman;
-            if (swordsman != null)
-            {
-                lines.Add($"  [PASS] Brain: Swordsman (OK)");
-                lines.Add($"         damageLevels[0]={swordsman.damageLevels[0]:F2} " +
-                          $"knockbackLevels[0]={swordsman.knockbackLevels[0]:F2}");
-            }
-            else
-            {
-                var brainType = agent.brain != null ? agent.brain.GetType().FullName : "null";
-                lines.Add($"  [FAIL] Brain: expected Swordsman, got {brainType}");
-                lines.Add($"         Damage/knockback multipliers NOT applied!");
-            }
-
-            // 2. Armor 组件检查
-            var armor = agent.GetComponent<Armor>();
-            if (armor != null)
-            {
-                var armorField = typeof(Armor).GetField("armor",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(armorField, null))
-                {
-                    var vals = armorField.GetValue(armor) as float[];
-                    if (vals != null)
-                        lines.Add($"  [PASS] Armor: present, values=[{vals[0]:F2}, {vals[1]:F2}, {vals[2]:F2}]");
-                    else
-                        lines.Add($"  [WARN] Armor: component present but 'armor' field is null");
-                }
-                else
-                    lines.Add($"  [WARN] Armor: component present but 'armor' field not found by reflection");
-            }
-            else
-            {
-                lines.Add($"  [FAIL] Armor: component NOT found. Armor multiplier NOT applied!");
-            }
-
-            // 3. 渲染组件全面扫描（按 GameObject 层级树打印）
-            int batchedSpriteCount = 0;
-            int colorAppliedCount = 0;
-            var allComps = agent.GetComponentsInChildren<Component>(true);
-            lines.Add("  [DIAG] Render Component Tree:");
-            foreach (var comp in allComps)
-            {
-                if (comp == null) continue;
-                var compType = comp.GetType();
-                var typeFullName = compType.FullName;
-
-                // 只记录渲染相关组件
-                bool isRenderRelated =
-                    typeFullName.EndsWith(".BatchedSprite") ||
-                    typeFullName.EndsWith(".SpriteAnimator") ||
-                    typeFullName.EndsWith(".SpriteRenderer") ||
-                    typeFullName.EndsWith(".MeshRenderer") ||
-                    typeFullName.EndsWith(".SkinnedMeshRenderer") ||
-                    typeFullName.Contains("Render") ||
-                    typeFullName.Contains("Sprite") ||
-                    typeFullName.Contains("Mesh");
-
-                if (!isRenderRelated) continue;
-
-                // 记录 GameObject 层级路径
-                var goName = comp.gameObject != null ? comp.gameObject.name : "?";
-                var parentName = comp.transform != null && comp.transform.parent != null
-                    ? comp.transform.parent.name : "root";
-                var pathStr = $"{parentName}/{goName}";
-
-                // 检查该组件的所有公共属性
-                var props = compType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                List<string> propInfos = new List<string>();
-                bool hasColorProp = false;
-
-                foreach (var prop in props)
-                {
-                    if (prop == null) continue;
-                    var propName = prop.Name.ToLower();
-                    try
-                    {
-                        if (propName == "color")
-                        {
-                            hasColorProp = true;
-                            var currentColor = prop.GetValue(comp, null);
-                            propInfos.Add($"color={currentColor}");
-                        }
-                        else if (propName == "sprite" || propName == "texture" || propName == "maintexture")
-                        {
-                            var currentSprite = prop.GetValue(comp, null);
-                            if (currentSprite != null)
-                            {
-                                var spriteStr = currentSprite.ToString();
-                                if (spriteStr.Length > 40)
-                                    spriteStr = spriteStr.Substring(0, 37) + "...";
-                                propInfos.Add($"sprite={currentSprite.GetType().Name}:'{spriteStr}'");
-                            }
-                            else
-                                propInfos.Add("sprite=NULL");
-                        }
-                        else if (propName == "material" || propName == "sharedmaterial")
-                        {
-                            var mat = prop.GetValue(comp, null) as Material;
-                            if (mat != null)
-                            {
-                                var matColor = mat.HasProperty("_Color") ? mat.GetColor("_Color").ToString() : "N/A";
-                                propInfos.Add($"material._Color={matColor}");
-                            }
-                            else
-                                propInfos.Add("material=NULL");
-                        }
-                    }
-                    catch { /* skip inaccessible properties */ }
-                }
-
-                // 统计 BatchedSprite/SpriteAnimator
-                if (typeFullName.EndsWith(".BatchedSprite") || typeFullName.EndsWith(".SpriteAnimator"))
-                {
-                    batchedSpriteCount++;
-                    if (hasColorProp)
-                        colorAppliedCount++;
-                }
-
-                lines.Add($"    [{compType.Name}] {pathStr}  props=[{string.Join(", ", propInfos.ToArray())}]");
-            }
-
-            if (batchedSpriteCount == 0)
-                lines.Add($"  [FAIL] Color: no BatchedSprite/SpriteAnimator found in children!");
-            else if (colorAppliedCount == batchedSpriteCount)
-                lines.Add($"  [PASS] Color: {colorAppliedCount}/{batchedSpriteCount} BatchedSprite/SpriteAnimator set to black");
-            else
-                lines.Add($"  [WARN] Color: only {colorAppliedCount}/{batchedSpriteCount} components have color property");
-
-            // 4. Stun 免疫策略（从 SpearChargeComponent 读取静态字段）
-            var stunStrategyField = typeof(SpearChargeComponent).GetField("_stunStrategy",
-                BindingFlags.Static | BindingFlags.NonPublic);
-            if (!ReferenceEquals(stunStrategyField, null))
-            {
-                var strategyVal = stunStrategyField.GetValue(null);
-                lines.Add($"  [INFO] Stun immunity strategy: {strategyVal}");
-            }
-
-            // 5. 转化参数确认
-            lines.Add($"  [INFO] ConversionChance={ConversionChance} ScaleMultiplier={ScaleMultiplier} " +
-                      $"DamageMultiplier={DamageMultiplier} KnockbackMultiplier={KnockbackMultiplier}");
-
-            lines.Add("==========================================");
-            SharedLogger?.LogInfo(string.Join("\n", lines.ToArray()));
-        }
 
         internal static void ApplyBlackSpearman(Agent agent)
         {
-            if (agent == null) return;
+            if (ReferenceEquals(agent, null)) return;
 
             ApplyBlackColor(agent);
             agent.scale *= ScaleMultiplier;
 
             var swordsman = agent.brain as Swordsman;
-            if (swordsman != null)
+            if (!ReferenceEquals(swordsman, null))
             {
                 ScaleFloatArray(swordsman.damageLevels, DamageMultiplier);
                 ScaleFloatArray(swordsman.knockbackLevels, KnockbackMultiplier);
@@ -445,9 +278,10 @@ namespace BadNorthBlackSpearman
             ApplyArmor(agent);
 
             var charge = SpearChargeComponent.AddTo(agent);
-            if (charge != null) charge.Setup(agent);
+            if (!ReferenceEquals(charge, null)) charge.Setup(agent);
 
-            // 首个转化时运行完整诊断（一次性）
+            UpdateVikingReference(agent);
+
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
@@ -455,76 +289,151 @@ namespace BadNorthBlackSpearman
             }
         }
 
+        // ==============================
+        // P0 修复：保留 R/G（sprite2 UV 编码）
+        // ==============================
+
         private static void ApplyBlackColor(Agent agent)
         {
             var allComps = agent.GetComponentsInChildren<Component>(true);
             foreach (var comp in allComps)
             {
-                if (comp == null) continue;
-                var compType = comp.GetType();
-                var typeName = compType.FullName;
+                if (ReferenceEquals(comp, null)) continue;
+                var tn = comp.GetType().FullName;
 
-                if (typeName.EndsWith(".BatchedSprite") || typeName.EndsWith(".SpriteAnimator"))
+                if (tn.EndsWith(".BatchedSprite") || tn.EndsWith(".SpriteAnimator"))
                 {
-                    var prop = compType.GetProperty("color",
+                    var prop = comp.GetType().GetProperty("color",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(prop, null))
-                        prop.SetValue(comp, BlackColor, null);
-                    else
-                        SharedLogger?.LogDebug($"[BlackSpearman] [Color] {typeName}: has NO 'color' property");
+                    if (ReferenceEquals(prop, null)) continue;
+
+                    Color old = (Color)prop.GetValue(comp, null);
+                    prop.SetValue(comp, new Color(old.r, old.g, 0.02f, 1f), null);
                 }
-                else if (typeName.EndsWith(".SpriteRenderer") || typeName.EndsWith(".MeshRenderer") ||
-                         typeName.EndsWith(".SkinnedMeshRenderer") || typeName.Contains("Render"))
+                else if (tn.EndsWith(".SpriteRenderer") || tn.EndsWith(".MeshRenderer") ||
+                         tn.EndsWith(".SkinnedMeshRenderer") || tn.Contains("Render"))
                 {
-                    // 尝试设置 material.color
-                    var matProp = compType.GetProperty("material",
+                    var mp = comp.GetType().GetProperty("material",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(matProp, null))
+                    if (!ReferenceEquals(mp, null))
                     {
-                        var mat = matProp.GetValue(comp, null) as Material;
-                        if (mat != null && mat.HasProperty("_Color"))
-                        {
-                            mat.SetColor("_Color", BlackColor);
-                            SharedLogger?.LogDebug($"[BlackSpearman] [Color] {typeName}: set material._Color to black");
-                        }
-                    }
-
-                    // 尝试直接设置 color 属性
-                    var colorProp = compType.GetProperty("color",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(colorProp, null))
-                    {
-                        colorProp.SetValue(comp, BlackColor, null);
-                        SharedLogger?.LogDebug($"[BlackSpearman] [Color] {typeName}: set .color to black");
+                        var mat = mp.GetValue(comp, null) as Material;
+                        if (!ReferenceEquals(mat, null) && mat.HasProperty("_Color"))
+                            mat.SetColor("_Color", new Color(0.02f, 0.02f, 0.02f, 1f));
                     }
                 }
             }
         }
 
-        private static void ScaleFloatArray(float[] array, float multiplier)
-        {
-            if (array == null) return;
-            for (int i = 0; i < array.Length; i++)
-                array[i] *= multiplier;
-        }
-
         private static void ApplyArmor(Agent agent)
         {
             var armor = agent.GetComponent<Armor>();
-            if (armor == null) return;
-
+            if (ReferenceEquals(armor, null)) return;
             if (!_armorFieldAttempted)
             {
                 _armorField = typeof(Armor).GetField("armor",
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 _armorFieldAttempted = true;
             }
-
             if (!ReferenceEquals(_armorField, null))
+                ScaleFloatArray(_armorField.GetValue(armor) as float[], ArmorMultiplier);
+        }
+
+        // ==============================
+        // P2 修复：vikingReference 绑定
+        // ==============================
+
+        private static void UpdateVikingReference(Agent agent)
+        {
+            UnityEngine.Object blackRef;
+            if (!LevelStateObjectReferences.dict.TryGetValue(BlackSpearmanRefName, out blackRef)) return;
+            var newRef = blackRef as VikingReference;
+            if (ReferenceEquals(newRef, null)) return;
+            var va = agent.GetComponent<VikingAgent>();
+            if (ReferenceEquals(va, null)) return;
+            var f = typeof(VikingAgent).GetField("vikingReference",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(f, null)) f.SetValue(va, newRef);
+        }
+
+        private static void ScaleFloatArray(float[] arr, float mult)
+        {
+            if (arr == null) return;
+            for (int i = 0; i < arr.Length; i++) arr[i] *= mult;
+        }
+
+        // ==============================
+        // 诊断
+        // ==============================
+
+        private static void RunFirstConversionDiagnostic(Agent agent)
+        {
+            var l = new List<string>();
+            l.Add("===== BlackSpearman v1.1 Diagnostic =====");
+
+            var sw = agent.brain as Swordsman;
+            l.Add(!ReferenceEquals(sw, null)
+                ? $"  [PASS] Brain: Swordsman. dmg[0]={sw.damageLevels[0]:F2} knock[0]={sw.knockbackLevels[0]:F2}"
+                : $"  [FAIL] Brain: {agent.brain?.GetType().FullName ?? "null"}");
+
+            var armor = agent.GetComponent<Armor>();
+            if (!ReferenceEquals(armor, null))
             {
-                var values = _armorField.GetValue(armor) as float[];
-                ScaleFloatArray(values, 1.3f);
+                var af = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var v = !ReferenceEquals(af, null) ? af.GetValue(armor) as float[] : null;
+                l.Add(v != null ? $"  [PASS] Armor: [{v[0]:F2},{v[1]:F2},{v[2]:F2}]" : "  [WARN] Armor field null");
             }
+            else l.Add("  [FAIL] Armor: not found.");
+
+            var va = agent.GetComponent<VikingAgent>();
+            if (!ReferenceEquals(va, null))
+            {
+                var vf = typeof(VikingAgent).GetField("vikingReference",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(vf, null))
+                {
+                    var vr = vf.GetValue(va) as VikingReference;
+                    l.Add(!ReferenceEquals(vr, null)
+                        ? $"  [INFO] VikingRef: {vr.name}, type={vr.type}"
+                        : "  [WARN] VikingRef: null");
+                }
+            }
+
+            // 颜色诊断：用字符串搜索替代 typeof(SpriteAnimator)
+            foreach (var c in agent.GetComponentsInChildren<Component>(true))
+            {
+                if (ReferenceEquals(c, null)) continue;
+                if (c.GetType().FullName != null && c.GetType().FullName.EndsWith(".SpriteAnimator"))
+                {
+                    var cp = c.GetType().GetProperty("color",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(cp, null))
+                    {
+                        var col = (Color)cp.GetValue(c, null);
+                        l.Add($"  [INFO] SpriteAnimator.color: R={col.r:F2} G={col.g:F2} B={col.b:F2} A={col.a:F2}");
+                    }
+                    break;
+                }
+            }
+
+            l.Add($"  [INFO] {ConversionChance * 100:F0}% chance, Scale×{ScaleMultiplier}, " +
+                  $"Dmg×{DamageMultiplier}, Knock×{KnockbackMultiplier}, Armor×{ArmorMultiplier}");
+            l.Add($"  [INFO] MMHOOK: {_hooksRegistered}");
+            l.Add("=========================================");
+            SharedLogger?.LogInfo(string.Join("\n", l.ToArray()));
+        }
+
+        private void LogEnvironmentInfo()
+        {
+            try
+            {
+                Logger.LogInfo($"[BlackSpearman] BepInEx {typeof(BaseUnityPlugin).Assembly.GetName().Version}, " +
+                    $"CLR {Environment.Version}");
+                Logger.LogInfo($"[BlackSpearman] Types: Faction={!ReferenceEquals(typeof(Faction), null)} " +
+                    $"VikingAgent={!ReferenceEquals(typeof(VikingAgent), null)} " +
+                    $"Swordsman={!ReferenceEquals(typeof(Swordsman), null)}");
+            }
+            catch { }
         }
     }
 }
