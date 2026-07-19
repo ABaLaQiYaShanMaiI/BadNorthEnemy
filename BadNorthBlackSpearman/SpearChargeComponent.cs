@@ -12,26 +12,25 @@ namespace BadNorthBlackSpearman
         private const float ChargeDistance = 3.5f;
         private const float ChargeSpeed = 6.0f;
         private const float ChargeCooldown = 8.0f;
+        private const float RecoveryTime = 0.4f;
         private const float HitRadius = 1.2f;
         private const float HitInterval = 0.15f;
         private const float ChargeDuration = 0.58f;
 
+        private enum Phase { Idle, Charging, Cooldown }
+        private Phase _phase = Phase.Idle;
         private Agent _agent;
         private bool _setupDone;
-        private float _stateTimer;
+        private float _phaseTimer;
         private Vector3 _chargeDirection;
         private float _chargeDistanceTraveled;
+        private float _originalMaxSpeed;
 
         private HashSet<Agent> _hitAgents = new HashSet<Agent>();
         private float _lastHitTime = -999f;
         private bool _hitDiagnosticDone;
 
-        private object _chargeExclusive;
-        private static Type _agentExclusivesType;
-        private static Type _agentStateType;
-        private static bool _typesCached;
-
-        private enum StunImmunityStrategy { None, StunMultiplier, StunEnabled }
+        private enum StunImmunityStrategy { None, StunMultiplier }
         private static StunImmunityStrategy _stunStrategy;
         private static bool _stunCached;
         private static FieldInfo _stunMultiplierField;
@@ -54,37 +53,12 @@ namespace BadNorthBlackSpearman
             _setupDone = true;
             _agent = agent;
             if (ReferenceEquals(_agent, null)) { Destroy(this); return; }
-
-            CacheTypes();
+            _originalMaxSpeed = _agent.maxSpeed;
             CacheStun();
             _stunComponent = _agent.GetComponent<Stun>();
-
-            bool typeOk = !ReferenceEquals(_agentExclusivesType, null) && !ReferenceEquals(_agentStateType, null);
-            if (typeOk)
-            {
-                try
-                {
-                    FieldInfo exclusivesField = typeof(Agent).GetField("exclusives",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(exclusivesField, null))
-                    {
-                        object exclusives = exclusivesField.GetValue(_agent);
-                        if (!ReferenceEquals(exclusives, null))
-                        {
-                            _chargeExclusive = Activator.CreateInstance(_agentStateType,
-                                "BlackSpearCharge", exclusives, false, true);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (!ReferenceEquals(Plugin.SharedLogger, null))
-                        Plugin.SharedLogger.LogWarning("[BlackSpearman] AgentState creation failed: " + ex.Message);
-                }
-            }
-
-            string hasState = ReferenceEquals(_chargeExclusive, null) ? "NO" : "YES";
-            Log("Setup OK. AgentState=" + hasState);
+            _phase = Phase.Idle;
+            _phaseTimer = 0f;
+            Log("Setup OK. origMaxSpeed=" + _originalMaxSpeed.ToString("F1"));
         }
 
         private void Update()
@@ -93,108 +67,122 @@ namespace BadNorthBlackSpearman
 
             if (!ReferenceEquals(_agent.aliveState, null) && !_agent.aliveState.active)
             {
-                EndCharge();
+                TryEndCharge();
                 Destroy(this);
                 return;
             }
 
             bool spawned = !ReferenceEquals(_agent.spawned, null) && _agent.spawned.active;
-            bool onIsland = _agent.navPos.island;
-            if (!spawned || !onIsland) return;
+            if (!spawned) return;
 
-            _stateTimer -= Time.deltaTime;
-
-            if (_stateTimer <= 0f && HasNearbyEnemy(out _chargeDirection))
+            switch (_phase)
             {
-                StartCharge();
+                case Phase.Idle:
+                    UpdateIdle();
+                    break;
+                case Phase.Charging:
+                    DoCharging();
+                    break;
+                case Phase.Cooldown:
+                    UpdateCooldown();
+                    break;
             }
         }
 
         private void OnDestroy()
         {
-            EndCharge();
+            TryEndCharge();
         }
 
+        // ===== Idle =====
+        private void UpdateIdle()
+        {
+            if (!_agent.navPos.island) return;
+            Vector3 dir;
+            if (HasNearbyEnemy(out dir))
+            {
+                _chargeDirection = dir;
+                StartCharge();
+            }
+        }
+
+        // ===== Charging =====
         private void StartCharge()
         {
-            SetChargeActive(true);
+            _phase = Phase.Charging;
             _chargeDistanceTraveled = 0f;
             _hitAgents.Clear();
-            _stateTimer = ChargeDuration;
+            _phaseTimer = ChargeDuration;
+            _originalMaxSpeed = _agent.maxSpeed;
             SetStunImmunity(true);
-            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1") + " Speed=" + ChargeSpeed + "m/s");
+            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1"));
         }
 
-        private void UpdateCharging()
+        private void DoCharging()
         {
             float dt = Time.deltaTime;
             _chargeDistanceTraveled += ChargeSpeed * dt;
 
             Vector3 newPos = _agent.transform.position + _chargeDirection * ChargeSpeed * dt;
-            _agent.navPos = new NavPos(_agent.navPos.navigationMesh, newPos, true, 1f);
+            _agent.transform.position = newPos;
+
+            try { _agent.navPos = new NavPos(_agent.navPos.navigationMesh, newPos, true, 1f); }
+            catch { }
 
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
+            _agent.maxSpeed = 0f;
 
             if (Time.time - _lastHitTime >= HitInterval)
-            {
                 DetectAndApplyHit();
-            }
 
             if (_chargeDistanceTraveled >= ChargeDistance)
-            {
                 EndCharge();
-            }
-        }
-
-        private void LateUpdate()
-        {
-            if (!_setupDone || ReferenceEquals(_agent, null)) return;
-            if (ReferenceEquals(_chargeExclusive, null)) return;
-            if (ReferenceEquals(_agentStateType, null)) return;
-
-            try
-            {
-                PropertyInfo activeProp = _agentStateType.GetProperty("active",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(activeProp, null))
-                {
-                    bool isActive = (bool)activeProp.GetValue(_chargeExclusive, null);
-                    if (isActive)
-                    {
-                        UpdateCharging();
-                    }
-                }
-            }
-            catch { }
         }
 
         private void EndCharge()
         {
-            if (ReferenceEquals(_agent, null)) return;
-            SetChargeActive(false);
+            _phase = Phase.Cooldown;
+            _phaseTimer = ChargeCooldown;
             SetStunImmunity(false);
-            _stateTimer = ChargeCooldown;
-            Log("Charge ended.");
+            _agent.maxSpeed = 0f; // recovery 期间冻结
+            Log("Charge ended. Cooldown " + ChargeCooldown + "s");
         }
 
-        private void SetChargeActive(bool active)
+        // ===== Cooldown =====
+        private void UpdateCooldown()
         {
-            if (ReferenceEquals(_agentStateType, null)) return;
-            if (ReferenceEquals(_chargeExclusive, null)) return;
-            try
+            _phaseTimer -= Time.deltaTime;
+            float recoveryEnd = ChargeCooldown - RecoveryTime;
+
+            if (_phaseTimer > recoveryEnd)
             {
-                MethodInfo method = _agentStateType.GetMethod("SetActive",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(method, null))
-                    method.Invoke(_chargeExclusive, new object[] { active });
+                // recovery 期内冻结
+                _agent.maxSpeed = 0f;
+                _agent.walkDir = Vector3.zero;
             }
-            catch (Exception ex)
+            else
             {
-                if (!ReferenceEquals(Plugin.SharedLogger, null))
-                    Plugin.SharedLogger.LogWarning("[BlackSpearman] SetActive(" + active + ") failed: " + ex.Message);
+                // ⭐ 恢复 AI 控制
+                _agent.maxSpeed = _originalMaxSpeed;
+            }
+
+            if (_phaseTimer <= 0f)
+            {
+                _phase = Phase.Idle;
+                _phaseTimer = 0f;
+                _hitAgents.Clear();
+                _agent.maxSpeed = _originalMaxSpeed;
+                Log("Cooldown over. Ready.");
             }
         }
 
+        private void TryEndCharge()
+        {
+            if (_phase != Phase.Charging) return;
+            EndCharge();
+        }
+
+        // ===== 伤害 =====
         private void DetectAndApplyHit()
         {
             Agent[] allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
@@ -213,8 +201,7 @@ namespace BadNorthBlackSpearman
                 if (!_hitDiagnosticDone)
                 {
                     _hitDiagnosticDone = true;
-                    if (!ReferenceEquals(Plugin.SharedLogger, null))
-                        Plugin.SharedLogger.LogInfo("[BlackSpearman] [Charge] HIT: " + other.name + " dist=" + dist.ToString("F2"));
+                    LogDirect("[Charge] HIT DETECT: " + other.name + " d=" + dist.ToString("F2"));
                 }
 
                 _hitAgents.Add(other);
@@ -226,58 +213,50 @@ namespace BadNorthBlackSpearman
         private void ApplyChargeDamage(Agent target)
         {
             if (ReferenceEquals(target, null)) return;
-
             try
             {
-                MethodInfo dealDamageMethod = typeof(Agent).GetMethod("DealDamage",
+                MethodInfo dealDamage = typeof(Agent).GetMethod("DealDamage",
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(dealDamageMethod, null))
+
+                if (!ReferenceEquals(dealDamage, null))
                 {
-                    Type attackType = typeof(Attack);
-                    ConstructorInfo ctor = attackType.GetConstructor(new Type[] {
+                    ConstructorInfo atkCtor = typeof(Attack).GetConstructor(new Type[] {
                         typeof(AttackSettings), typeof(Vector3), typeof(Vector3),
                         typeof(Component), typeof(Squad), typeof(string), typeof(GameObject)
                     });
-                    if (!ReferenceEquals(ctor, null))
-                    {
-                        AttackSettings settings = new AttackSettings();
-                        settings.damage = 2.08f * 1.6f;
-                        settings.knockback = 4.25f * 2.5f;
-                        settings.stun = 0.5f;
 
-                        Vector3 pos = target.chestPos;
+                    if (!ReferenceEquals(atkCtor, null))
+                    {
+                        AttackSettings s = new AttackSettings();
+                        s.damage = 3.33f;
+                        s.knockback = 10.62f;
+                        s.stun = 0.5f;
+
                         Vector3 dir = _chargeDirection.normalized;
                         dir.y = 0;
 
-                        Component source = _agent.brain as Component;
-                        if (ReferenceEquals(source, null)) source = this;
-
-                        object attack = ctor.Invoke(new object[] {
-                            settings, dir, pos, source, null, "Spear", null
-                        });
-
-                        dealDamageMethod.Invoke(target, new object[] { attack });
-                        Log("HIT " + target.name + "! Dmg=" + settings.damage.ToString("F1"));
+                        object atk = atkCtor.Invoke(new object[] { s, dir, target.chestPos, this, null, "Spear", null });
+                        dealDamage.Invoke(target, new object[] { atk });
+                        Log("HIT " + target.name);
                         return;
                     }
                 }
 
-                // fallback
-                float newHealth = target.health - 3.3f;
-                if (newHealth < 0f) newHealth = 0f;
-                target.health = newHealth;
-                Vector3 kbDir = _chargeDirection.normalized;
-                kbDir.y = 0;
-                target.transform.position += kbDir * 0.5f;
-                Log("HIT(fb) " + target.name + " HP=" + target.health.ToString("F1"));
+                float nh = target.health - 3.3f;
+                if (nh < 0f) nh = 0f;
+                target.health = nh;
+                Log("HIT(fb) " + target.name);
             }
             catch (Exception ex)
             {
-                if (!ReferenceEquals(Plugin.SharedLogger, null))
-                    Plugin.SharedLogger.LogError("[BlackSpearman] [Charge] Damage error: " + ex.Message);
+                LogDirect("[Charge] DmgErr: " + ex.Message);
+                float nh = target.health - 3.3f;
+                if (nh < 0f) nh = 0f;
+                target.health = nh;
             }
         }
 
+        // ===== 敌人检测 =====
         private bool HasNearbyEnemy(out Vector3 direction)
         {
             direction = Vector3.zero;
@@ -306,6 +285,7 @@ namespace BadNorthBlackSpearman
             return true;
         }
 
+        // ===== 眩晕 =====
         private void SetStunImmunity(bool immune)
         {
             if (ReferenceEquals(_stunComponent, null)) return;
@@ -322,46 +302,23 @@ namespace BadNorthBlackSpearman
             if (!ReferenceEquals(_stunMultiplierField, null))
             {
                 _stunStrategy = StunImmunityStrategy.StunMultiplier;
-                if (!ReferenceEquals(Plugin.SharedLogger, null))
-                    Plugin.SharedLogger.LogInfo("[BlackSpearman] Stun: using stunMultiplier");
                 return;
             }
             _stunStrategy = StunImmunityStrategy.None;
-            if (!ReferenceEquals(Plugin.SharedLogger, null))
-                Plugin.SharedLogger.LogWarning("[BlackSpearman] Stun: NO strategy found");
         }
 
-        private static void CacheTypes()
-        {
-            if (_typesCached) return;
-            _typesCached = true;
-            Assembly asm = typeof(Agent).Assembly;
-            _agentExclusivesType = asm.GetType("Voxels.TowerDefense.AgentExclusives");
-            _agentStateType = asm.GetType("Voxels.TowerDefense.AgentState");
-
-            if (ReferenceEquals(_agentExclusivesType, null))
-            {
-                if (!ReferenceEquals(Plugin.SharedLogger, null))
-                    Plugin.SharedLogger.LogWarning("[BlackSpearman] AgentExclusives type not found");
-            }
-            if (ReferenceEquals(_agentStateType, null))
-            {
-                if (!ReferenceEquals(Plugin.SharedLogger, null))
-                    Plugin.SharedLogger.LogWarning("[BlackSpearman] AgentState type not found");
-            }
-            else
-            {
-                if (!ReferenceEquals(Plugin.SharedLogger, null))
-                    Plugin.SharedLogger.LogInfo("[BlackSpearman] AgentState type found");
-            }
-        }
-
+        // ===== 日志 =====
         private void Log(string msg)
         {
             if (Time.time - _lastLogTime < 2f) return;
             _lastLogTime = Time.time;
+            LogDirect("[Charge] " + msg);
+        }
+
+        private void LogDirect(string msg)
+        {
             if (!ReferenceEquals(Plugin.SharedLogger, null))
-                Plugin.SharedLogger.LogInfo("[BlackSpearman] [Charge] " + msg);
+                Plugin.SharedLogger.LogInfo("[BlackSpearman] " + msg);
         }
     }
 }
