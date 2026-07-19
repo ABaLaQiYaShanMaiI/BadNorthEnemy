@@ -1,4 +1,4 @@
-# Bad North Black Spearman
+敌方单位a# Bad North Black Spearman
 
 > ⚠️ **核心设计理念**：本 Mod 的目标是将玩家方的 **Pikeman（长矛兵）** 兵种的**武器模型（长矛）**和**冲刺技能（Pike Charge）** 移植到维京方，打造一个全新的敌方单位——**黑色长矛手（Black Spearman）**。
 >
@@ -8,17 +8,22 @@
 
 为《Bad North》游戏添加**黑色长矛手（Black Spearman）**敌人的 BepInEx 插件 Mod。
 
-## 当前版本：v1.3
+## 当前版本：v1.8 (appearance only)
+
+### ⚠️ 当前状态
+
+**冲刺技能和武器替换已暂停开发**，当前版本专注于外观实现（颜色、盾牌移除、属性强化）。技能代码保留在 `SpearChargeComponent.cs` 中，`Plugin.cs` 中相关调用已注释。
 
 ### 功能概述
 
-| 功能 | 来源 | 说明 |
+| 功能 | 状态 | 说明 |
 |------|------|------|
-| **长矛武器模型** | 玩家方 **Pikeman**（长矛兵）| 从 `Faction.allSquads` 中找到 Pikeman 小队的 `minionPrefab`，深拷贝其 Spear/Weapon 子 GameObject 到黑矛兵身上，同时禁用原剑盾兵的 Sword/Shield 子对象 |
-| **举矛冲刺技能** | 玩家方 **PikeChargeAbility + PikeChargeComponent** | 原版长矛兵通过 `AgentExclusives` + `AgentState` + `navPos` 移动 + `Agent.DealDamage(Attack)` 实现冲刺。本 Mod 模仿其逻辑，使用简化状态机 + `transform.position` + `AttackSettings` 实现同等效果 |
-| **黑色外观** | 原创 | 保留 UV 编码（R/G 通道），仅修改 B（蓝色）通道为 0.02，呈现深黑色调 |
-| **属性强化** | 原创 | 伤害 ×1.6、击退 ×2.5、护甲 ×1.3、体型 ×1.05 |
-| **独立出场控制** | 原创 | 注册独立 `VikingReference: Viking_BlackSpearman`，控制出现条件 |
+| **长矛武器模型** | ⏸️ 暂停 | 从玩家方 Pikeman (Spear brain) 提取 `BatchedSprite spearSprite` 挂载到黑矛兵 — 研究中 |
+| **举矛冲刺技能** | ⏸️ 暂停 | `SpearChargeComponent.cs` 代码保留，`Plugin.cs` 调用已注释 |
+| **黑色外观** | ✅ 可用 | 保留 UV 编码（R/G 通道），仅修改 B（蓝色）通道为 0.02 |
+| **盾牌移除** | ✅ 可用 | `agent.shield = false` + 禁用 Shield 子对象 |
+| **属性强化** | ✅ 可用 | 伤害 ×1.6、击退 ×2.5、护甲 ×1.3、体型 ×1.05 |
+| **独立出场控制** | ✅ 可用 | 注册独立 `VikingReference: Viking_BlackSpearman` |
 
 ### 冲刺技能详解（模仿玩家方 Pike Charge）
 

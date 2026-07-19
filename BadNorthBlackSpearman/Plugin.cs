@@ -49,7 +49,7 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.8 ======");
+            Logger.LogInfo("[BlackSpearman] ====== v1.8 (appearance + weapon) ======");
             RegisterHooks();
         }
 
@@ -89,7 +89,7 @@ namespace BadNorthBlackSpearman
             return longship;
         }
 
-        // ============ 武器搜索 ============
+        // ============ 武器搜索 ⭐ ============
 
         internal static void SearchForPikemanWeapon()
         {
@@ -116,7 +116,6 @@ namespace BadNorthBlackSpearman
                         if (ExtractWeapon(b, a))
                         {
                             LogInfo("Pikeman weapon extracted! Re-applying to " + ConvertedAgents.Count + " converted agents.");
-                            // ⭐ 对已转化的黑矛兵重新应用武器
                             foreach (var agent in ConvertedAgents)
                                 if (!ReferenceEquals(agent, null) && agent.isViking)
                                     ApplyWeaponSwap(agent);
@@ -128,7 +127,7 @@ namespace BadNorthBlackSpearman
                 if (brainsFound.Count > 0)
                     LogInfo("English brains: " + string.Join(", ", brainsFound.ToArray()));
                 else
-                    LogWarn("No English agents in scene yet");
+                    LogWarn("No English agents in scene — Pikeman not spawned yet");
             }
             catch (Exception ex) { LogErr("Weapon search: " + ex.Message); }
         }
@@ -147,69 +146,34 @@ namespace BadNorthBlackSpearman
                     SpearLocalRot = spearAnim.localRotation;
                     SpearLocalScale = spearAnim.localScale;
 
-                    // ⭐ 根因 #1 修复：spearSprite 在 Spear.Setup() 中赋值 (spearAnim.GetComponentInChildren<BatchedSprite>)
                     var bs = spearAnim.GetComponentInChildren<BatchedSprite>(true);
                     if (!ReferenceEquals(bs, null))
                     {
-                        // ⭐ 根因 #2 修复：BatchedSprite 属性访问 — 不用 standard SpriteRenderer
                         Type bst = bs.GetType();
-
-                        // 尝试 sprite 属性
                         var sp = bst.GetProperty("sprite", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                         if (!ReferenceEquals(sp, null))
                         {
                             SpearSprite = sp.GetValue(bs, null) as Sprite;
-                            if (ReferenceEquals(SpearSprite, null))
-                            {
-                                // 备用：通过 spriteName 创建新 Sprite
-                                var sn = bst.GetProperty("spriteName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                                if (!ReferenceEquals(sn, null))
-                                {
-                                    string name = sn.GetValue(bs, null) as string;
-                                    LogInfo("  spriteName: " + name);
-                                }
-                            }
-                            else
-                            {
+                            if (!ReferenceEquals(SpearSprite, null))
                                 LogInfo("  spearSprite.sprite: " + SpearSprite.name);
-                            }
+                            else
+                                LogWarn("  spearSprite.sprite is null");
+                        }
+                        else
+                        {
+                            LogWarn("  BatchedSprite has no 'sprite' property");
                         }
 
-                        // 诊断颜色
                         var cp = bst.GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                         if (!ReferenceEquals(cp, null))
                         {
                             Color c = (Color)cp.GetValue(bs, null);
                             LogInfo("  spearSprite.color: R=" + c.r.ToString("F3") + " G=" + c.g.ToString("F3") + " B=" + c.b.ToString("F3"));
                         }
-
-                        // 诊断所有可用属性
-                        foreach (var p in bst.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-                        {
-                            try
-                            {
-                                var val = p.GetValue(bs, null);
-                                if (!ReferenceEquals(val, null) && val is Sprite)
-                                    LogInfo("  Property '" + p.Name + "' type=Sprite value=" + (val as Sprite).name                            }
-                            catch { }
-                        }
                     }
                     else
                     {
                         LogWarn("  spearAnim has no BatchedSprite child");
-                        // 诊断 spearAnim 的完整子对象结构
-                        var allChildren = new List<string>();
-                        foreach (Transform t in spearAnim.GetComponentsInChildren<Transform>(true))
-                        {
-                            if (!ReferenceEquals(t, null))
-                            {
-                                var compNames = new List<string>();
-                                foreach (var comp in t.GetComponents<Component>())
-                                    if (!ReferenceEquals(comp, null)) compNames.Add(comp.GetType().Name);
-                                allChildren.Add(t.name + "(" + string.Join(",", compNames.ToArray()) + ")");
-                            }
-                        }
-                        LogInfo("  spearAnim children: [" + string.Join(", ", allChildren.ToArray()) + "]");
                     }
 
                     WeaponCached = true;
@@ -217,11 +181,7 @@ namespace BadNorthBlackSpearman
                 }
             }
 
-            if (!ReferenceEquals(SpearSprite, null))
-            {
-                WeaponCached = true;
-                return true;
-            }
+            if (!ReferenceEquals(SpearSprite, null)) { WeaponCached = true; return true; }
             return false;
         }
 
@@ -245,7 +205,7 @@ namespace BadNorthBlackSpearman
         {
             if (ReferenceEquals(agent, null)) return;
 
-            ApplyWeaponSwap(agent);
+            ApplyWeaponSwap(agent);     // ⭐ 长矛替换 — 第一个研究目标
             DisableShield(agent);
             ApplyBlackColor(agent);
 
@@ -258,21 +218,23 @@ namespace BadNorthBlackSpearman
             }
             ApplyArmor(agent);
 
-            var c = SpearChargeComponent.AddTo(agent);
-            if (!ReferenceEquals(c, null)) c.Setup(agent);
+            // ⏸️ 冲刺技能暂时注释 — 等待武器外观修复后启用
+            // var c = SpearChargeComponent.AddTo(agent);
+            // if (!ReferenceEquals(c, null)) c.Setup(agent);
 
             UpdateVikingReference(agent);
 
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.8 =====");
+                LogInfo("===== v1.8 (appearance+weapon) =====");
                 LogInfo("  SpearSprite: " + (!ReferenceEquals(SpearSprite, null) ? SpearSprite.name : "NULL"));
                 LogInfo("  WeaponCached: " + WeaponCached);
+                LogInfo("  Charge: DISABLED");
             }
         }
 
-        // ============ 武器替换 ============
+        // ============ 武器替换 ⭐ ============
 
         private static void ApplyWeaponSwap(Agent agent)
         {
@@ -296,17 +258,19 @@ namespace BadNorthBlackSpearman
             LogInfo("Spear BatchedSprite created: " + SpearSprite.name);
         }
 
+        // ============ 举盾禁用 ============
+
         private static void DisableShield(Agent agent)
         {
             agent.shield = false;
-            var sc = agent.GetComponent<Shield>();
-            if (!ReferenceEquals(sc, null)) UnityEngine.Object.Destroy(sc);
             foreach (var t in agent.GetComponentsInChildren<Transform>(true))
             {
                 if (ReferenceEquals(t, null)) continue;
                 if (t.name.ToLower().Contains("shield")) t.gameObject.SetActive(false);
             }
         }
+
+        // ============ 颜色 ============
 
         private static void ApplyBlackColor(Agent agent)
         {
