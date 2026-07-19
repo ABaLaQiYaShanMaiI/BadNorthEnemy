@@ -5,10 +5,11 @@ using BepInEx;
 using UnityEngine;
 using Voxels.TowerDefense;
 using Voxels.TowerDefense.CampaignGeneration.CampaignAc3;
+using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.1")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.8")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -26,90 +27,313 @@ namespace BadNorthBlackSpearman
         private static FieldInfo _armorField;
         private static bool _armorFieldAttempted;
         private int _totalConvertedCount;
-        private static bool _firstConversionDiagnosticDone;
         private static bool _hooksRegistered;
 
         private static FieldInfo _levelRuleConditionField;
         private static FieldInfo _levelGuessableProbabilityField;
         private static bool _levelFieldsCached;
 
-        // ============ 生命周期 ============
+        // ⭐ 武器数据
+        internal static bool WeaponCached;
+        internal static Sprite SpearSprite;
+        internal static Vector3 SpearLocalPos = Vector3.zero;
+        internal static Vector3 SpearLocalScale = Vector3.one;
+        internal static Quaternion SpearLocalRot = Quaternion.identity;
+
+        private static bool _weaponSearchDone;
+        private static bool _firstConversionDiagnosticDone;
+
+        // ============ BepInEx ============
 
         private void Start()
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.1 MMHOOK START ======");
-            LogEnvironmentInfo();
+            Logger.LogInfo("[BlackSpearman] ====== v1.8 ======");
             RegisterHooks();
-            Logger.LogInfo("[BlackSpearman] ====== INIT COMPLETE ======");
         }
 
         private void OnDestroy()
         {
-            try
-            {
-                On.Voxels.TowerDefense.GameSetup.Awake -= OnGameSetupAwake;
-                On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn -= OnLandingSpawn;
-            }
-            catch { }
-            _hooksRegistered = false;
+            try { On.Voxels.TowerDefense.GameSetup.Awake -= OnGameSetupAwake; On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn -= OnLandingSpawn; } catch { }
         }
 
         private void RegisterHooks()
         {
             if (_hooksRegistered) return;
             _hooksRegistered = true;
-            try
-            {
-                On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake;
-                Logger.LogInfo("[BlackSpearman] Hook: GameSetup.Awake (MMHOOK)");
-                On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn += OnLandingSpawn;
-                Logger.LogInfo("[BlackSpearman] Hook: Landing.Spawn (MMHOOK)");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("[BlackSpearman] Hook failed: " + ex.Message);
-                _hooksRegistered = false;
-            }
+            On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake;
+            On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn += OnLandingSpawn;
         }
+
+        // ============ Hook 1 ============
 
         private void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
         {
             orig(self);
-            try
-            {
-                EnsureSwordShieldAlwaysAvailable();
-                RegisterBlackSpearmanReference();
-                CachePikemanWeaponTemplate();
-            }
-            catch (Exception ex)
-            {
-                LogErr("GameSetup hook: " + ex.Message);
-            }
+            try { EnsureSwordShieldAlwaysAvailable(); RegisterBlackSpearmanReference(); } catch (Exception ex) { LogErr("GameSetup: " + ex.Message); }
         }
 
-        private Voxels.TowerDefense.Longship OnLandingSpawn(
-            On.Voxels.TowerDefense.RaidGeneration.Landing.orig_Spawn orig,
-            Voxels.TowerDefense.RaidGeneration.Landing self)
+        // ============ Hook 2 ============
+
+        private Voxels.TowerDefense.Longship OnLandingSpawn(On.Voxels.TowerDefense.RaidGeneration.Landing.orig_Spawn orig, Voxels.TowerDefense.RaidGeneration.Landing self)
         {
-            Voxels.TowerDefense.Longship longship = orig(self);
+            var longship = orig(self);
             try
             {
                 if (!ReferenceEquals(longship, null) && longship.agents != null)
-                {
-                    foreach (var agent in longship.agents)
-                    {
-                        if (!ReferenceEquals(agent, null))
-                            OnAgentSpawnedHandler(agent);
-                    }
-                }
+                    foreach (var a in longship.agents)
+                        if (!ReferenceEquals(a, null)) OnAgentSpawnedHandler(a);
             }
-            catch (Exception ex) { LogErr("Landing.Spawn: " + ex.Message); }
+            catch (Exception ex) { LogErr("Landing: " + ex.Message); }
             return longship;
         }
 
-        // ============ LevelExpression 反射工具 ============
+        // ============ 武器搜索 ============
+
+        internal static void SearchForPikemanWeapon()
+        {
+            if (WeaponCached || _weaponSearchDone) return;
+            _weaponSearchDone = true;
+
+            try
+            {
+                var allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
+                var brainsFound = new List<string>();
+
+                foreach (var a in allAgents)
+                {
+                    if (ReferenceEquals(a, null) || a.isViking) continue;
+                    var b = a.brain;
+                    if (ReferenceEquals(b, null)) continue;
+
+                    string bn = b.GetType().Name;
+                    if (!brainsFound.Contains(bn)) brainsFound.Add(bn);
+
+                    if (bn == "Spear")
+                    {
+                        LogInfo("FOUND Spear brain: " + a.name);
+                        if (ExtractWeapon(b, a))
+                        {
+                            LogInfo("Pikeman weapon extracted! Re-applying to " + ConvertedAgents.Count + " converted agents.");
+                            // ⭐ 对已转化的黑矛兵重新应用武器
+                            foreach (var agent in ConvertedAgents)
+                                if (!ReferenceEquals(agent, null) && agent.isViking)
+                                    ApplyWeaponSwap(agent);
+                            return;
+                        }
+                    }
+                }
+
+                if (brainsFound.Count > 0)
+                    LogInfo("English brains: " + string.Join(", ", brainsFound.ToArray()));
+                else
+                    LogWarn("No English agents in scene yet");
+            }
+            catch (Exception ex) { LogErr("Weapon search: " + ex.Message); }
+        }
+
+        private static bool ExtractWeapon(Brain brain, Agent agentRef)
+        {
+            Type st = brain.GetType();
+            FieldInfo saf = st.GetField("spearAnim", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            if (!ReferenceEquals(saf, null))
+            {
+                Transform spearAnim = saf.GetValue(brain) as Transform;
+                if (!ReferenceEquals(spearAnim, null))
+                {
+                    SpearLocalPos = spearAnim.localPosition;
+                    SpearLocalRot = spearAnim.localRotation;
+                    SpearLocalScale = spearAnim.localScale;
+
+                    // ⭐ 根因 #1 修复：spearSprite 在 Spear.Setup() 中赋值 (spearAnim.GetComponentInChildren<BatchedSprite>)
+                    var bs = spearAnim.GetComponentInChildren<BatchedSprite>(true);
+                    if (!ReferenceEquals(bs, null))
+                    {
+                        // ⭐ 根因 #2 修复：BatchedSprite 属性访问 — 不用 standard SpriteRenderer
+                        Type bst = bs.GetType();
+
+                        // 尝试 sprite 属性
+                        var sp = bst.GetProperty("sprite", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (!ReferenceEquals(sp, null))
+                        {
+                            SpearSprite = sp.GetValue(bs, null) as Sprite;
+                            if (ReferenceEquals(SpearSprite, null))
+                            {
+                                // 备用：通过 spriteName 创建新 Sprite
+                                var sn = bst.GetProperty("spriteName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                                if (!ReferenceEquals(sn, null))
+                                {
+                                    string name = sn.GetValue(bs, null) as string;
+                                    LogInfo("  spriteName: " + name);
+                                }
+                            }
+                            else
+                            {
+                                LogInfo("  spearSprite.sprite: " + SpearSprite.name);
+                            }
+                        }
+
+                        // 诊断颜色
+                        var cp = bst.GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (!ReferenceEquals(cp, null))
+                        {
+                            Color c = (Color)cp.GetValue(bs, null);
+                            LogInfo("  spearSprite.color: R=" + c.r.ToString("F3") + " G=" + c.g.ToString("F3") + " B=" + c.b.ToString("F3"));
+                        }
+
+                        // 诊断所有可用属性
+                        foreach (var p in bst.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                        {
+                            try
+                            {
+                                var val = p.GetValue(bs, null);
+                                if (!ReferenceEquals(val, null) && val is Sprite)
+                                    LogInfo("  Property '" + p.Name + "' type=Sprite value=" + (val as Sprite).name                            }
+                            catch { }
+                        }
+                    }
+                    else
+                    {
+                        LogWarn("  spearAnim has no BatchedSprite child");
+                        // 诊断 spearAnim 的完整子对象结构
+                        var allChildren = new List<string>();
+                        foreach (Transform t in spearAnim.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (!ReferenceEquals(t, null))
+                            {
+                                var compNames = new List<string>();
+                                foreach (var comp in t.GetComponents<Component>())
+                                    if (!ReferenceEquals(comp, null)) compNames.Add(comp.GetType().Name);
+                                allChildren.Add(t.name + "(" + string.Join(",", compNames.ToArray()) + ")");
+                            }
+                        }
+                        LogInfo("  spearAnim children: [" + string.Join(", ", allChildren.ToArray()) + "]");
+                    }
+
+                    WeaponCached = true;
+                    return true;
+                }
+            }
+
+            if (!ReferenceEquals(SpearSprite, null))
+            {
+                WeaponCached = true;
+                return true;
+            }
+            return false;
+        }
+
+        // ============ Agent 生成处理 ============
+
+        internal static void OnAgentSpawnedHandler(Agent agent)
+        {
+            if (ReferenceEquals(agent, null) || !agent.isViking) return;
+            var va = agent.GetComponent<VikingAgent>();
+            if (ReferenceEquals(va, null) || va.type != VikingAgent.Type.SwordShield) return;
+            if (ConvertedAgents.Contains(agent)) return;
+            if (UnityEngine.Random.value > ConversionChance) return;
+            ConvertedAgents.Add(agent);
+            try { ApplyBlackSpearman(agent); } catch (Exception ex) { LogErr("Apply: " + ex.Message); }
+            if (Instance != null) Instance._totalConvertedCount++;
+        }
+
+        // ============ 转化链 ============
+
+        internal static void ApplyBlackSpearman(Agent agent)
+        {
+            if (ReferenceEquals(agent, null)) return;
+
+            ApplyWeaponSwap(agent);
+            DisableShield(agent);
+            ApplyBlackColor(agent);
+
+            agent.scale *= ScaleMultiplier;
+            var s = agent.brain as Swordsman;
+            if (!ReferenceEquals(s, null))
+            {
+                ScaleFloatArray(s.damageLevels, DamageMultiplier);
+                ScaleFloatArray(s.knockbackLevels, KnockbackMultiplier);
+            }
+            ApplyArmor(agent);
+
+            var c = SpearChargeComponent.AddTo(agent);
+            if (!ReferenceEquals(c, null)) c.Setup(agent);
+
+            UpdateVikingReference(agent);
+
+            if (!_firstConversionDiagnosticDone)
+            {
+                _firstConversionDiagnosticDone = true;
+                LogInfo("===== v1.8 =====");
+                LogInfo("  SpearSprite: " + (!ReferenceEquals(SpearSprite, null) ? SpearSprite.name : "NULL"));
+                LogInfo("  WeaponCached: " + WeaponCached);
+            }
+        }
+
+        // ============ 武器替换 ============
+
+        private static void ApplyWeaponSwap(Agent agent)
+        {
+            if (ReferenceEquals(SpearSprite, null)) return;
+
+            var spearObj = new GameObject("Spear");
+            spearObj.transform.SetParent(agent.transform);
+            spearObj.transform.localPosition = SpearLocalPos;
+            spearObj.transform.localRotation = SpearLocalRot;
+            spearObj.transform.localScale = SpearLocalScale;
+
+            var bs = spearObj.AddComponent<BatchedSprite>();
+            if (ReferenceEquals(bs, null)) { LogErr("AddComponent<BatchedSprite> failed"); return; }
+
+            var bst = bs.GetType();
+            var sp = bst.GetProperty("sprite", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var cp = bst.GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(sp, null)) sp.SetValue(bs, SpearSprite, null);
+            if (!ReferenceEquals(cp, null)) cp.SetValue(bs, new Color(0.02f, 0.25f, 0.02f, 1f), null);
+
+            LogInfo("Spear BatchedSprite created: " + SpearSprite.name);
+        }
+
+        private static void DisableShield(Agent agent)
+        {
+            agent.shield = false;
+            var sc = agent.GetComponent<Shield>();
+            if (!ReferenceEquals(sc, null)) UnityEngine.Object.Destroy(sc);
+            foreach (var t in agent.GetComponentsInChildren<Transform>(true))
+            {
+                if (ReferenceEquals(t, null)) continue;
+                if (t.name.ToLower().Contains("shield")) t.gameObject.SetActive(false);
+            }
+        }
+
+        private static void ApplyBlackColor(Agent agent)
+        {
+            foreach (var comp in agent.GetComponentsInChildren<Component>(true))
+            {
+                if (ReferenceEquals(comp, null)) continue;
+                string tn = comp.GetType().FullName;
+                if (tn == null) continue;
+                if (tn.EndsWith(".BatchedSprite") || tn.EndsWith(".SpriteAnimator"))
+                {
+                    var p = comp.GetType().GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (ReferenceEquals(p, null)) continue;
+                    var old = (Color)p.GetValue(comp, null);
+                    p.SetValue(comp, new Color(old.r, old.g, 0.02f, 1f), null);
+                }
+            }
+        }
+
+        private static void ApplyArmor(Agent agent)
+        {
+            var a = agent.GetComponent<Armor>();
+            if (ReferenceEquals(a, null)) return;
+            if (!_armorFieldAttempted) { _armorField = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic); _armorFieldAttempted = true; }
+            if (!ReferenceEquals(_armorField, null)) ScaleFloatArray(_armorField.GetValue(a) as float[], ArmorMultiplier);
+        }
+
+        // ============ LevelExpression ============
 
         private static void CacheLevelFields()
         {
@@ -120,396 +344,68 @@ namespace BadNorthBlackSpearman
         }
 
         private static FieldInfo _levelExpressionField;
-
         private static void SetLevelExpr(Component comp, FieldInfo field, string expr)
         {
             if (ReferenceEquals(comp, null) || ReferenceEquals(field, null)) return;
             object le = field.GetValue(comp);
             if (ReferenceEquals(le, null)) return;
-            if (ReferenceEquals(_levelExpressionField, null))
-                _levelExpressionField = le.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (!ReferenceEquals(_levelExpressionField, null))
-                _levelExpressionField.SetValue(le, expr);
+            if (ReferenceEquals(_levelExpressionField, null)) _levelExpressionField = le.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(_levelExpressionField, null)) _levelExpressionField.SetValue(le, expr);
         }
-
-        // ============ SwordShield 永驻 + 黑矛兵注册 ============
 
         private void EnsureSwordShieldAlwaysAvailable()
         {
             CacheLevelFields();
             UnityEngine.Object obj;
-            if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out obj))
-            {
-                LogWarn("Viking_SwordShield not found in dict.");
-                return;
-            }
-            VikingReference swordShieldRef = obj as VikingReference;
-            if (ReferenceEquals(swordShieldRef, null)) return;
-            SetLevelExpr(swordShieldRef.GetComponent<LevelRule>(), _levelRuleConditionField, "true");
-            SetLevelExpr(swordShieldRef.GetComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
-            LogInfo("SwordShield LevelRule/LevelGuessable set to always available.");
+            if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out obj)) return;
+            var vr = obj as VikingReference;
+            if (ReferenceEquals(vr, null)) return;
+            SetLevelExpr(vr.GetComponent<LevelRule>(), _levelRuleConditionField, "true");
+            SetLevelExpr(vr.GetComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
         }
 
         private void RegisterBlackSpearmanReference()
         {
             if (LevelStateObjectReferences.dict.ContainsKey(BlackSpearmanRefName)) return;
             CacheLevelFields();
-            UnityEngine.Object swordObj;
-            if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out swordObj))
-            {
-                LogWarn("Cannot find Viking_SwordShield to clone.");
-                return;
-            }
-            VikingReference origRef = swordObj as VikingReference;
-            if (ReferenceEquals(origRef, null)) return;
-
-            GameObject newGo = new GameObject(BlackSpearmanRefName);
-            DontDestroyOnLoad(newGo);
-            VikingReference newRef = newGo.AddComponent<VikingReference>();
-            CopyVikingReferenceFields(origRef, newRef);
-            SetLevelExpr(newGo.AddComponent<LevelRule>(), _levelRuleConditionField, "true");
-            SetLevelExpr(newGo.AddComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
-            LevelStateObjectReferences.AddToDict(newRef);
-            LogInfo("Registered independent VikingReference: '" + BlackSpearmanRefName + "'.");
+            UnityEngine.Object obj;
+            if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out obj)) return;
+            var orig = obj as VikingReference;
+            if (ReferenceEquals(orig, null)) return;
+            var go = new GameObject(BlackSpearmanRefName);
+            DontDestroyOnLoad(go);
+            var nr = go.AddComponent<VikingReference>();
+            CopyVikingReferenceFields(orig, nr);
+            SetLevelExpr(go.AddComponent<LevelRule>(), _levelRuleConditionField, "true");
+            SetLevelExpr(go.AddComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
+            LevelStateObjectReferences.AddToDict(nr);
         }
 
         private void CopyVikingReferenceFields(VikingReference src, VikingReference dst)
         {
-            foreach (string name in new[] { "type", "viking", "bounty" })
+            foreach (string n in new[] { "type", "viking", "bounty", "icon", "infoSprite" })
             {
-                FieldInfo f = typeof(VikingReference).GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(f, null))
-                    f.SetValue(dst, f.GetValue(src));
+                FieldInfo f = typeof(VikingReference).GetField(n, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(f, null)) f.SetValue(dst, f.GetValue(src));
             }
         }
-
-        // ============ Agent 生成处理 ============
-
-        internal static void OnAgentSpawnedHandler(Agent agent)
-        {
-            if (ReferenceEquals(agent, null) || !agent.isViking) return;
-            VikingAgent va = agent.GetComponent<VikingAgent>();
-            if (ReferenceEquals(va, null) || va.type != VikingAgent.Type.SwordShield) return;
-            if (ConvertedAgents.Contains(agent)) return;
-            if (UnityEngine.Random.value > ConversionChance) return;
-
-            ConvertedAgents.Add(agent);
-            try { ApplyBlackSpearman(agent); }
-            catch (Exception ex) { LogErr("Apply: " + ex.Message); }
-
-            if (Instance != null)
-            {
-                Instance._totalConvertedCount++;
-                if (Instance._totalConvertedCount % 10 == 1 || Instance._totalConvertedCount <= 1)
-                    Instance.Logger.LogInfo("[BlackSpearman] Converted #" + Instance._totalConvertedCount + ": type=" + va.type + " hp=" + agent.health.ToString("F1") + "/" + agent.maxHealth.ToString("F1") + " scale=" + agent.scale.ToString("F2"));
-            }
-        }
-
-        // ============ 转化链 ============
-
-        internal static void ApplyBlackSpearman(Agent agent)
-        {
-            if (ReferenceEquals(agent, null)) return;
-            ApplyBlackColor(agent);
-            agent.scale *= ScaleMultiplier;
-
-            Swordsman swordsman = agent.brain as Swordsman;
-            if (!ReferenceEquals(swordsman, null))
-            {
-                ScaleFloatArray(swordsman.damageLevels, DamageMultiplier);
-                ScaleFloatArray(swordsman.knockbackLevels, KnockbackMultiplier);
-            }
-
-            ApplyArmor(agent);
-            ApplyWeaponSwap(agent);
-
-            SpearChargeComponent charge = SpearChargeComponent.AddTo(agent);
-            if (!ReferenceEquals(charge, null)) charge.Setup(agent);
-
-            UpdateVikingReference(agent);
-
-            if (!_firstConversionDiagnosticDone)
-            {
-                _firstConversionDiagnosticDone = true;
-                RunFirstConversionDiagnostic(agent);
-            }
-        }
-
-        // ============ 颜色 ============
-
-        private static void ApplyBlackColor(Agent agent)
-        {
-            Component[] allComps = agent.GetComponentsInChildren<Component>(true);
-            foreach (Component comp in allComps)
-            {
-                if (ReferenceEquals(comp, null)) continue;
-                string tn = comp.GetType().FullName;
-                if (tn == null) continue;
-
-                if (tn.EndsWith(".BatchedSprite") || tn.EndsWith(".SpriteAnimator"))
-                {
-                    PropertyInfo prop = comp.GetType().GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (ReferenceEquals(prop, null)) continue;
-                    Color old = (Color)prop.GetValue(comp, null);
-                    prop.SetValue(comp, new Color(old.r, old.g, 0.02f, 1f), null);
-                }
-                else if (tn.EndsWith(".SpriteRenderer") || tn.EndsWith(".MeshRenderer") || tn.EndsWith(".SkinnedMeshRenderer") || tn.Contains("Render"))
-                {
-                    PropertyInfo mp = comp.GetType().GetProperty("material", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(mp, null))
-                    {
-                        Material mat = mp.GetValue(comp, null) as Material;
-                        if (!ReferenceEquals(mat, null) && mat.HasProperty("_Color"))
-                            mat.SetColor("_Color", new Color(0.02f, 0.02f, 0.02f, 1f));
-                    }
-                }
-            }
-        }
-
-        private static void ApplyArmor(Agent agent)
-        {
-            Armor armor = agent.GetComponent<Armor>();
-            if (ReferenceEquals(armor, null)) return;
-            if (!_armorFieldAttempted)
-            {
-                _armorField = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                _armorFieldAttempted = true;
-            }
-            if (!ReferenceEquals(_armorField, null))
-                ScaleFloatArray(_armorField.GetValue(armor) as float[], ArmorMultiplier);
-        }
-
-        // ============ 武器替换（核心新方案）============
-
-        private static Agent _pikemanPrefab;
-        private static bool _pikemanCached;
-
-        /// <summary>
-        /// 在 GameSetup.Awake 时查找 Pikeman 兵种的 minionPrefab 作为武器模板
-        /// </summary>
-        private static void CachePikemanWeaponTemplate()
-        {
-            if (_pikemanCached) return;
-            _pikemanCached = true;
-
-            try
-            {
-                Faction faction = UnityEngine.Object.FindObjectOfType<Faction>();
-                if (ReferenceEquals(faction, null) || faction.allSquads == null)
-                {
-                    LogWarn("Faction or allSquads is null");
-                    return;
-                }
-
-                FieldInfo minionPrefabField = typeof(Squad).GetField("minionPrefab", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                FieldInfo heroAgentField = typeof(Squad).GetField("heroAgent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
-                LogInfo("=== Faction Squads Diagnostic ===");
-                int squadIdx = 0;
-                foreach (Squad s in faction.allSquads)
-                {
-                    if (ReferenceEquals(s, null)) continue;
-                    string sName = s.name;
-                    if (string.IsNullOrEmpty(sName)) sName = "(null)";
-                    string brainType = "?";
-                    if (!ReferenceEquals(minionPrefabField, null))
-                    {
-                        Agent mp = minionPrefabField.GetValue(s) as Agent;
-                        if (!ReferenceEquals(mp, null) && !ReferenceEquals(mp.brain, null))
-                            brainType = mp.brain.GetType().FullName;
-                    }
-                    LogInfo("  Squad#" + squadIdx + ": name='" + sName + "' brain=" + brainType);
-                    squadIdx++;
-                }
-                LogInfo("=== End Squad Diagnostic ===");
-
-                // 查找 Pikeman
-                foreach (Squad squad in faction.allSquads)
-                {
-                    if (ReferenceEquals(squad, null)) continue;
-                    string sName = squad.name;
-                    if (string.IsNullOrEmpty(sName)) sName = "";
-                    bool isPikeman = sName.Contains("Pikeman") || sName.Contains("Pike") || sName.Contains("Spear");
-
-                    if (!isPikeman && !ReferenceEquals(minionPrefabField, null))
-                    {
-                        Agent mp = minionPrefabField.GetValue(squad) as Agent;
-                        if (!ReferenceEquals(mp, null) && !ReferenceEquals(mp.brain, null) && mp.brain.GetType().FullName != null)
-                            isPikeman = mp.brain.GetType().FullName.Contains("Pikeman");
-                    }
-
-                    if (isPikeman)
-                    {
-                        // 先选 minionPrefab
-                        if (!ReferenceEquals(minionPrefabField, null))
-                        {
-                            _pikemanPrefab = minionPrefabField.GetValue(squad) as Agent;
-                            if (!ReferenceEquals(_pikemanPrefab, null))
-                            {
-                                LogInfo("Pikeman weapon template: minionPrefab from '" + sName + "'");
-                                // 输出子对象结构
-                                List<string> childNames = new List<string>();
-                                foreach (Transform child in _pikemanPrefab.transform)
-                                {
-                                    if (!ReferenceEquals(child, null))
-                                        childNames.Add("'" + child.name + "'");
-                                }
-                                LogInfo("  Pikeman children: [" + string.Join(", ", childNames.ToArray()) + "]");
-                                return;
-                            }
-                        }
-                        // 回退到 heroAgent
-                        if (!ReferenceEquals(heroAgentField, null))
-                        {
-                            _pikemanPrefab = heroAgentField.GetValue(squad) as Agent;
-                            if (!ReferenceEquals(_pikemanPrefab, null))
-                            {
-                                LogInfo("Pikeman weapon template: heroAgent from '" + sName + "'");
-                                return;
-                            }
-                        }
-                    }
-                }
-
-                LogWarn("No Pikeman squad found in Faction.");
-            }
-            catch (Exception ex)
-            {
-                LogErr("CachePikemanWeaponTemplate: " + ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// 将黑矛兵的剑盾替换为长矛
-        /// </summary>
-        private static void ApplyWeaponSwap(Agent agent)
-        {
-            // 1. 禁用盾牌和剑
-            foreach (Transform child in agent.GetComponentsInChildren<Transform>(true))
-            {
-                if (ReferenceEquals(child, null) || child == agent.transform) continue;
-                string name = child.name.ToLower();
-                if (name.Contains("shield") || name.Contains("盾") || name.Contains("sword") || name.Contains("剑"))
-                {
-                    child.gameObject.SetActive(false);
-                    LogInfo("Disabled: '" + child.name + "'");
-                }
-            }
-
-            // 2. 如果有 Pikeman 模板，复制其 Spear 子对象
-            if (!ReferenceEquals(_pikemanPrefab, null))
-            {
-                // 查找模板中的 Spear
-                Transform spearTemplate = null;
-                foreach (Transform child in _pikemanPrefab.GetComponentsInChildren<Transform>(true))
-                {
-                    if (ReferenceEquals(child, null) || child == _pikemanPrefab.transform) continue;
-                    string name = child.name.ToLower();
-                    if (name.Contains("spear") || name.Contains("长矛") || name.Contains("矛") || name.Contains("pike") || name.Contains("weapon"))
-                    {
-                        spearTemplate = child;
-                        break;
-                    }
-                }
-
-                if (!ReferenceEquals(spearTemplate, null))
-                {
-                    // 深拷贝 spear 组件
-                    GameObject spearCopy = Instantiate(spearTemplate.gameObject, agent.transform);
-                    spearCopy.name = spearTemplate.name;
-                    spearCopy.transform.localPosition = spearTemplate.localPosition;
-                    spearCopy.transform.localRotation = spearTemplate.localRotation;
-                    spearCopy.transform.localScale = spearTemplate.localScale;
-                    spearCopy.SetActive(true);
-                    LogInfo("Cloned '" + spearTemplate.name + "' from Pikeman prefab.");
-                }
-                else
-                {
-                    LogWarn("No Spear child found in Pikeman prefab.");
-                }
-            }
-        }
-
-        // ============ VikingReference 绑定 ============
 
         private static void UpdateVikingReference(Agent agent)
         {
-            UnityEngine.Object blackRef;
-            if (!LevelStateObjectReferences.dict.TryGetValue(BlackSpearmanRefName, out blackRef)) return;
-            VikingReference newRef = blackRef as VikingReference;
-            if (ReferenceEquals(newRef, null)) return;
-            VikingAgent va = agent.GetComponent<VikingAgent>();
+            UnityEngine.Object o;
+            if (!LevelStateObjectReferences.dict.TryGetValue(BlackSpearmanRefName, out o)) return;
+            var nr = o as VikingReference;
+            if (ReferenceEquals(nr, null)) return;
+            var va = agent.GetComponent<VikingAgent>();
             if (ReferenceEquals(va, null)) return;
-            FieldInfo f = typeof(VikingAgent).GetField("vikingReference", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (!ReferenceEquals(f, null)) f.SetValue(va, newRef);
+            var f = typeof(VikingAgent).GetField("vikingReference", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(f, null)) f.SetValue(va, nr);
         }
 
-        private static void ScaleFloatArray(float[] arr, float mult)
-        {
-            if (arr == null) return;
-            for (int i = 0; i < arr.Length; i++) arr[i] *= mult;
-        }
+        private static void ScaleFloatArray(float[] arr, float mult) { if (arr != null) for (int i = 0; i < arr.Length; i++) arr[i] *= mult; }
 
-        // ============ 诊断 ============
-
-        private static void RunFirstConversionDiagnostic(Agent agent)
-        {
-            List<string> l = new List<string>();
-            l.Add("===== BlackSpearman v1.3 Diagnostic =====");
-
-            Swordsman sw = agent.brain as Swordsman;
-            l.Add(!ReferenceEquals(sw, null)
-                ? "  [PASS] Brain: Swordsman. dmg[0]=" + sw.damageLevels[0].ToString("F2") + " knock[0]=" + sw.knockbackLevels[0].ToString("F2")
-                : "  [FAIL] Brain: " + (agent.brain != null ? agent.brain.GetType().FullName : "null"));
-
-            Armor armor = agent.GetComponent<Armor>();
-            if (!ReferenceEquals(armor, null))
-            {
-                FieldInfo af = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                float[] v = !ReferenceEquals(af, null) ? af.GetValue(armor) as float[] : null;
-                l.Add(v != null ? "  [PASS] Armor: [" + v[0].ToString("F2") + "," + v[1].ToString("F2") + "," + v[2].ToString("F2") + "]" : "  [WARN] Armor field null");
-            }
-            else l.Add("  [FAIL] Armor: not found.");
-
-            // 子对象结构
-            List<string> childNames = new List<string>();
-            foreach (Transform child in agent.transform)
-            {
-                if (!ReferenceEquals(child, null))
-                    childNames.Add(child.name + "(active=" + child.gameObject.activeSelf.ToString() + ")");
-            }
-            l.Add("  [INFO] Children: [" + string.Join(", ", childNames.ToArray()) + "]");
-
-            // 深度搜索
-            List<string> deepChildren = new List<string>();
-            foreach (Transform child in agent.GetComponentsInChildren<Transform>(true))
-            {
-                if (!ReferenceEquals(child, null) && child != agent.transform)
-                    deepChildren.Add(child.name);
-            }
-            l.Add("  [INFO] DeepChildren: [" + string.Join(", ", deepChildren.ToArray()) + "]");
-
-            l.Add("  [INFO] " + (ConversionChance * 100f).ToString("F0") + "% chance, Scale×" + ScaleMultiplier.ToString());
-            l.Add("  [INFO] PikemanTemplate: " + (!ReferenceEquals(_pikemanPrefab, null) ? "FOUND" : "NULL"));
-            l.Add("=========================================");
-            foreach (string line in l)
-                LogInfo(line);
-        }
-
-        private void LogEnvironmentInfo()
-        {
-            try
-            {
-                Logger.LogInfo("[BlackSpearman] BepInEx " + typeof(BaseUnityPlugin).Assembly.GetName().Version + ", CLR " + Environment.Version);
-                Logger.LogInfo("[BlackSpearman] Types: Faction=" + (!ReferenceEquals(typeof(Faction), null)) + " VikingAgent=" + (!ReferenceEquals(typeof(VikingAgent), null)) + " Swordsman=" + (!ReferenceEquals(typeof(Swordsman), null)));
-            }
-            catch { }
-        }
-
-        // ============ 日志工具 ============
-
-        private static void LogInfo(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BlackSpearman] " + msg); }
-        private static void LogWarn(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogWarning("[BlackSpearman] " + msg); }
-        private static void LogErr(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogError("[BlackSpearman] " + msg); }
+        internal static void LogInfo(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BlackSpearman] " + msg); }
+        internal static void LogWarn(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogWarning("[BlackSpearman] " + msg); }
+        internal static void LogErr(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogError("[BlackSpearman] " + msg); }
     }
 }

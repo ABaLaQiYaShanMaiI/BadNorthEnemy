@@ -13,18 +13,20 @@ namespace BadNorthBlackSpearman
         private const float ChargeSpeed = 6.0f;
         private const float ChargeCooldown = 8.0f;
         private const float RecoveryTime = 0.4f;
-        private const float HitRadius = 1.2f;
-        private const float HitInterval = 0.15f;
+        private const float HitRadius = 1.5f;           // 增大碰撞半径
+        private const float HitInterval = 0.1f;         // 更频繁检测
         private const float ChargeDuration = 0.58f;
 
         private enum Phase { Idle, Charging, Cooldown }
         private Phase _phase = Phase.Idle;
+
         private Agent _agent;
         private bool _setupDone;
         private float _phaseTimer;
         private Vector3 _chargeDirection;
         private float _chargeDistanceTraveled;
         private float _originalMaxSpeed;
+        private bool _weaponSearched;
 
         private HashSet<Agent> _hitAgents = new HashSet<Agent>();
         private float _lastHitTime = -999f;
@@ -42,7 +44,7 @@ namespace BadNorthBlackSpearman
         public static SpearChargeComponent AddTo(Agent agent)
         {
             if (ReferenceEquals(agent, null)) return null;
-            SpearChargeComponent existing = agent.GetComponent<SpearChargeComponent>();
+            var existing = agent.GetComponent<SpearChargeComponent>();
             if (!ReferenceEquals(existing, null)) return existing;
             return agent.gameObject.AddComponent<SpearChargeComponent>();
         }
@@ -57,8 +59,8 @@ namespace BadNorthBlackSpearman
             CacheStun();
             _stunComponent = _agent.GetComponent<Stun>();
             _phase = Phase.Idle;
-            _phaseTimer = 0f;
-            Log("Setup OK. origMaxSpeed=" + _originalMaxSpeed.ToString("F1"));
+            _phaseTimer = 0.5f; // 登岛后等待 0.5s 再检测
+            Log("Setup OK. maxSpeed=" + _originalMaxSpeed.ToString("F1"));
         }
 
         private void Update()
@@ -77,27 +79,27 @@ namespace BadNorthBlackSpearman
 
             switch (_phase)
             {
-                case Phase.Idle:
-                    UpdateIdle();
-                    break;
-                case Phase.Charging:
-                    DoCharging();
-                    break;
-                case Phase.Cooldown:
-                    UpdateCooldown();
-                    break;
+                case Phase.Idle: UpdateIdle(); break;
+                case Phase.Charging: DoCharging(); break;
+                case Phase.Cooldown: UpdateCooldown(); break;
             }
         }
 
-        private void OnDestroy()
-        {
-            TryEndCharge();
-        }
+        private void OnDestroy() { TryEndCharge(); }
 
         // ===== Idle =====
         private void UpdateIdle()
         {
             if (!_agent.navPos.island) return;
+
+            // ⭐ 第一个黑矛兵登岛后搜索 Pikeman 武器
+            if (!_weaponSearched)
+            {
+                _weaponSearched = true;
+                Plugin.SearchForPikemanWeapon();
+            }
+
+            // 检测敌人
             Vector3 dir;
             if (HasNearbyEnemy(out dir))
             {
@@ -115,7 +117,7 @@ namespace BadNorthBlackSpearman
             _phaseTimer = ChargeDuration;
             _originalMaxSpeed = _agent.maxSpeed;
             SetStunImmunity(true);
-            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1"));
+            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1") + " from=" + _agent.transform.position.ToString("F1"));
         }
 
         private void DoCharging()
@@ -130,7 +132,9 @@ namespace BadNorthBlackSpearman
             catch { }
 
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
+            _agent.movability = 0f;
             _agent.maxSpeed = 0f;
+            _agent.walkDir = Vector3.zero;
 
             if (Time.time - _lastHitTime >= HitInterval)
                 DetectAndApplyHit();
@@ -144,8 +148,11 @@ namespace BadNorthBlackSpearman
             _phase = Phase.Cooldown;
             _phaseTimer = ChargeCooldown;
             SetStunImmunity(false);
-            _agent.maxSpeed = 0f; // recovery 期间冻结
-            Log("Charge ended. Cooldown " + ChargeCooldown + "s");
+            _agent.maxSpeed = 0f;
+            if (_hitAgents.Count > 0)
+                Log("Charge ended. Hits: " + _hitAgents.Count);
+            else
+                Log("Charge ended. NO hits.");
         }
 
         // ===== Cooldown =====
@@ -156,13 +163,13 @@ namespace BadNorthBlackSpearman
 
             if (_phaseTimer > recoveryEnd)
             {
-                // recovery 期内冻结
+                _agent.movability = 0.35f;
                 _agent.maxSpeed = 0f;
                 _agent.walkDir = Vector3.zero;
             }
             else
             {
-                // ⭐ 恢复 AI 控制
+                _agent.movability = 1f;
                 _agent.maxSpeed = _originalMaxSpeed;
             }
 
@@ -171,42 +178,55 @@ namespace BadNorthBlackSpearman
                 _phase = Phase.Idle;
                 _phaseTimer = 0f;
                 _hitAgents.Clear();
+                _agent.movability = 1f;
                 _agent.maxSpeed = _originalMaxSpeed;
-                Log("Cooldown over. Ready.");
             }
         }
 
-        private void TryEndCharge()
-        {
-            if (_phase != Phase.Charging) return;
-            EndCharge();
-        }
+        private void TryEndCharge() { if (_phase == Phase.Charging) EndCharge(); }
 
         // ===== 伤害 =====
         private void DetectAndApplyHit()
         {
             Agent[] allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
+            int checkedCount = 0;
+            int skippedViking = 0;
+            int skippedDist = 0;
+
             for (int i = 0; i < allAgents.Length; i++)
             {
                 Agent other = allAgents[i];
                 if (ReferenceEquals(other, null)) continue;
                 if (ReferenceEquals(other, _agent)) continue;
-                if (other.isViking) continue;
+                if (other.isViking) { skippedViking++; continue; }
                 if (_hitAgents.Contains(other)) continue;
                 if (!ReferenceEquals(other.aliveState, null) && !other.aliveState.active) continue;
 
+                checkedCount++;
                 float dist = Vector3.Distance(_agent.transform.position, other.transform.position);
-                if (dist > HitRadius) continue;
+                if (dist > HitRadius) { skippedDist++; continue; }
 
+                // ⭐ 诊断日志
                 if (!_hitDiagnosticDone)
                 {
                     _hitDiagnosticDone = true;
-                    LogDirect("[Charge] HIT DETECT: " + other.name + " d=" + dist.ToString("F2"));
+                    Plugin.LogInfo("[Charge] HIT! target=" + other.name + " d=" + dist.ToString("F2") +
+                        " pos=" + other.transform.position.ToString("F1") +
+                        " myPos=" + _agent.transform.position.ToString("F1"));
                 }
 
                 _hitAgents.Add(other);
                 _lastHitTime = Time.time;
                 ApplyChargeDamage(other);
+            }
+
+            // 诊断：首次扫描无命中
+            if (!_hitDiagnosticDone && checkedCount > 0 && _hitAgents.Count == 0)
+            {
+                _hitDiagnosticDone = true;
+                Plugin.LogWarn("[Charge] No hit! Checked " + checkedCount + " agents, " +
+                    skippedViking + " vikings, " + skippedDist + " too far. MyPos=" +
+                    _agent.transform.position.ToString("F1"));
             }
         }
 
@@ -215,44 +235,30 @@ namespace BadNorthBlackSpearman
             if (ReferenceEquals(target, null)) return;
             try
             {
-                MethodInfo dealDamage = typeof(Agent).GetMethod("DealDamage",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
-                if (!ReferenceEquals(dealDamage, null))
-                {
-                    ConstructorInfo atkCtor = typeof(Attack).GetConstructor(new Type[] {
-                        typeof(AttackSettings), typeof(Vector3), typeof(Vector3),
-                        typeof(Component), typeof(Squad), typeof(string), typeof(GameObject)
-                    });
-
-                    if (!ReferenceEquals(atkCtor, null))
-                    {
-                        AttackSettings s = new AttackSettings();
-                        s.damage = 3.33f;
-                        s.knockback = 10.62f;
-                        s.stun = 0.5f;
-
-                        Vector3 dir = _chargeDirection.normalized;
-                        dir.y = 0;
-
-                        object atk = atkCtor.Invoke(new object[] { s, dir, target.chestPos, this, null, "Spear", null });
-                        dealDamage.Invoke(target, new object[] { atk });
-                        Log("HIT " + target.name);
-                        return;
-                    }
-                }
-
-                float nh = target.health - 3.3f;
+                // 优先：直接扣血（最可靠）
+                float dmg = 3.33f;
+                float nh = target.health - dmg;
                 if (nh < 0f) nh = 0f;
                 target.health = nh;
-                Log("HIT(fb) " + target.name);
+
+                // 击退
+                Vector3 kb = _chargeDirection.normalized * 0.5f;
+                kb.y = 0;
+                target.transform.position += kb;
+
+                // Stun
+                var stun = target.GetComponent<Stun>();
+                if (!ReferenceEquals(stun, null))
+                {
+                    var smf = typeof(Stun).GetField("stunMultiplier",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(smf, null))
+                        smf.SetValue(stun, 10f);
+                }
             }
             catch (Exception ex)
             {
-                LogDirect("[Charge] DmgErr: " + ex.Message);
-                float nh = target.health - 3.3f;
-                if (nh < 0f) nh = 0f;
-                target.health = nh;
+                Plugin.LogErr("[Charge] DmgErr: " + ex.Message);
             }
         }
 
@@ -310,15 +316,9 @@ namespace BadNorthBlackSpearman
         // ===== 日志 =====
         private void Log(string msg)
         {
-            if (Time.time - _lastLogTime < 2f) return;
+            if (Time.time - _lastLogTime < 1f) return;
             _lastLogTime = Time.time;
-            LogDirect("[Charge] " + msg);
-        }
-
-        private void LogDirect(string msg)
-        {
-            if (!ReferenceEquals(Plugin.SharedLogger, null))
-                Plugin.SharedLogger.LogInfo("[BlackSpearman] " + msg);
+            Plugin.LogInfo("[Charge] " + msg);
         }
     }
 }
