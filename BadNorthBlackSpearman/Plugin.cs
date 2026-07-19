@@ -211,11 +211,52 @@ namespace BadNorthBlackSpearman
             var newRef = newGo.AddComponent<VikingReference>();
             CopyVikingReferenceFields(origRef, newRef);
 
+            // ⭐ 修复击杀重复计数：改为非 SwordShield 类型
+            // 尝试通过反射设置 VikingAgent.Type 为大于现有enum值的数值
+            TryChangeVikingType(newRef);
+
             SetLevelExpr(newGo.AddComponent<LevelRule>(), _levelRuleConditionField, "true");
             SetLevelExpr(newGo.AddComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
 
             LevelStateObjectReferences.AddToDict(newRef);
             SharedLogger?.LogInfo($"[BlackSpearman] Registered independent VikingReference: '{BlackSpearmanRefName}'.");
+        }
+
+        // ⭐ 尝试改变 VikingAgent.Type 以修复击杀重复计数
+        private static void TryChangeVikingType(VikingReference vref)
+        {
+            try
+            {
+                var vf = typeof(VikingReference).GetField("viking",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(vf, null)) return;
+                var vikingObj = vf.GetValue(vref);
+                if (ReferenceEquals(vikingObj, null)) return;
+
+                var vikingType = vikingObj.GetType();
+                var vaField = vikingType.GetField("agent",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(vaField, null)) return;
+                var agent = vaField.GetValue(vikingObj) as Agent;
+                if (ReferenceEquals(agent, null)) return;
+
+                var va = agent.GetComponent<VikingAgent>();
+                if (ReferenceEquals(va, null)) return;
+
+                // VikingAgent.Type 是枚举，尝试直接用反射设成int值（如99 = Brute等）
+                var typeField = typeof(VikingAgent).GetField("type",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(typeField, null))
+                {
+                    int bruteValue = 3; // 通常 Brute = 3
+                    typeField.SetValue(va, bruteValue);
+                    SharedLogger?.LogInfo($"[BlackSpearman] Changed VikingAgent.type to {bruteValue} (Brute) to avoid double counting.");
+                }
+            }
+            catch (Exception ex)
+            {
+                SharedLogger?.LogWarning($"[BlackSpearman] TryChangeVikingType failed: {ex.Message}");
+            }
         }
 
         private void CopyVikingReferenceFields(VikingReference src, VikingReference dst)
@@ -342,12 +383,13 @@ namespace BadNorthBlackSpearman
         }
 
         // ==============================
-        // P0 修复：替换为长矛兵 Sprite（武器外观）
+        // 武器外观替换
         // ==============================
 
         private static bool _pikemanSpriteAttempted;
         private static Sprite _pikemanSprite;
         private static Texture2D _pikemanSprite2;
+        private static bool _pikemanFound;
 
         private static void ApplyPikemanSprite(Agent agent)
         {
@@ -357,13 +399,14 @@ namespace BadNorthBlackSpearman
                 CachePikemanSprite();
             }
 
-            if (ReferenceEquals(_pikemanSprite, null) && ReferenceEquals(_pikemanSprite2, null))
+            if (!_pikemanFound)
             {
-                SharedLogger?.LogWarning("[BlackSpearman] No Pikeman sprite cached. Skipping sprite change.");
+                // 找不到长矛兵，尝试直接禁用盾牌子对象
+                DisableShieldChild(agent);
                 return;
             }
 
-            // 遍历所有子组件，找到 SpriteAnimator
+            // 遍历所有子组件，找到 SpriteAnimator 替换
             foreach (var comp in agent.GetComponentsInChildren<Component>(true))
             {
                 if (ReferenceEquals(comp, null)) continue;
@@ -372,7 +415,6 @@ namespace BadNorthBlackSpearman
 
                 try
                 {
-                    // 替换 sprite（sprite 图集纹理）
                     if (!ReferenceEquals(_pikemanSprite, null))
                     {
                         var spriteProp = comp.GetType().GetProperty("sprite",
@@ -381,7 +423,6 @@ namespace BadNorthBlackSpearman
                             spriteProp.SetValue(comp, _pikemanSprite, null);
                     }
 
-                    // 替换 sprite2（_PartTex 图集纹理）
                     if (!ReferenceEquals(_pikemanSprite2, null))
                     {
                         var sprite2Prop = comp.GetType().GetProperty("sprite2",
@@ -396,7 +437,54 @@ namespace BadNorthBlackSpearman
                 {
                     SharedLogger?.LogWarning($"[BlackSpearman] Sprite swap failed: {ex.Message}");
                 }
-                break; // 只处理第一个 SpriteAnimator
+                break;
+            }
+        }
+
+        /// <summary>
+        /// 找不到长矛兵时的回退方案：遍历子GameObject，禁用盾牌相关对象
+        /// </summary>
+        private static void DisableShieldChild(Agent agent)
+        {
+            int disabledCount = 0;
+            foreach (Transform child in agent.transform)
+            {
+                if (ReferenceEquals(child, null)) continue;
+                var name = child.name.ToLower();
+                if (name.Contains("shield") || name.Contains("盾"))
+                {
+                    child.gameObject.SetActive(false);
+                    disabledCount++;
+                    SharedLogger?.LogInfo($"[BlackSpearman] Disabled shield child: '{child.name}'");
+                }
+            }
+            if (disabledCount == 0)
+            {
+                // 深度搜索所有子对象
+                foreach (Transform child in agent.GetComponentsInChildren<Transform>(true))
+                {
+                    if (ReferenceEquals(child, null) || child == agent.transform) continue;
+                    var name = child.name.ToLower();
+                    if (name.Contains("shield") || name.Contains("盾"))
+                    {
+                        child.gameObject.SetActive(false);
+                        disabledCount++;
+                        SharedLogger?.LogInfo($"[BlackSpearman] Disabled shield child (deep): '{child.name}'");
+                        break;
+                    }
+                }
+            }
+            if (disabledCount == 0)
+            {
+                SharedLogger?.LogWarning("[BlackSpearman] No shield child found to disable.");
+                // 输出所有子对象名称帮助诊断
+                var names = new List<string>();
+                foreach (Transform child in agent.transform)
+                {
+                    if (!ReferenceEquals(child, null))
+                        names.Add($"'{child.name}'");
+                }
+                SharedLogger?.LogInfo("[BlackSpearman] Agent children: [" + string.Join(", ", names.ToArray()) + "]");
             }
         }
 
@@ -408,46 +496,20 @@ namespace BadNorthBlackSpearman
         {
             try
             {
-                // 缓存反射字段
                 if (ReferenceEquals(_vrVikingField, null))
                     _vrVikingField = typeof(VikingReference).GetField("viking",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 if (ReferenceEquals(_vrAgentField, null))
                 {
-                    // Agent 可能在 Viking 类的内部，先找 Viking 类型
-                    var vikingType = _vrVikingField?.FieldType;
+                    Type vikingType = null;
+                    if (!ReferenceEquals(_vrVikingField, null))
+                        vikingType = _vrVikingField.FieldType;
                     if (!ReferenceEquals(vikingType, null))
                         _vrAgentField = vikingType.GetField("agent",
                             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 }
 
-                // 策略1：从 dict 中查找 Pikeman 的 VikingReference
-                UnityEngine.Object pikemanObj;
-                string[] candidateKeys = { "Viking_Pikeman", "English_Pikeman", "Pikeman",
-                    "Viking_Spearman", "English_Spearman" };
-
-                foreach (var key in candidateKeys)
-                {
-                    if (LevelStateObjectReferences.dict.TryGetValue(key, out pikemanObj))
-                    {
-                        var vr = pikemanObj as VikingReference;
-                        if (!ReferenceEquals(vr, null))
-                        {
-                            Agent agent = GetAgentFromVikingReference(vr);
-                            if (!ReferenceEquals(agent, null))
-                            {
-                                ExtractSpriteFromAgent(agent);
-                                if (!ReferenceEquals(_pikemanSprite, null))
-                                {
-                                    SharedLogger?.LogInfo($"[BlackSpearman] Pikeman sprite found via dict key '{key}'.");
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 策略2：搜索 Faction 中的 Squad，找 Pikeman 类型
+                // 策略1：搜索 Faction 中的 EnglishSquad，找 Pikeman
                 var faction = UnityEngine.Object.FindObjectOfType<Faction>();
                 if (!ReferenceEquals(faction, null) && faction.allSquads != null)
                 {
@@ -457,27 +519,68 @@ namespace BadNorthBlackSpearman
 
                     foreach (var squad in faction.allSquads)
                     {
-                        if (ReferenceEquals(squad, null) || ReferenceEquals(_squadMinionPrefabField, null)) continue;
-                        var minionPrefab = _squadMinionPrefabField.GetValue(squad) as Agent;
-                        if (!ReferenceEquals(minionPrefab, null))
+                        if (ReferenceEquals(squad, null)) continue;
+                        
+                        // 先通过 squad 的名称判断
+                        var squadName = squad.name ?? "";
+                        bool isPikeman = squadName.Contains("Pikeman") || squadName.Contains("Pike");
+
+                        // 通过 minionPrefab 的 brain 类型判断
+                        if (!isPikeman && !ReferenceEquals(_squadMinionPrefabField, null))
                         {
-                            var brain = minionPrefab.brain;
-                            if (!ReferenceEquals(brain, null) &&
-                                brain.GetType().FullName != null &&
-                                brain.GetType().FullName.Contains("Pikeman"))
+                            var minionPrefab = _squadMinionPrefabField.GetValue(squad) as Agent;
+                            if (!ReferenceEquals(minionPrefab, null))
                             {
-                                ExtractSpriteFromAgent(minionPrefab);
-                                if (!ReferenceEquals(_pikemanSprite, null))
+                                var brain = minionPrefab.brain;
+                                if (!ReferenceEquals(brain, null) && brain.GetType().FullName != null &&
+                                    brain.GetType().FullName.Contains("Pikeman"))
                                 {
-                                    SharedLogger?.LogInfo("[BlackSpearman] Pikeman sprite found via Faction Pikeman squad.");
-                                    return;
+                                    isPikeman = true;
+                                    SharedLogger?.LogInfo($"[BlackSpearman] Found Pikeman via brain: {brain.GetType().FullName}");
+                                }
+                            }
+                        }
+
+                        if (isPikeman)
+                        {
+                            // 从 squad 中提取 Sprite
+                            // EnglishSquad 有 heroAgent 和 minionPrefab
+                            var heroAgentField = typeof(Squad).GetField("heroAgent",
+                                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                            if (!ReferenceEquals(heroAgentField, null))
+                            {
+                                var heroAgent = heroAgentField.GetValue(squad) as Agent;
+                                if (!ReferenceEquals(heroAgent, null))
+                                {
+                                    ExtractSpriteFromAgent(heroAgent);
+                                    if (!ReferenceEquals(_pikemanSprite, null))
+                                    {
+                                        _pikemanFound = true;
+                                        SharedLogger?.LogInfo($"[BlackSpearman] Pikeman sprite found via squad '{squadName}' heroAgent.");
+                                        return;
+                                    }
+                                }
+                            }
+
+                            if (!ReferenceEquals(_squadMinionPrefabField, null))
+                            {
+                                var minionPrefab = _squadMinionPrefabField.GetValue(squad) as Agent;
+                                if (!ReferenceEquals(minionPrefab, null))
+                                {
+                                    ExtractSpriteFromAgent(minionPrefab);
+                                    if (!ReferenceEquals(_pikemanSprite, null))
+                                    {
+                                        _pikemanFound = true;
+                                        SharedLogger?.LogInfo($"[BlackSpearman] Pikeman sprite found via squad '{squadName}' minionPrefab.");
+                                        return;
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                // 策略3：遍历 dict 中所有 VikingReference，找 brain 是 Pikeman 或名字含 Pike/Spear 的
+                // 策略2：遍历 dict 找含 Pikeman 的 VikingReference
                 foreach (var kvp in LevelStateObjectReferences.dict)
                 {
                     var vr = kvp.Value as VikingReference;
@@ -493,16 +596,38 @@ namespace BadNorthBlackSpearman
                         ExtractSpriteFromAgent(agent);
                         if (!ReferenceEquals(_pikemanSprite, null))
                         {
+                            _pikemanFound = true;
                             SharedLogger?.LogInfo($"[BlackSpearman] Pikeman sprite found via dict key '{kvp.Key}'.");
                             return;
                         }
                     }
                 }
 
-                SharedLogger?.LogWarning("[BlackSpearman] Could not find any Pikeman reference for sprite cloning.");
+                // 策略3：直接搜索场景中所有 Agent 找 Pikeman brain
+                var allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
+                foreach (var a in allAgents)
+                {
+                    if (ReferenceEquals(a, null)) continue;
+                    var b = a.brain;
+                    if (ReferenceEquals(b, null) || b.GetType().FullName == null) continue;
+                    if (b.GetType().FullName.Contains("Pikeman"))
+                    {
+                        ExtractSpriteFromAgent(a);
+                        if (!ReferenceEquals(_pikemanSprite, null))
+                        {
+                            _pikemanFound = true;
+                            SharedLogger?.LogInfo($"[BlackSpearman] Pikeman sprite found via scene Agent with Pikeman brain.");
+                            return;
+                        }
+                    }
+                }
+
+                _pikemanFound = false;
+                SharedLogger?.LogWarning("[BlackSpearman] Could not find any Pikeman reference for sprite cloning. Will attempt to disable shield instead.");
             }
             catch (Exception ex)
             {
+                _pikemanFound = false;
                 SharedLogger?.LogError($"[BlackSpearman] CachePikemanSprite failed: {ex.GetType().Name}: {ex.Message}");
             }
         }
@@ -583,7 +708,7 @@ namespace BadNorthBlackSpearman
             var sw = agent.brain as Swordsman;
             l.Add(!ReferenceEquals(sw, null)
                 ? $"  [PASS] Brain: Swordsman. dmg[0]={sw.damageLevels[0]:F2} knock[0]={sw.knockbackLevels[0]:F2}"
-                : $"  [FAIL] Brain: {agent.brain?.GetType().FullName ?? "null"}");
+                : "  [FAIL] Brain: " + (agent.brain != null ? agent.brain.GetType().FullName : "null"));
 
             var armor = agent.GetComponent<Armor>();
             if (!ReferenceEquals(armor, null))
@@ -608,7 +733,16 @@ namespace BadNorthBlackSpearman
                 }
             }
 
-            // 颜色诊断：用字符串搜索替代 typeof(SpriteAnimator)
+            // 输出子对象结构
+            var childNames = new List<string>();
+            foreach (Transform child in agent.transform)
+            {
+                if (!ReferenceEquals(child, null))
+                    childNames.Add($"{child.name}(active={child.gameObject.activeSelf})");
+            }
+            l.Add("  [INFO] Children: [" + string.Join(", ", childNames.ToArray()) + "]");
+
+            // 颜色诊断
             foreach (var c in agent.GetComponentsInChildren<Component>(true))
             {
                 if (ReferenceEquals(c, null)) continue;
@@ -627,9 +761,13 @@ namespace BadNorthBlackSpearman
 
             l.Add($"  [INFO] {ConversionChance * 100:F0}% chance, Scale×{ScaleMultiplier}, " +
                   $"Dmg×{DamageMultiplier}, Knock×{KnockbackMultiplier}, Armor×{ArmorMultiplier}");
+            l.Add($"  [INFO] PikemanFound: {_pikemanFound}");
             l.Add($"  [INFO] MMHOOK: {_hooksRegistered}");
             l.Add("=========================================");
-            SharedLogger?.LogInfo(string.Join("\n", l.ToArray()));
+            SharedLogger?.LogInfo(string.Join("\n", new string[] { l.ToArray().Length > 0 ? l[0] : "" }));
+            // 逐行输出解决 .NET 3.5 兼容问题
+            foreach (var line in l)
+                SharedLogger?.LogInfo(line);
         }
 
         private void LogEnvironmentInfo()
