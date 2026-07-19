@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using Voxels.TowerDefense;
@@ -36,6 +38,12 @@ namespace BadNorthBlackSpearman
         /// <summary>冲刺结束后的短暂硬直时间</summary>
         private const float RecoveryTime = 0.4f;
 
+        /// <summary>冲刺伤害碰撞检测半径</summary>
+        private const float HitRadius = 1.2f;
+
+        /// <summary>冲刺伤害间隔（秒），防止同一帧多次伤害</summary>
+        private const float HitInterval = 0.15f;
+
         private Agent _agent;
         private ChargeState _state = ChargeState.Idle;
         private float _stateTimer;
@@ -47,6 +55,14 @@ namespace BadNorthBlackSpearman
         // 冲刺期间保存的原始值
         private float _originalMaxSpeed;
         private Vector3 _originalWalkDir;
+
+        // 冲刺伤害追踪：记录已命中的 Agent，避免重复伤害
+        private HashSet<Agent> _hitAgents = new HashSet<Agent>();
+        private float _lastHitTime;
+
+        // NavPos 同步缓存
+        private static PropertyInfo _navPosProperty;
+        private static bool _navPosCached;
 
         // ==============================
         // Stun 反射缓存
@@ -96,6 +112,7 @@ namespace BadNorthBlackSpearman
             _originalMaxSpeed = _agent.maxSpeed;
             _stunComponent = _agent.GetComponent<Stun>();
             CacheStunStrategy();
+            CacheNavPos();
 
             if (_stunStrategy == StunImmunityStrategy.StunMultiplier && !ReferenceEquals(_stunComponent, null))
             {
@@ -201,11 +218,8 @@ namespace BadNorthBlackSpearman
             Vector3 newPos = _agent.transform.position + _chargeDirection * moveDelta;
 
             // 碰撞检测：前方是否有障碍物
-            // 使用 NavMesh 或简单 raycast 检测
             RaycastHit hit;
-            float checkDist = moveDelta + 0.3f; // 稍微提前检测
-            // 只检测地形/建筑物，避免被队友或尸体阻挡
-            // Bad North 地形层: Voxels + Houses（文档 08 §4.1）：arrowLow = Voxels + Houses + ArrowBlocker
+            float checkDist = moveDelta + 0.3f;
             int v = LayerMask.NameToLayer("Voxels");
             int h = LayerMask.NameToLayer("Houses");
             int ab = LayerMask.NameToLayer("ArrowBlocker");
@@ -213,7 +227,6 @@ namespace BadNorthBlackSpearman
             if (Physics.Raycast(_agent.transform.position, _chargeDirection, out hit, checkDist,
                 terrainLayer, QueryTriggerInteraction.Ignore))
             {
-                // 撞到东西，提前结束冲刺
                 _agent.transform.position = hit.point - _chargeDirection * 0.2f;
                 EndCharge();
                 _state = ChargeState.Cooldown;
@@ -224,7 +237,38 @@ namespace BadNorthBlackSpearman
 
             _agent.transform.position = newPos;
 
-            // 让朝向跟随冲刺方向（旋转脸朝敌人）
+            // ============ 冲刺伤害检测 ============
+            if (Time.time - _lastHitTime >= HitInterval)
+            {
+                int vikingsLayer = LayerMask.NameToLayer("Vikings");
+                int agentsLayer = LayerMask.NameToLayer("Agents");
+                int mask = 0;
+                if (vikingsLayer >= 0) mask |= (1 << vikingsLayer);
+                if (agentsLayer >= 0) mask |= (1 << agentsLayer);
+                // 回退：如果未找到特定层，使用 DefaultRaycastLayers
+                if (mask == 0) mask = Physics.DefaultRaycastLayers;
+
+                Collider[] hits = Physics.OverlapSphere(_agent.transform.position, HitRadius, mask);
+                foreach (var col in hits)
+                {
+                    if (ReferenceEquals(col, null)) continue;
+                    var otherAgent = col.GetComponentInParent<Agent>();
+                    if (ReferenceEquals(otherAgent, null)) continue;
+                    if (ReferenceEquals(otherAgent, _agent)) continue;
+                    if (otherAgent.isViking) continue; // 不要伤害同阵营 Viking
+                    if (_hitAgents.Contains(otherAgent)) continue; // 已命中过
+                    if (!ReferenceEquals(otherAgent.aliveState, null) && !otherAgent.aliveState.active) continue;
+
+                    // 标记已命中
+                    _hitAgents.Add(otherAgent);
+                    _lastHitTime = Time.time;
+
+                    // 施加伤害
+                    ApplyChargeDamage(otherAgent);
+                }
+            }
+
+            // 让朝向跟随冲刺方向
             if (_chargeDirection.sqrMagnitude > 0.001f)
             {
                 Quaternion targetRot = Quaternion.LookRotation(_chargeDirection, Vector3.up);
@@ -241,7 +285,6 @@ namespace BadNorthBlackSpearman
         {
             _stateTimer -= Time.deltaTime;
 
-            // 恢复期内让 Agent 短暂不能动（硬直效果）
             if (_stateTimer > ChargeCooldown - RecoveryTime)
             {
                 _agent.walkDir = Vector3.zero;
@@ -249,7 +292,6 @@ namespace BadNorthBlackSpearman
             }
             else
             {
-                // 恢复正常移动
                 _agent.maxSpeed = _originalMaxSpeed;
             }
 
@@ -258,7 +300,83 @@ namespace BadNorthBlackSpearman
                 _state = ChargeState.Watching;
                 _stateTimer = 0f;
                 _chargeDistanceTraveled = 0f;
+                _hitAgents.Clear();
                 LogStatus("Cooldown ended. Watching for next target...");
+            }
+        }
+
+        // ==============================
+        // 冲刺伤害
+        // ==============================
+
+        /// <summary>
+        /// 对命中的玩家 Agent 施加伤害、击退和眩晕。
+        /// 模仿我方长矛兵冲刺技能的效果。
+        /// </summary>
+        private void ApplyChargeDamage(Agent target)
+        {
+            if (ReferenceEquals(target, null)) return;
+
+            // 伤害：使用当前 Agent 的伤害值（已被 Plugin 乘以 1.6）
+            float damage = 2.0f;
+            var swordsman = _agent.brain as Swordsman;
+            if (!ReferenceEquals(swordsman, null) && swordsman.damageLevels != null && swordsman.damageLevels.Length > 0)
+            {
+                damage = swordsman.damageLevels[0];
+            }
+
+            // 击退力
+            float knockback = 4.0f;
+            if (!ReferenceEquals(swordsman, null) && swordsman.knockbackLevels != null && swordsman.knockbackLevels.Length > 0)
+            {
+                knockback = swordsman.knockbackLevels[0];
+            }
+
+            // 眩晕
+            float stunDuration = 0.5f;
+
+            // 计算击退方向 = 冲刺方向
+            Vector3 knockbackDir = _chargeDirection.normalized;
+            knockbackDir.y = 0;
+
+            // 直接修改目标生命值
+            try
+            {
+                // 通过反射调用 Damage 相关方法，或直接扣血
+                float newHealth = target.health - damage;
+                target.health = Mathf.Max(0f, newHealth);
+
+                // 施加击退：设置 walkDir 瞬时推离
+                target.transform.position += knockbackDir * 0.3f;
+
+                // 施加眩晕：找到 Stun 组件并触发
+                var stun = target.GetComponent<Stun>();
+                if (!ReferenceEquals(stun, null))
+                {
+                    // 尝试调用 Stun 的触发方法
+                    var stunMethod = typeof(Stun).GetMethod("Begin",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(stunMethod, null))
+                    {
+                        stunMethod.Invoke(stun, new object[] { stunDuration });
+                    }
+                    else
+                    {
+                        // 回退：直接设 stunMultiplier 让目标更容易被眩晕
+                        var smField = typeof(Stun).GetField("stunMultiplier",
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (!ReferenceEquals(smField, null))
+                        {
+                            smField.SetValue(stun, 10f); // 极高倍数 → 下一击必晕
+                        }
+                    }
+                }
+
+                LogStatus($"HIT {target.name}! Dmg={damage:F1} HP={target.health:F1}/{target.maxHealth:F1}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.SharedLogger?.LogError($"[BlackSpearman] [Charge] Damage failed: {ex.Message}");
             }
         }
 
@@ -269,9 +387,10 @@ namespace BadNorthBlackSpearman
         private void StartCharge()
         {
             _state = ChargeState.Charging;
-            _stateTimer = ChargeDistance / ChargeSpeed; // 根据距离和速度计算持续时间
+            _stateTimer = ChargeDistance / ChargeSpeed;
             _chargeStartPos = _agent.transform.position;
             _chargeDistanceTraveled = 0f;
+            _hitAgents.Clear();
 
             // 保存原始移动状态
             _originalMaxSpeed = _agent.maxSpeed;
@@ -293,7 +412,64 @@ namespace BadNorthBlackSpearman
             // 解除眩晕免疫
             SetStunImmunity(false);
 
+            // ✅ P1修复：同步 navPos，防止 AI 寻路认为 Agent 还在原位置
+            SyncNavPos();
+
             LogStatus($"Charge ended. Pos delta={Vector3.Distance(_agent.transform.position, _chargeStartPos):F1}m");
+        }
+
+        // ==============================
+        // NavPos 同步（P1 修复 #5）
+        // ==============================
+
+        private static void CacheNavPos()
+        {
+            if (_navPosCached) return;
+            _navPosCached = true;
+
+            _navPosProperty = typeof(Agent).GetProperty("navPos",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (ReferenceEquals(_navPosProperty, null))
+            {
+                // 尝试字段
+                var fi = typeof(Agent).GetField("navPos",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(fi, null))
+                {
+                    Plugin.SharedLogger?.LogInfo("[BlackSpearman] navPos: found as field.");
+                }
+            }
+            else
+            {
+                Plugin.SharedLogger?.LogInfo("[BlackSpearman] navPos: found as property.");
+            }
+        }
+
+        private void SyncNavPos()
+        {
+            try
+            {
+                if (!ReferenceEquals(_navPosProperty, null))
+                {
+                    var currentNav = _navPosProperty.GetValue(_agent, null);
+                    if (!ReferenceEquals(currentNav, null))
+                    {
+                        // NavPos 是值类型，尝试设置其 position
+                        var posField = currentNav.GetType().GetField("position",
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (!ReferenceEquals(posField, null))
+                        {
+                            posField.SetValue(currentNav, _agent.transform.position);
+                        }
+                        // 写回
+                        _navPosProperty.SetValue(_agent, currentNav, null);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.SharedLogger?.LogWarning($"[BlackSpearman] NavPos sync failed: {ex.Message}");
+            }
         }
 
         // ==============================
@@ -308,7 +484,7 @@ namespace BadNorthBlackSpearman
         {
             direction = Vector3.zero;
 
-            var allAgents = Object.FindObjectsOfType<Agent>();
+            var allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
             Agent closestEnemy = null;
             float closestDist = DetectionRadius;
 
