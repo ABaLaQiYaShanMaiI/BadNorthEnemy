@@ -9,13 +9,13 @@ namespace BadNorthBlackSpearman
     public class SpearChargeComponent : MonoBehaviour
     {
         private const float DetectionRadius = 5.0f;
-        private const float ChargeDistance = 3.5f;
+        private const float ChargeDistance = 5.0f;
         private const float ChargeSpeed = 6.0f;
         private const float ChargeCooldown = 8.0f;
         private const float RecoveryTime = 0.4f;
-        private const float HitRadius = 1.5f;           // 增大碰撞半径
-        private const float HitInterval = 0.1f;         // 更频繁检测
-        private const float ChargeDuration = 0.58f;
+        private const float HitRadius = 2.5f;
+        private const float HitInterval = 0.1f;
+        private const float ChargeDuration = 0.83f;
 
         private enum Phase { Idle, Charging, Cooldown }
         private Phase _phase = Phase.Idle;
@@ -26,15 +26,14 @@ namespace BadNorthBlackSpearman
         private Vector3 _chargeDirection;
         private float _chargeDistanceTraveled;
         private float _originalMaxSpeed;
-        private bool _weaponSearched;
+        private bool _weaponTryDone;
+        private int _frameCount;
 
         private HashSet<Agent> _hitAgents = new HashSet<Agent>();
         private float _lastHitTime = -999f;
-        private bool _hitDiagnosticDone;
 
         private enum StunImmunityStrategy { None, StunMultiplier }
-        private static StunImmunityStrategy _stunStrategy;
-        private static bool _stunCached;
+        private static StunImmunityStrategy _stunStrategy        private static bool _stunCached;
         private static FieldInfo _stunMultiplierField;
         private float _originalStunMultiplier = 1f;
         private Stun _stunComponent;
@@ -59,12 +58,14 @@ namespace BadNorthBlackSpearman
             CacheStun();
             _stunComponent = _agent.GetComponent<Stun>();
             _phase = Phase.Idle;
-            _phaseTimer = 0.5f; // 登岛后等待 0.5s 再检测
+            _phaseTimer = 0.5f;
             Log("Setup OK. maxSpeed=" + _originalMaxSpeed.ToString("F1"));
         }
 
         private void Update()
         {
+            _frameCount++;
+
             if (!_setupDone || ReferenceEquals(_agent, null)) return;
 
             if (!ReferenceEquals(_agent.aliveState, null) && !_agent.aliveState.active)
@@ -77,6 +78,19 @@ namespace BadNorthBlackSpearman
             bool spawned = !ReferenceEquals(_agent.spawned, null) && _agent.spawned.active;
             if (!spawned) return;
 
+            // 登岛后首次尝试武器搜索和武器替换
+            if (!_weaponTryDone && gameObject.activeInHierarchy)
+            {
+                _weaponTryDone = true;
+                Log("First island frame. WeaponCached=" + Plugin.WeaponCached + " activeInHierarchy=" + gameObject.activeInHierarchy);
+
+                if (!Plugin.WeaponCached)
+                    Plugin.SearchForPikemanWeapon();
+
+                if (Plugin.WeaponCached)
+                    Plugin.ReapplyWeaponIfNeeded(_agent);
+            }
+
             switch (_phase)
             {
                 case Phase.Idle: UpdateIdle(); break;
@@ -87,19 +101,16 @@ namespace BadNorthBlackSpearman
 
         private void OnDestroy() { TryEndCharge(); }
 
-        // ===== Idle =====
         private void UpdateIdle()
         {
             if (!_agent.navPos.island) return;
 
-            // ⭐ 第一个黑矛兵登岛后搜索 Pikeman 武器
-            if (!_weaponSearched)
-            {
-                _weaponSearched = true;
+            if (!Plugin.WeaponCached)
                 Plugin.SearchForPikemanWeapon();
-            }
 
-            // 检测敌人
+            if (Plugin.WeaponCached)
+                Plugin.ReapplyWeaponIfNeeded(_agent);
+
             Vector3 dir;
             if (HasNearbyEnemy(out dir))
             {
@@ -108,7 +119,6 @@ namespace BadNorthBlackSpearman
             }
         }
 
-        // ===== Charging =====
         private void StartCharge()
         {
             _phase = Phase.Charging;
@@ -117,7 +127,7 @@ namespace BadNorthBlackSpearman
             _phaseTimer = ChargeDuration;
             _originalMaxSpeed = _agent.maxSpeed;
             SetStunImmunity(true);
-            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1") + " from=" + _agent.transform.position.ToString("F1"));
+            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1"));
         }
 
         private void DoCharging()
@@ -149,13 +159,9 @@ namespace BadNorthBlackSpearman
             _phaseTimer = ChargeCooldown;
             SetStunImmunity(false);
             _agent.maxSpeed = 0f;
-            if (_hitAgents.Count > 0)
-                Log("Charge ended. Hits: " + _hitAgents.Count);
-            else
-                Log("Charge ended. NO hits.");
+            Log("Charge ended. Hits: " + _hitAgents.Count);
         }
 
-        // ===== Cooldown =====
         private void UpdateCooldown()
         {
             _phaseTimer -= Time.deltaTime;
@@ -185,48 +191,25 @@ namespace BadNorthBlackSpearman
 
         private void TryEndCharge() { if (_phase == Phase.Charging) EndCharge(); }
 
-        // ===== 伤害 =====
         private void DetectAndApplyHit()
         {
             Agent[] allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
-            int checkedCount = 0;
-            int skippedViking = 0;
-            int skippedDist = 0;
 
             for (int i = 0; i < allAgents.Length; i++)
             {
                 Agent other = allAgents[i];
                 if (ReferenceEquals(other, null)) continue;
                 if (ReferenceEquals(other, _agent)) continue;
-                if (other.isViking) { skippedViking++; continue; }
+                if (other.isViking) continue;
                 if (_hitAgents.Contains(other)) continue;
                 if (!ReferenceEquals(other.aliveState, null) && !other.aliveState.active) continue;
 
-                checkedCount++;
                 float dist = Vector3.Distance(_agent.transform.position, other.transform.position);
-                if (dist > HitRadius) { skippedDist++; continue; }
-
-                // ⭐ 诊断日志
-                if (!_hitDiagnosticDone)
-                {
-                    _hitDiagnosticDone = true;
-                    Plugin.LogInfo("[Charge] HIT! target=" + other.name + " d=" + dist.ToString("F2") +
-                        " pos=" + other.transform.position.ToString("F1") +
-                        " myPos=" + _agent.transform.position.ToString("F1"));
-                }
+                if (dist > HitRadius) continue;
 
                 _hitAgents.Add(other);
                 _lastHitTime = Time.time;
                 ApplyChargeDamage(other);
-            }
-
-            // 诊断：首次扫描无命中
-            if (!_hitDiagnosticDone && checkedCount > 0 && _hitAgents.Count == 0)
-            {
-                _hitDiagnosticDone = true;
-                Plugin.LogWarn("[Charge] No hit! Checked " + checkedCount + " agents, " +
-                    skippedViking + " vikings, " + skippedDist + " too far. MyPos=" +
-                    _agent.transform.position.ToString("F1"));
             }
         }
 
@@ -235,34 +218,25 @@ namespace BadNorthBlackSpearman
             if (ReferenceEquals(target, null)) return;
             try
             {
-                // 优先：直接扣血（最可靠）
                 float dmg = 3.33f;
                 float nh = target.health - dmg;
                 if (nh < 0f) nh = 0f;
                 target.health = nh;
 
-                // 击退
                 Vector3 kb = _chargeDirection.normalized * 0.5f;
                 kb.y = 0;
                 target.transform.position += kb;
 
-                // Stun
                 var stun = target.GetComponent<Stun>();
                 if (!ReferenceEquals(stun, null))
                 {
-                    var smf = typeof(Stun).GetField("stunMultiplier",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(smf, null))
-                        smf.SetValue(stun, 10f);
+                    var smf = typeof(Stun).GetField("stunMultiplier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(smf, null)) smf.SetValue(stun, 10f);
                 }
             }
-            catch (Exception ex)
-            {
-                Plugin.LogErr("[Charge] DmgErr: " + ex.Message);
-            }
+            catch (Exception ex) { Plugin.LogErr("[Charge] DmgErr: " + ex.Message); }
         }
 
-        // ===== 敌人检测 =====
         private bool HasNearbyEnemy(out Vector3 direction)
         {
             direction = Vector3.zero;
@@ -279,11 +253,7 @@ namespace BadNorthBlackSpearman
                 if (!ReferenceEquals(other.aliveState, null) && !other.aliveState.active) continue;
 
                 float dist = Vector3.Distance(_agent.transform.position, other.transform.position);
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    closest = other;
-                }
+                if (dist < closestDist) { closestDist = dist; closest = other; }
             }
 
             if (ReferenceEquals(closest, null)) return false;
@@ -291,7 +261,6 @@ namespace BadNorthBlackSpearman
             return true;
         }
 
-        // ===== 眩晕 =====
         private void SetStunImmunity(bool immune)
         {
             if (ReferenceEquals(_stunComponent, null)) return;
@@ -303,17 +272,10 @@ namespace BadNorthBlackSpearman
         {
             if (_stunCached) return;
             _stunCached = true;
-            _stunMultiplierField = typeof(Stun).GetField("stunMultiplier",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (!ReferenceEquals(_stunMultiplierField, null))
-            {
-                _stunStrategy = StunImmunityStrategy.StunMultiplier;
-                return;
-            }
-            _stunStrategy = StunImmunityStrategy.None;
+            _stunMultiplierField = typeof(Stun).GetField("stunMultiplier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            _stunStrategy = !ReferenceEquals(_stunMultiplierField, null) ? StunImmunityStrategy.StunMultiplier : StunImmunityStrategy.None;
         }
 
-        // ===== 日志 =====
         private void Log(string msg)
         {
             if (Time.time - _lastLogTime < 1f) return;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using BepInEx;
 using UnityEngine;
 using Voxels.TowerDefense;
@@ -9,7 +10,7 @@ using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.8")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.13")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -33,14 +34,15 @@ namespace BadNorthBlackSpearman
         private static FieldInfo _levelGuessableProbabilityField;
         private static bool _levelFieldsCached;
 
-        // ⭐ 武器数据
+        // 武器系统
         internal static bool WeaponCached;
-        internal static Sprite SpearSprite;
+        internal static GameObject CachedSpearAnim;
         internal static Vector3 SpearLocalPos = Vector3.zero;
         internal static Vector3 SpearLocalScale = Vector3.one;
         internal static Quaternion SpearLocalRot = Quaternion.identity;
+        private static int _weaponSearchAttempts;
+        private const int MaxWeaponSearchAttempts = 30;
 
-        private static bool _weaponSearchDone;
         private static bool _firstConversionDiagnosticDone;
 
         // ============ BepInEx ============
@@ -49,7 +51,7 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.8 (appearance + weapon) ======");
+            Logger.LogInfo("[BlackSpearman] ====== v1.13 (back to basics) ======");
             RegisterHooks();
         }
 
@@ -66,15 +68,12 @@ namespace BadNorthBlackSpearman
             On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn += OnLandingSpawn;
         }
 
-        // ============ Hook 1 ============
-
         private void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
         {
             orig(self);
-            try { EnsureSwordShieldAlwaysAvailable(); RegisterBlackSpearmanReference(); } catch (Exception ex) { LogErr("GameSetup: " + ex.Message); }
+            try { EnsureSwordShieldAlwaysAvailable(); RegisterBlackSpearmanReference(); }
+            catch (Exception ex) { LogErr("GameSetup: " + ex); }
         }
-
-        // ============ Hook 2 ============
 
         private Voxels.TowerDefense.Longship OnLandingSpawn(On.Voxels.TowerDefense.RaidGeneration.Landing.orig_Spawn orig, Voxels.TowerDefense.RaidGeneration.Landing self)
         {
@@ -85,104 +84,59 @@ namespace BadNorthBlackSpearman
                     foreach (var a in longship.agents)
                         if (!ReferenceEquals(a, null)) OnAgentSpawnedHandler(a);
             }
-            catch (Exception ex) { LogErr("Landing: " + ex.Message); }
+            catch (Exception ex) { LogErr("Landing: " + ex); }
             return longship;
         }
 
-        // ============ 武器搜索 ⭐ ============
+        // ============ 武器搜索 ============
 
         internal static void SearchForPikemanWeapon()
         {
-            if (WeaponCached || _weaponSearchDone) return;
-            _weaponSearchDone = true;
+            if (WeaponCached) return;
+            if (_weaponSearchAttempts >= MaxWeaponSearchAttempts) return;
+            _weaponSearchAttempts++;
 
             try
             {
                 var allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
-                var brainsFound = new List<string>();
-
                 foreach (var a in allAgents)
                 {
                     if (ReferenceEquals(a, null) || a.isViking) continue;
                     var b = a.brain;
                     if (ReferenceEquals(b, null)) continue;
-
-                    string bn = b.GetType().Name;
-                    if (!brainsFound.Contains(bn)) brainsFound.Add(bn);
-
-                    if (bn == "Spear")
+                    if (b.GetType().Name == "Spear")
                     {
-                        LogInfo("FOUND Spear brain: " + a.name);
-                        if (ExtractWeapon(b, a))
+                        LogInfo("[WEAPON] FOUND Spear brain on " + a.name + " at frame " + Time.frameCount);
+                        if (ExtractWeapon(b))
                         {
-                            LogInfo("Pikeman weapon extracted! Re-applying to " + ConvertedAgents.Count + " converted agents.");
+                            LogInfo("[WEAPON] Cached! ActiveInHierarchy=" + a.gameObject.activeInHierarchy);
                             foreach (var agent in ConvertedAgents)
                                 if (!ReferenceEquals(agent, null) && agent.isViking)
-                                    ApplyWeaponSwap(agent);
+                                    ReapplyWeaponIfNeeded(agent);
                             return;
                         }
                     }
                 }
-
-                if (brainsFound.Count > 0)
-                    LogInfo("English brains: " + string.Join(", ", brainsFound.ToArray()));
-                else
-                    LogWarn("No English agents in scene — Pikeman not spawned yet");
             }
-            catch (Exception ex) { LogErr("Weapon search: " + ex.Message); }
+            catch (Exception ex) { LogErr("[WEAPON] " + ex.Message); }
         }
 
-        private static bool ExtractWeapon(Brain brain, Agent agentRef)
+        private static bool ExtractWeapon(Brain brain)
         {
-            Type st = brain.GetType();
-            FieldInfo saf = st.GetField("spearAnim", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var saf = brain.GetType().GetField("spearAnim", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (ReferenceEquals(saf, null)) { LogErr("[WEAPON] No spearAnim field"); return false; }
 
-            if (!ReferenceEquals(saf, null))
-            {
-                Transform spearAnim = saf.GetValue(brain) as Transform;
-                if (!ReferenceEquals(spearAnim, null))
-                {
-                    SpearLocalPos = spearAnim.localPosition;
-                    SpearLocalRot = spearAnim.localRotation;
-                    SpearLocalScale = spearAnim.localScale;
+            var spearAnim = saf.GetValue(brain) as Transform;
+            if (ReferenceEquals(spearAnim, null)) { LogErr("[WEAPON] spearAnim is null"); return false; }
 
-                    var bs = spearAnim.GetComponentInChildren<BatchedSprite>(true);
-                    if (!ReferenceEquals(bs, null))
-                    {
-                        Type bst = bs.GetType();
-                        var sp = bst.GetProperty("sprite", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (!ReferenceEquals(sp, null))
-                        {
-                            SpearSprite = sp.GetValue(bs, null) as Sprite;
-                            if (!ReferenceEquals(SpearSprite, null))
-                                LogInfo("  spearSprite.sprite: " + SpearSprite.name);
-                            else
-                                LogWarn("  spearSprite.sprite is null");
-                        }
-                        else
-                        {
-                            LogWarn("  BatchedSprite has no 'sprite' property");
-                        }
+            CachedSpearAnim = spearAnim.gameObject;
+            SpearLocalPos = spearAnim.localPosition;
+            SpearLocalRot = spearAnim.localRotation;
+            SpearLocalScale = spearAnim.localScale;
 
-                        var cp = bst.GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (!ReferenceEquals(cp, null))
-                        {
-                            Color c = (Color)cp.GetValue(bs, null);
-                            LogInfo("  spearSprite.color: R=" + c.r.ToString("F3") + " G=" + c.g.ToString("F3") + " B=" + c.b.ToString("F3"));
-                        }
-                    }
-                    else
-                    {
-                        LogWarn("  spearAnim has no BatchedSprite child");
-                    }
-
-                    WeaponCached = true;
-                    return true;
-                }
-            }
-
-            if (!ReferenceEquals(SpearSprite, null)) { WeaponCached = true; return true; }
-            return false;
+            WeaponCached = true;
+            LogInfo("[WEAPON] Weapon cached: " + CachedSpearAnim.name);
+            return true;
         }
 
         // ============ Agent 生成处理 ============
@@ -195,20 +149,32 @@ namespace BadNorthBlackSpearman
             if (ConvertedAgents.Contains(agent)) return;
             if (UnityEngine.Random.value > ConversionChance) return;
             ConvertedAgents.Add(agent);
-            try { ApplyBlackSpearman(agent); } catch (Exception ex) { LogErr("Apply: " + ex.Message); }
+            try { ApplyBlackSpearman(agent); } catch (Exception ex) { LogErr("Apply: " + ex); }
             if (Instance != null) Instance._totalConvertedCount++;
         }
 
-        // ============ 转化链 ============
+        // ============ 转化链（最小化：只做盾+数值+技能，不碰颜色！） ============
 
         internal static void ApplyBlackSpearman(Agent agent)
         {
             if (ReferenceEquals(agent, null)) return;
 
-            ApplyWeaponSwap(agent);     // ⭐ 长矛替换 — 第一个研究目标
-            DisableShield(agent);
-            ApplyBlackColor(agent);
+            // 武器（如果已缓存）
+            ReapplyWeaponIfNeeded(agent);
 
+            // 盾禁用
+            agent.shield = false;
+            foreach (var t in agent.GetComponentsInChildren<Transform>(true))
+            {
+                if (ReferenceEquals(t, null)) continue;
+                if (t.name.ToLower().Contains("shield")) t.gameObject.SetActive(false);
+            }
+
+            // ⚠️ 不再修改 BatchedSprite/SpriteAnimator 颜色！
+            //    a583701 版本证明：颜色修改破坏了模型渲染。
+            //    保留 SwordShield 原始颜色（如需变黑，用 AgentTextureBaker 层面方案）。
+
+            // 数值
             agent.scale *= ScaleMultiplier;
             var s = agent.brain as Swordsman;
             if (!ReferenceEquals(s, null))
@@ -217,84 +183,86 @@ namespace BadNorthBlackSpearman
                 ScaleFloatArray(s.knockbackLevels, KnockbackMultiplier);
             }
             ApplyArmor(agent);
+            ApplySpearCombatStats(agent);
 
-            // ⏸️ 冲刺技能暂时注释 — 等待武器外观修复后启用
-            // var c = SpearChargeComponent.AddTo(agent);
-            // if (!ReferenceEquals(c, null)) c.Setup(agent);
-
+            // 技能组件
+            var c = SpearChargeComponent.AddTo(agent);
+            if (!ReferenceEquals(c, null)) c.Setup(agent);
+            agent.gameObject.AddComponent<SpearStabAction>();
             UpdateVikingReference(agent);
 
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.8 (appearance+weapon) =====");
-                LogInfo("  SpearSprite: " + (!ReferenceEquals(SpearSprite, null) ? SpearSprite.name : "NULL"));
+                LogInfo("===== v1.13 =====");
                 LogInfo("  WeaponCached: " + WeaponCached);
-                LogInfo("  Charge: DISABLED");
+                LogInfo("  NO color modification (preserving original SwordShield visuals)");
             }
         }
 
-        // ============ 武器替换 ⭐ ============
-
-        private static void ApplyWeaponSwap(Agent agent)
+        /// <summary>
+        /// 在 Agent 激活后重新尝试武器替换
+        /// </summary>
+        public static void ReapplyWeaponIfNeeded(Agent agent)
         {
-            if (ReferenceEquals(SpearSprite, null)) return;
+            if (ReferenceEquals(CachedSpearAnim, null)) return;
 
-            var spearObj = new GameObject("Spear");
-            spearObj.transform.SetParent(agent.transform);
-            spearObj.transform.localPosition = SpearLocalPos;
-            spearObj.transform.localRotation = SpearLocalRot;
-            spearObj.transform.localScale = SpearLocalScale;
+            var existing = agent.transform.Find("Spear");
+            if (!ReferenceEquals(existing, null)) return;
 
-            var bs = spearObj.AddComponent<BatchedSprite>();
-            if (ReferenceEquals(bs, null)) { LogErr("AddComponent<BatchedSprite> failed"); return; }
-
-            var bst = bs.GetType();
-            var sp = bst.GetProperty("sprite", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            var cp = bst.GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (!ReferenceEquals(sp, null)) sp.SetValue(bs, SpearSprite, null);
-            if (!ReferenceEquals(cp, null)) cp.SetValue(bs, new Color(0.02f, 0.25f, 0.02f, 1f), null);
-
-            LogInfo("Spear BatchedSprite created: " + SpearSprite.name);
+            var spearClone = UnityEngine.Object.Instantiate(CachedSpearAnim);
+            spearClone.name = "Spear";
+            spearClone.transform.SetParent(agent.transform);
+            spearClone.transform.localPosition = SpearLocalPos;
+            spearClone.transform.localRotation = SpearLocalRot;
+            spearClone.transform.localScale = SpearLocalScale;
+            LogInfo("[WEAPON] Spear added to " + agent.name);
         }
 
-        // ============ 举盾禁用 ============
-
-        private static void DisableShield(Agent agent)
-        {
-            agent.shield = false;
-            foreach (var t in agent.GetComponentsInChildren<Transform>(true))
-            {
-                if (ReferenceEquals(t, null)) continue;
-                if (t.name.ToLower().Contains("shield")) t.gameObject.SetActive(false);
-            }
-        }
-
-        // ============ 颜色 ============
-
-        private static void ApplyBlackColor(Agent agent)
-        {
-            foreach (var comp in agent.GetComponentsInChildren<Component>(true))
-            {
-                if (ReferenceEquals(comp, null)) continue;
-                string tn = comp.GetType().FullName;
-                if (tn == null) continue;
-                if (tn.EndsWith(".BatchedSprite") || tn.EndsWith(".SpriteAnimator"))
-                {
-                    var p = comp.GetType().GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (ReferenceEquals(p, null)) continue;
-                    var old = (Color)p.GetValue(comp, null);
-                    p.SetValue(comp, new Color(old.r, old.g, 0.02f, 1f), null);
-                }
-            }
-        }
+        // ============ 数值修改 ============
 
         private static void ApplyArmor(Agent agent)
         {
             var a = agent.GetComponent<Armor>();
             if (ReferenceEquals(a, null)) return;
             if (!_armorFieldAttempted) { _armorField = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic); _armorFieldAttempted = true; }
-            if (!ReferenceEquals(_armorField, null)) ScaleFloatArray(_armorField.GetValue(a) as float[], ArmorMultiplier);
+            if (ReferenceEquals(_armorField, null)) return;
+
+            var original = _armorField.GetValue(a) as float[];
+            if (ReferenceEquals(original, null)) return;
+
+            var copy = new float[original.Length];
+            Array.Copy(original, copy, original.Length);
+            for (int i = 0; i < copy.Length; i++) copy[i] *= ArmorMultiplier;
+            _armorField.SetValue(a, copy);
+        }
+
+        private static FieldInfo _agentRadiusField;
+        private static bool _agentRadiusFieldCached;
+
+        private static void ApplySpearCombatStats(Agent agent)
+        {
+            var s = agent.brain as Swordsman;
+            if (ReferenceEquals(s, null)) return;
+
+            if (!_agentRadiusFieldCached)
+            {
+                _agentRadiusFieldCached = true;
+                _agentRadiusField = typeof(Agent).GetField("radius", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    ?? typeof(Agent).GetField("_radius", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            }
+            if (!ReferenceEquals(_agentRadiusField, null))
+            {
+                float cur = (float)_agentRadiusField.GetValue(agent);
+                _agentRadiusField.SetValue(agent, cur * 1.15f);
+            }
+
+            var ascField = typeof(Swordsman).GetField("attackStaminaCost", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(ascField, null))
+            {
+                float cur = (float)ascField.GetValue(s);
+                ascField.SetValue(s, cur * 0.7f);
+            }
         }
 
         // ============ LevelExpression ============
@@ -311,9 +279,10 @@ namespace BadNorthBlackSpearman
         private static void SetLevelExpr(Component comp, FieldInfo field, string expr)
         {
             if (ReferenceEquals(comp, null) || ReferenceEquals(field, null)) return;
-            object le = field.GetValue(comp);
+            var le = field.GetValue(comp);
             if (ReferenceEquals(le, null)) return;
-            if (ReferenceEquals(_levelExpressionField, null)) _levelExpressionField = le.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (ReferenceEquals(_levelExpressionField, null))
+                _levelExpressionField = le.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (!ReferenceEquals(_levelExpressionField, null)) _levelExpressionField.SetValue(le, expr);
         }
 
@@ -347,9 +316,9 @@ namespace BadNorthBlackSpearman
 
         private void CopyVikingReferenceFields(VikingReference src, VikingReference dst)
         {
-            foreach (string n in new[] { "type", "viking", "bounty", "icon", "infoSprite" })
+            foreach (string n in new[] { "type", "viking", "bounty", "sprite2" })
             {
-                FieldInfo f = typeof(VikingReference).GetField(n, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var f = typeof(VikingReference).GetField(n, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 if (!ReferenceEquals(f, null)) f.SetValue(dst, f.GetValue(src));
             }
         }
@@ -366,7 +335,11 @@ namespace BadNorthBlackSpearman
             if (!ReferenceEquals(f, null)) f.SetValue(va, nr);
         }
 
-        private static void ScaleFloatArray(float[] arr, float mult) { if (arr != null) for (int i = 0; i < arr.Length; i++) arr[i] *= mult; }
+        private static void ScaleFloatArray(float[] arr, float mult)
+        {
+            if (arr == null) return;
+            for (int i = 0; i < arr.Length; i++) arr[i] *= mult;
+        }
 
         internal static void LogInfo(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BlackSpearman] " + msg); }
         internal static void LogWarn(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogWarning("[BlackSpearman] " + msg); }
