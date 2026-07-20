@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using BepInEx;
+using HarmonyLib;
 using UnityEngine;
 using Voxels.TowerDefense;
 using Voxels.TowerDefense.CampaignGeneration.CampaignAc3;
+using Voxels.TowerDefense.RaidGeneration;
 using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
@@ -28,7 +29,7 @@ namespace BadNorthBlackSpearman
         private static FieldInfo _armorField;
         private static bool _armorFieldAttempted;
         private int _totalConvertedCount;
-        private static bool _hooksRegistered;
+        private Harmony _harmony;
 
         private static FieldInfo _levelRuleConditionField;
         private static FieldInfo _levelGuessableProbabilityField;
@@ -51,41 +52,47 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.13 (back to basics) ======");
-            RegisterHooks();
+            Logger.LogInfo("[BlackSpearman] ====== v1.13 (Harmony) ======");
+            _harmony = new Harmony("black.spearman");
+            _harmony.PatchAll(typeof(Patches));
         }
 
         private void OnDestroy()
         {
-            try { On.Voxels.TowerDefense.GameSetup.Awake -= OnGameSetupAwake; On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn -= OnLandingSpawn; } catch { }
+            try { _harmony?.UnpatchSelf(); } catch { }
         }
 
-        private void RegisterHooks()
-        {
-            if (_hooksRegistered) return;
-            _hooksRegistered = true;
-            On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake;
-            On.Voxels.TowerDefense.RaidGeneration.Landing.Spawn += OnLandingSpawn;
-        }
+        // ============ Harmony Patches ============
 
-        private void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
+        private static class Patches
         {
-            orig(self);
-            try { EnsureSwordShieldAlwaysAvailable(); RegisterBlackSpearmanReference(); }
-            catch (Exception ex) { LogErr("GameSetup: " + ex); }
-        }
-
-        private Voxels.TowerDefense.Longship OnLandingSpawn(On.Voxels.TowerDefense.RaidGeneration.Landing.orig_Spawn orig, Voxels.TowerDefense.RaidGeneration.Landing self)
-        {
-            var longship = orig(self);
-            try
+            [HarmonyPatch(typeof(GameSetup), "Awake")]
+            [HarmonyPostfix]
+            private static void GameSetupAwakePostfix(GameSetup __instance)
             {
-                if (!ReferenceEquals(longship, null) && longship.agents != null)
-                    foreach (var a in longship.agents)
-                        if (!ReferenceEquals(a, null)) OnAgentSpawnedHandler(a);
+                if (Instance == null) return;
+                try
+                {
+                    Instance.EnsureSwordShieldAlwaysAvailable();
+                    Instance.RegisterBlackSpearmanReference();
+                    // 预加载 Pikeman 武器素材（从 VikingReference 预制件）
+                    SearchForPikemanWeapon();
+                }
+                catch (Exception ex) { LogErr("GameSetup: " + ex); }
             }
-            catch (Exception ex) { LogErr("Landing: " + ex); }
-            return longship;
+
+            [HarmonyPatch(typeof(Landing), nameof(Landing.Spawn))]
+            [HarmonyPostfix]
+            private static void LandingSpawnPostfix(Landing __instance, ref Longship __result)
+            {
+                try
+                {
+                    if (!ReferenceEquals(__result, null) && __result.agents != null)
+                        foreach (var a in __result.agents)
+                            if (!ReferenceEquals(a, null)) OnAgentSpawnedHandler(a);
+                }
+                catch (Exception ex) { LogErr("Landing: " + ex); }
+            }
         }
 
         // ============ 武器搜索 ============
@@ -98,6 +105,15 @@ namespace BadNorthBlackSpearman
 
             try
             {
+                // 优先从 LevelStateObjectReferences 预制件中提取（不受玩家是否部署 Pikeman 影响）
+                if (TryExtractFromVikingRef())
+                {
+                    LogInfo("[WEAPON] Cached from VikingReference prefab (pre-landing)");
+                    ApplyWeaponToAllConverted();
+                    return;
+                }
+
+                // 备选：从场景中已生成的 Pikeman Agent 提取
                 var allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
                 foreach (var a in allAgents)
                 {
@@ -109,16 +125,66 @@ namespace BadNorthBlackSpearman
                         LogInfo("[WEAPON] FOUND Spear brain on " + a.name + " at frame " + Time.frameCount);
                         if (ExtractWeapon(b))
                         {
-                            LogInfo("[WEAPON] Cached! ActiveInHierarchy=" + a.gameObject.activeInHierarchy);
-                            foreach (var agent in ConvertedAgents)
-                                if (!ReferenceEquals(agent, null) && agent.isViking)
-                                    ReapplyWeaponIfNeeded(agent);
+                            LogInfo("[WEAPON] Cached from live Agent! ActiveInHierarchy=" + a.gameObject.activeInHierarchy);
+                            ApplyWeaponToAllConverted();
                             return;
                         }
                     }
                 }
             }
             catch (Exception ex) { LogErr("[WEAPON] " + ex.Message); }
+        }
+
+        // 尝试从 Pikeman 的 VikingReference 预制件中提取武器
+        private static bool TryExtractFromVikingRef()
+        {
+            try
+            {
+                UnityEngine.Object obj;
+                if (!LevelStateObjectReferences.dict.TryGetValue("Viking_Pikeman", out obj))
+                {
+                    // 也尝试其他可能的键名
+                    if (!LevelStateObjectReferences.dict.TryGetValue("English_Pikeman", out obj))
+                        return false;
+                }
+                var vr = obj as VikingReference;
+                if (ReferenceEquals(vr, null)) return false;
+
+                // 从预制件的 vikingClone 中获取 Agent
+                var vc = vr.vikingClone;
+                if (ReferenceEquals(vc, null)) return false;
+
+                var prefabAgent = vc.agent;
+                if (ReferenceEquals(prefabAgent, null)) return false;
+
+                var brain = prefabAgent.brain;
+                if (ReferenceEquals(brain, null)) return false;
+                if (brain.GetType().Name != "Spear") return false;
+
+                return ExtractWeapon(brain);
+            }
+            catch (Exception ex)
+            {
+                LogErr("[WEAPON] TryExtractFromVikingRef failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        // 将缓存的武器应用到所有已转化的黑矛兵
+        private static void ApplyWeaponToAllConverted()
+        {
+            if (!WeaponCached) return;
+            int count = 0;
+            foreach (var agent in ConvertedAgents)
+            {
+                if (!ReferenceEquals(agent, null) && agent.isViking)
+                {
+                    ReapplyWeaponIfNeeded(agent);
+                    count++;
+                }
+            }
+            if (count > 0)
+                LogInfo("[WEAPON] Applied to " + count + " existing BlackSpearmans");
         }
 
         private static bool ExtractWeapon(Brain brain)
@@ -129,13 +195,17 @@ namespace BadNorthBlackSpearman
             var spearAnim = saf.GetValue(brain) as Transform;
             if (ReferenceEquals(spearAnim, null)) { LogErr("[WEAPON] spearAnim is null"); return false; }
 
+            // §14.2: Pikeman 使用独立的 BatchedSprite spearSprite，需要验证存在
+            var bs = spearAnim.GetComponentInChildren<BatchedSprite>(true);
+            if (ReferenceEquals(bs, null)) { LogErr("[WEAPON] spearAnim has no BatchedSprite child"); return false; }
+
             CachedSpearAnim = spearAnim.gameObject;
             SpearLocalPos = spearAnim.localPosition;
             SpearLocalRot = spearAnim.localRotation;
             SpearLocalScale = spearAnim.localScale;
 
             WeaponCached = true;
-            LogInfo("[WEAPON] Weapon cached: " + CachedSpearAnim.name);
+            LogInfo("[WEAPON] Weapon cached via spearAnim->BatchedSprite: " + CachedSpearAnim.name);
             return true;
         }
 
@@ -153,7 +223,7 @@ namespace BadNorthBlackSpearman
             if (Instance != null) Instance._totalConvertedCount++;
         }
 
-        // ============ 转化链（最小化：只做盾+数值+技能，不碰颜色！） ============
+        // ============ 转化链 ============
 
         internal static void ApplyBlackSpearman(Agent agent)
         {
@@ -162,17 +232,8 @@ namespace BadNorthBlackSpearman
             // 武器（如果已缓存）
             ReapplyWeaponIfNeeded(agent);
 
-            // 盾禁用
+            // 盾禁用（仅设 bool，不销毁组件以免触发其他系统空引用）
             agent.shield = false;
-            foreach (var t in agent.GetComponentsInChildren<Transform>(true))
-            {
-                if (ReferenceEquals(t, null)) continue;
-                if (t.name.ToLower().Contains("shield")) t.gameObject.SetActive(false);
-            }
-
-            // ⚠️ 不再修改 BatchedSprite/SpriteAnimator 颜色！
-            //    a583701 版本证明：颜色修改破坏了模型渲染。
-            //    保留 SwordShield 原始颜色（如需变黑，用 AgentTextureBaker 层面方案）。
 
             // 数值
             agent.scale *= ScaleMultiplier;
@@ -194,7 +255,7 @@ namespace BadNorthBlackSpearman
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.13 =====");
+                LogInfo("===== v1.13 (Harmony) =====");
                 LogInfo("  WeaponCached: " + WeaponCached);
                 LogInfo("  NO color modification (preserving original SwordShield visuals)");
             }

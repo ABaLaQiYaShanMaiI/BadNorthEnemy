@@ -33,7 +33,8 @@ namespace BadNorthBlackSpearman
         private float _lastHitTime = -999f;
 
         private enum StunImmunityStrategy { None, StunMultiplier }
-        private static StunImmunityStrategy _stunStrategy        private static bool _stunCached;
+        private static StunImmunityStrategy _stunStrategy;
+        private static bool _stunCached;
         private static FieldInfo _stunMultiplierField;
         private float _originalStunMultiplier = 1f;
         private Stun _stunComponent;
@@ -135,16 +136,11 @@ namespace BadNorthBlackSpearman
             float dt = Time.deltaTime;
             _chargeDistanceTraveled += ChargeSpeed * dt;
 
-            Vector3 newPos = _agent.transform.position + _chargeDirection * ChargeSpeed * dt;
-            _agent.transform.position = newPos;
-
-            try { _agent.navPos = new NavPos(_agent.navPos.navigationMesh, newPos, true, 1f); }
-            catch { }
-
-            _agent.LookInDirection(_chargeDirection, 720f, 20f);
+            // 使用 AI 原生移动系统，避免直接操作 transform.position 导致瞬移
             _agent.movability = 0f;
-            _agent.maxSpeed = 0f;
-            _agent.walkDir = Vector3.zero;
+            _agent.maxSpeed = ChargeSpeed;
+            _agent.walkDir = _chargeDirection;
+            _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
             if (Time.time - _lastHitTime >= HitInterval)
                 DetectAndApplyHit();

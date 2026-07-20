@@ -6,10 +6,9 @@ using Voxels.TowerDefense;
 namespace BadNorthBlackSpearman
 {
     /// <summary>
-    /// 模拟 Pikeman 的长矛刺击行为。
-    /// 作为 IBrainAction 挂载在 Swordsman Brain 上，由 Brain.Setup() 自动收集并调用。
+    /// 模拟 Pikeman 的长矛刺击行为（独立 Update，不干扰 Swordsman 原生 IBrainAction）。
     /// </summary>
-    public class SpearStabAction : MonoBehaviour, IBrainAction
+    public class SpearStabAction : MonoBehaviour
     {
         private const float StabRange = 2.5f;
         private const float StabCooldown = 1.4f;
@@ -27,32 +26,28 @@ namespace BadNorthBlackSpearman
             _swordsman = GetComponent<Swordsman>();
         }
 
-        /// <summary>
-        /// IBrainAction 接口：每帧由 Brain 调用，返回 true 表示消耗了这一帧的行动机会
-        /// </summary>
-        bool IBrainAction.MaybeAct(Brain brain)
+        private void Update()
         {
-            if (Time.time - _lastStabTime < StabCooldown) return false;
-            if (ReferenceEquals(_agent, null)) return false;
-            if (!_agent.aliveState.active) return false;
+            if (Time.time - _lastStabTime < StabCooldown) return;
+            if (ReferenceEquals(_agent, null)) return;
+            if (ReferenceEquals(_agent.aliveState, null) || !_agent.aliveState.active) return;
 
-            // v1.9 修正：Agent.dangerous 是直接的公有字段（而非 enemyData.dangerous）
-            if (!_agent.dangerous) return false;
+            // 只在敌人 active 时尝试刺击
+            if (!_agent.dangerous) return;
 
             var enemy = _agent.enemyAgent;
-            if (ReferenceEquals(enemy, null)) return false;
-            if (!enemy.aliveState.active) return false;
+            if (ReferenceEquals(enemy, null)) return;
+            if (ReferenceEquals(enemy.aliveState, null) || !enemy.aliveState.active) return;
 
             float dist = Vector3.Distance(_agent.transform.position, enemy.transform.position);
-            if (dist > StabRange) return false;
+            if (dist > StabRange) return;
 
             Vector3 toTarget = (enemy.chestPos - _agent.transform.position).normalized;
             float angle = Vector3.Angle(_agent.transform.forward, toTarget);
-            if (angle > StabAngle * 0.5f) return false;
+            if (angle > StabAngle * 0.5f) return;
 
             _lastStabTime = Time.time;
             PerformStab(enemy);
-            return true;
         }
 
         private void PerformStab(Agent target)
