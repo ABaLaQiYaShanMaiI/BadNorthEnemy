@@ -93,6 +93,55 @@ namespace BadNorthBlackSpearman
                 }
                 catch (Exception ex) { LogErr("Landing: " + ex); }
             }
+
+            // 修复 Full Unlock Mod 导致的 SquadSize 升级等级越界崩溃
+            [HarmonyPatch(typeof(Voxels.TowerDefense.Upgrades.SquadSizeUpgrade), "OnAppliedToSquad")]
+            [HarmonyPrefix]
+            private static bool SquadSizeUpgrade_OnAppliedToSquad_Prefix(
+                object __instance, ref int upgradeLevel)
+            {
+                try
+                {
+                    if (upgradeLevel < 0)
+                    {
+                        LogWarn("[SquadSizeFix] upgradeLevel=" + upgradeLevel + " < 0, clamping to 0");
+                        upgradeLevel = 0;
+                        return true;
+                    }
+
+                    // 反射获取实例中第一个 int[] 字段（即队伍规模数组）
+                    // 注意：不使用 f.FieldType == typeof(int[]) 因为旧版 Mono(Unity 2018)
+                    // 不支持 Type.op_Equality，会触发 MissingMethodException
+                    var fields = __instance.GetType().GetFields(
+                        System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic);
+
+                    int[] sizeArray = null;
+                    foreach (var f in fields)
+                    {
+                        if (f.FieldType.Name == "Int32[]" || f.FieldType.FullName == "System.Int32[]")
+                        {
+                            sizeArray = f.GetValue(__instance) as int[];
+                            if (sizeArray != null && sizeArray.Length > 0) break;
+                        }
+                    }
+
+                    if (sizeArray == null || sizeArray.Length == 0) return true; // 无法获取，放行原逻辑
+
+                    if (upgradeLevel >= sizeArray.Length)
+                    {
+                        LogWarn("[SquadSizeFix] upgradeLevel=" + upgradeLevel +
+                            " >= arrayLength=" + sizeArray.Length + ", clamping to " + (sizeArray.Length - 1));
+                        upgradeLevel = sizeArray.Length - 1;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    LogErr("[SquadSizeFix] Error: " + ex.Message);
+                }
+                return true;
+            }
         }
 
         // ============ 武器搜索 ============
