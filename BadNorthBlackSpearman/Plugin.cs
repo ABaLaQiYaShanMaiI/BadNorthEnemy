@@ -11,7 +11,7 @@ using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.13")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.14")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -52,7 +52,7 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.13 (Harmony) ======");
+            Logger.LogInfo("[BlackSpearman] ====== v1.14 (Harmony + Attack Pipeline Fix) ======");
             _harmony = new Harmony("black.spearman");
             _harmony.PatchAll(typeof(Patches));
         }
@@ -304,8 +304,11 @@ namespace BadNorthBlackSpearman
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.13 (Harmony) =====");
+                LogInfo("===== v1.14 (Attack Pipeline Integrated) =====");
                 LogInfo("  WeaponCached: " + WeaponCached);
+                LogInfo("  Attack: AttackSettings + DealDamage (Armor/Stun/SFX all active)");
+                LogInfo("  Charge: Physics.OverlapSphere, movability=0.5 (Spear-style AI partial override)");
+                LogInfo("  Stab: Pursuing/Hunting state-gated, full pipeline");
                 LogInfo("  NO color modification (preserving original SwordShield visuals)");
             }
         }
@@ -364,7 +367,9 @@ namespace BadNorthBlackSpearman
             if (!ReferenceEquals(_agentRadiusField, null))
             {
                 float cur = (float)_agentRadiusField.GetValue(agent);
-                _agentRadiusField.SetValue(agent, cur * 1.15f);
+                // 模拟 spearLength=0.6 的距离加成：Swordsman 原生 radius ≈ scale×0.12
+                // 长矛兵距离公式 = spearLength(0.6) + radius，等效半径约 ×1.5~1.6
+                _agentRadiusField.SetValue(agent, cur * 1.5f);
             }
 
             var ascField = typeof(Swordsman).GetField("attackStaminaCost", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
