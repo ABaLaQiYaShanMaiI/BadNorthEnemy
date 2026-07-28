@@ -1,20 +1,31 @@
 using System;
-using System.Reflection;
 using UnityEngine;
 using Voxels.TowerDefense;
 
 namespace BadNorthBlackSpearman
 {
     /// <summary>
-    /// 模拟 Pikeman 的长矛刺击行为。
-    /// v1.14 改进：
-    /// - 使用 Attack 结构体 + DealDamage 完整攻击链路（护甲/击退/眩晕/音效/特效全部生效）
-    /// - 与 Swordsman 原生 JumpAttack 协调：仅在 Brain 的 pursuing/hunting 状态时刺击
-    /// - 将眩晕通过 AttackSettings.stun 传递，而非手动设置 stunMultiplier
+    /// 黑矛兵长矛刺击技能 — IBrainAction 实现。
+    /// 
+    /// v1.15 改进：
+    /// - 实现 IBrainAction 接口，替代独立 Update 循环
+    /// - 由 Brain.MaybeAct() 在 idle 状态（每 hz8 节拍）调度
+    /// - 使用 Attack 结构体 + DealDamage 完整攻击链路
+    /// - 与 Swordsman pursuing/hunting 状态协调：仅在进入近战状态时允许刺击
+    /// 
+    /// 调度机制：
+    /// - Brain.Setup() 通过 GetComponentsInChildren<IBrainAction>() 自动收集
+    /// - Brain.IdleUpdate() 每 hz8 调用 MaybeAct() 轮询所有 IBrainAction
+    /// - MaybeAct 返回 true 表示消耗了这一帧的 action 机会
+    ///
+    /// 参考：
+    /// - AxeThrowing.cs（原版 IBrainAction 实现模式）
+    /// - Spear.cs（原版长矛兵刺击行为）
+    /// - Brain.IdleUpdate() 中的 if(base.MaybeAct()) return;
     /// </summary>
-    public class SpearStabAction : MonoBehaviour
+    public class SpearStabAction : MonoBehaviour, IBrainAction
     {
-        // 刺击距离：对齐原版 spearLength(0.6) + radius 等效范围
+        // 刺击参数：对齐原版 spearLength(0.6) + radius 等效范围
         private const float StabRange = 3.5f;
         private const float StabCooldown = 1.4f;
         private const float StabDamage = 2.0f;
@@ -34,47 +45,67 @@ namespace BadNorthBlackSpearman
             _squad = !ReferenceEquals(_agent, null) ? _agent.squad : null;
         }
 
-        private void Update()
+        /// <summary>
+        /// IBrainAction 接口 — 由 Brain 调度系统在 idle 状态 hz8 节拍调用
+        /// </summary>
+        bool IBrainAction.MaybeAct(Brain brain)
         {
-            if (Time.time - _lastStabTime < StabCooldown) return;
-            if (ReferenceEquals(_agent, null)) return;
-            if (ReferenceEquals(_agent.aliveState, null) || !_agent.aliveState.active) return;
+            // 冷却检查
+            if (Time.time - _lastStabTime < StabCooldown)
+                return false;
+
+            if (ReferenceEquals(_agent, null))
+                return false;
+
+            // 存活状态检查
+            if (ReferenceEquals(_agent.aliveState, null) || !_agent.aliveState.active)
+                return false;
 
             // 只在敌人 active 时尝试刺击
-            if (!_agent.dangerous) return;
+            if (!_agent.dangerous)
+                return false;
 
+            // Swordsman 的 pursuing/hunting 状态是 IBrainAction 激活时的状态
+            // 原 AxeThrowing 模式：仅在进入近战行为后允许触发
+            if (!IsInMeleeCombatState())
+                return false;
+
+            // 目标有效性检查
             var enemy = _agent.enemyAgent;
-            if (ReferenceEquals(enemy, null)) return;
-            if (ReferenceEquals(enemy.aliveState, null) || !enemy.aliveState.active) return;
+            if (ReferenceEquals(enemy, null))
+                return false;
+            if (ReferenceEquals(enemy.aliveState, null) || !enemy.aliveState.active)
+                return false;
 
+            // 距离检查
             float dist = Vector3.Distance(_agent.transform.position, enemy.transform.position);
-            if (dist > StabRange) return;
+            if (dist > StabRange)
+                return false;
 
+            // 锥角检查（模拟长矛只能向前刺）
             Vector3 toTarget = (enemy.chestPos - _agent.transform.position).normalized;
             float angle = Vector3.Angle(_agent.transform.forward, toTarget);
-            if (angle > StabAngle * 0.5f) return;
+            if (angle > StabAngle * 0.5f)
+                return false;
 
-            // 检查 Brain 是否处于 pursuing/hunting 状态，避免与 JumpAttack 同时触发
-            // Swordsman 的 pursuing 和 hunting 是其 IBrainAction 激活时的状态
-            if (!IsInMeleeCombatState())
-                return;
-
+            // 执行刺击
             _lastStabTime = Time.time;
             PerformStab(enemy);
+            return true; // 消耗 action 机会
         }
 
         /// <summary>
         /// 检查 Swordsman 是否处于近战战斗状态（pursuing/hunting）
-        /// 避免在 Brain 空闲时仍然刺击
+        /// AxeThrowing 模式：订阅 pursuing.OnActivate / hunting.OnActivate
+        /// 这里使用更简单的方式 — 检查状态 active 标志
         /// </summary>
         private bool IsInMeleeCombatState()
         {
-            if (ReferenceEquals(_swordsman, null)) return true; // 没有 Swordsman 组件则跳过检查
+            if (ReferenceEquals(_swordsman, null))
+                return true; // 没有 Swordsman 组件则跳过检查（兜底）
 
             try
             {
-                // Swordsman 的 pursuing 和 hunting 是 brainState 下互斥的子状态
-                // 运行时 active 的状态表明 Brain 正在执行该行为
                 if (!ReferenceEquals(_swordsman.pursuing, null) && _swordsman.pursuing.active)
                     return true;
                 if (!ReferenceEquals(_swordsman.hunting, null) && _swordsman.hunting.active)
@@ -86,7 +117,7 @@ namespace BadNorthBlackSpearman
         }
 
         /// <summary>
-        /// ✅ v1.14 改进：使用 Attack 结构体 + DealDamage 完整攻击链路
+        /// 执行刺击 — 使用 Attack 结构体 + DealDamage 完整攻击链路
         /// </summary>
         private void PerformStab(Agent target)
         {
@@ -95,7 +126,7 @@ namespace BadNorthBlackSpearman
             {
                 float prevHealth = target.health;
 
-                // ✅ 使用原版 AttackSettings 四维向量
+                // 使用原版 AttackSettings 四维向量
                 var settings = new AttackSettings
                 {
                     damage = StabDamage,
@@ -107,17 +138,17 @@ namespace BadNorthBlackSpearman
                 Vector3 kbDir = (target.transform.position - _agent.transform.position).normalized;
                 kbDir.y = 0f;
 
-                // ✅ 使用原版 Attack 结构体
+                // 使用原版 Attack 结构体（构造签名：Attack(AttackSettings, Vector3 direction, Vector3 pos, MonoBehaviour, Squad, string weapon)）
                 var attack = new Attack(
                     settings,
                     kbDir,
                     target.transform.position,
                     this,
                     _squad,
-                    "Spear"
+                    "Sfx/English/Spear"  // Spear 风格音效前缀 → "Sfx/English/Spear/Hit"
                 );
 
-                // ✅ 走完整 DealDamage 链路
+                // 走完整 DealDamage 链路
                 target.DealDamage(attack);
 
                 Plugin.LogInfo("[Stab] Hit " + target.name + " | dmg=" + StabDamage +

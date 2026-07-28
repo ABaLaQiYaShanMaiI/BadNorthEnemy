@@ -11,7 +11,7 @@ using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.14")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.15")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -52,9 +52,45 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.14 (Harmony + Attack Pipeline Fix) ======");
+            Logger.LogInfo("[BlackSpearman] ====== v1.15 (BlackSpearmanBrain + IBrainAction) ======");
             _harmony = new Harmony("black.spearman");
             _harmony.PatchAll(typeof(Patches));
+            RegisterBlackSpearmanBrainPatches();
+        }
+
+        /// <summary>
+        /// 注册 BlackSpearmanBrain 的 Harmony Patch
+        /// （拦截 Swordsman.GetAttack + range 属性 getter）
+        /// </summary>
+        private void RegisterBlackSpearmanBrainPatches()
+        {
+            try
+            {
+                var getAttackMethod = typeof(Swordsman).GetMethod("GetAttack", new[] { typeof(Agent) });
+                if (!ReferenceEquals(getAttackMethod, null))
+                {
+                    var prefix = typeof(BlackSpearmanBrain).GetMethod("GetAttackPrefix",
+                        BindingFlags.Public | BindingFlags.Static);
+                    if (!ReferenceEquals(prefix, null))
+                        _harmony.Patch(getAttackMethod, new HarmonyMethod(prefix));
+                }
+
+                var rangeProp = typeof(Swordsman).GetProperty("range",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(rangeProp, null))
+                {
+                    var getter = rangeProp.GetGetMethod(true);
+                    if (!ReferenceEquals(getter, null))
+                    {
+                        var prefixRange = typeof(BlackSpearmanBrain).GetMethod("RangeGetterPrefix",
+                            BindingFlags.Public | BindingFlags.Static);
+                        if (!ReferenceEquals(prefixRange, null))
+                            _harmony.Patch(getter, new HarmonyMethod(prefixRange));
+                    }
+                }
+                LogInfo("[Brain] Harmony patches registered for GetAttack + range");
+            }
+            catch (Exception ex) { LogErr("[Brain] Patch registration error: " + ex); }
         }
 
         private void OnDestroy()
@@ -109,13 +145,10 @@ namespace BadNorthBlackSpearman
                         return true;
                     }
 
-                    // 反射获取实例中第一个 int[] 字段（即队伍规模数组）
-                    // 注意：不使用 f.FieldType == typeof(int[]) 因为旧版 Mono(Unity 2018)
-                    // 不支持 Type.op_Equality，会触发 MissingMethodException
                     var fields = __instance.GetType().GetFields(
-                        System.Reflection.BindingFlags.Instance |
-                        System.Reflection.BindingFlags.Public |
-                        System.Reflection.BindingFlags.NonPublic);
+                        BindingFlags.Instance |
+                        BindingFlags.Public |
+                        BindingFlags.NonPublic);
 
                     int[] sizeArray = null;
                     foreach (var f in fields)
@@ -127,7 +160,7 @@ namespace BadNorthBlackSpearman
                         }
                     }
 
-                    if (sizeArray == null || sizeArray.Length == 0) return true; // 无法获取，放行原逻辑
+                    if (sizeArray == null || sizeArray.Length == 0) return true;
 
                     if (upgradeLevel >= sizeArray.Length)
                     {
@@ -136,7 +169,7 @@ namespace BadNorthBlackSpearman
                         upgradeLevel = sizeArray.Length - 1;
                     }
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     LogErr("[SquadSizeFix] Error: " + ex.Message);
                 }
@@ -154,7 +187,6 @@ namespace BadNorthBlackSpearman
 
             try
             {
-                // 优先从 LevelStateObjectReferences 预制件中提取（不受玩家是否部署 Pikeman 影响）
                 if (TryExtractFromVikingRef())
                 {
                     LogInfo("[WEAPON] Cached from VikingReference prefab (pre-landing)");
@@ -162,7 +194,6 @@ namespace BadNorthBlackSpearman
                     return;
                 }
 
-                // 备选：从场景中已生成的 Pikeman Agent 提取
                 var allAgents = UnityEngine.Object.FindObjectsOfType<Agent>();
                 foreach (var a in allAgents)
                 {
@@ -184,7 +215,6 @@ namespace BadNorthBlackSpearman
             catch (Exception ex) { LogErr("[WEAPON] " + ex.Message); }
         }
 
-        // 尝试从 Pikeman 的 VikingReference 预制件中提取武器
         private static bool TryExtractFromVikingRef()
         {
             try
@@ -192,14 +222,12 @@ namespace BadNorthBlackSpearman
                 UnityEngine.Object obj;
                 if (!LevelStateObjectReferences.dict.TryGetValue("Viking_Pikeman", out obj))
                 {
-                    // 也尝试其他可能的键名
                     if (!LevelStateObjectReferences.dict.TryGetValue("English_Pikeman", out obj))
                         return false;
                 }
                 var vr = obj as VikingReference;
                 if (ReferenceEquals(vr, null)) return false;
 
-                // 从预制件的 vikingClone 中获取 Agent
                 var vc = vr.vikingClone;
                 if (ReferenceEquals(vc, null)) return false;
 
@@ -219,7 +247,6 @@ namespace BadNorthBlackSpearman
             }
         }
 
-        // 将缓存的武器应用到所有已转化的黑矛兵
         private static void ApplyWeaponToAllConverted()
         {
             if (!WeaponCached) return;
@@ -244,7 +271,6 @@ namespace BadNorthBlackSpearman
             var spearAnim = saf.GetValue(brain) as Transform;
             if (ReferenceEquals(spearAnim, null)) { LogErr("[WEAPON] spearAnim is null"); return false; }
 
-            // §14.2: Pikeman 使用独立的 BatchedSprite spearSprite，需要验证存在
             var bs = spearAnim.GetComponentInChildren<BatchedSprite>(true);
             if (ReferenceEquals(bs, null)) { LogErr("[WEAPON] spearAnim has no BatchedSprite child"); return false; }
 
@@ -281,7 +307,7 @@ namespace BadNorthBlackSpearman
             // 武器（如果已缓存）
             ReapplyWeaponIfNeeded(agent);
 
-            // 盾禁用（仅设 bool，不销毁组件以免触发其他系统空引用）
+            // 盾禁用
             agent.shield = false;
 
             // 数值
@@ -295,27 +321,26 @@ namespace BadNorthBlackSpearman
             ApplyArmor(agent);
             ApplySpearCombatStats(agent);
 
-            // 技能组件
-            var c = SpearChargeComponent.AddTo(agent);
-            if (!ReferenceEquals(c, null)) c.Setup(agent);
+            // 技能组件（IBrainAction 注入 — v1.15 改进）
+            // SpearChargeComponent 通过 IBrainAction.MaybeAct 由 Brain 调度
+            var charge = SpearChargeComponent.AddTo(agent);
+            if (!ReferenceEquals(charge, null)) charge.Setup(agent);
+            // SpearStabAction 通过 IBrainAction.MaybeAct 由 Brain 调度
             agent.gameObject.AddComponent<SpearStabAction>();
             UpdateVikingReference(agent);
 
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.14 (Attack Pipeline Integrated) =====");
+                LogInfo("===== v1.15 (BlackSpearmanBrain + IBrainAction) =====");
                 LogInfo("  WeaponCached: " + WeaponCached);
-                LogInfo("  Attack: AttackSettings + DealDamage (Armor/Stun/SFX all active)");
-                LogInfo("  Charge: Physics.OverlapSphere, movability=0.5 (Spear-style AI partial override)");
-                LogInfo("  Stab: Pursuing/Hunting state-gated, full pipeline");
-                LogInfo("  NO color modification (preserving original SwordShield visuals)");
+                LogInfo("  Brain: GetAttack() → Spear-style 4D vector (dmg/kb/launch/stun) + extended range");
+                LogInfo("  Charge: IBrainAction scheduled via Swordsman.actions + Physics.OverlapSphere");
+                LogInfo("  Stab: IBrainAction scheduled via Swordsman.actions + Pursuing/Hunting aware");
+                LogInfo("  All attack pipelines via DealDamage (Armor/Stun/SFX active)");
             }
         }
 
-        /// <summary>
-        /// 在 Agent 激活后重新尝试武器替换
-        /// </summary>
         public static void ReapplyWeaponIfNeeded(Agent agent)
         {
             if (ReferenceEquals(CachedSpearAnim, null)) return;
@@ -367,8 +392,6 @@ namespace BadNorthBlackSpearman
             if (!ReferenceEquals(_agentRadiusField, null))
             {
                 float cur = (float)_agentRadiusField.GetValue(agent);
-                // 模拟 spearLength=0.6 的距离加成：Swordsman 原生 radius ≈ scale×0.12
-                // 长矛兵距离公式 = spearLength(0.6) + radius，等效半径约 ×1.5~1.6
                 _agentRadiusField.SetValue(agent, cur * 1.5f);
             }
 

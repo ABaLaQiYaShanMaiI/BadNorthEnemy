@@ -7,15 +7,29 @@ using Voxels.TowerDefense;
 namespace BadNorthBlackSpearman
 {
     /// <summary>
-    /// 黑矛兵冲刺技能组件。
-    /// v1.14 改进：
-    /// - 使用 Attack 结构体 + DealDamage 完整攻击链路（护甲/击退/眩晕/音效/特效全部生效）
+    /// 黑矛兵冲刺技能组件 — IBrainAction 实现。
+    /// 
+    /// v1.15 改进：
+    /// - 实现 IBrainAction 接口，冲刺「启动判定」由 Brain.MaybeAct() 调度（替代独立 Update 中的检测逻辑）
+    /// - 冲刺「执行阶段」保留独立 Update（movability 控制、物理检测需要每帧运行）
+    /// - 参考 AxeThrowing 模式：MaybeAct 触发 prepare，Update 执行 charging/cooldown
     /// - 使用 Physics.OverlapSphere 替代 FindObjectsOfType 遍历
-    /// - 参考 Spear.cs 官方实现，movability = 0.5f 而非完全禁用 AI
+    /// - 使用 Attack 结构体 + DealDamage 完整攻击链路
+    /// - 修复 layer mask：改为基于 faction 而非硬编码 "English" 字符串
+    ///
+    /// 调度机制：
+    /// - Brain.idle hz8 → MaybeAct → 检测敌人 → StartCharge
+    /// - Update → DoCharging / UpdateCooldown（需要每帧更新）
+    /// - 冲刺结束后回退到 idle，等待 Brain 下次调度 MaybeAct
+    ///
+    /// 参考：
+    /// - AxeThrowing.cs（IBrainAction + prepare/axeThrowing 状态机）
+    /// - Spear.cs（movability = 0.5f，charging/stabbing 状态机）
+    /// - Attack.cs 构造签名验证
     /// </summary>
-    public class SpearChargeComponent : MonoBehaviour
+    public class SpearChargeComponent : MonoBehaviour, IBrainAction
     {
-        // 探测和命中范围：对齐长矛兵 spearLength(0.6) + radius 等效距离
+        // 探测和命中范围
         private const float DetectionRadius = 7.0f;
         private const float ChargeDistance = 5.0f;
         private const float ChargeSpeed = 6.0f;
@@ -40,20 +54,22 @@ namespace BadNorthBlackSpearman
         private Vector3 _chargeDirection;
         private float _chargeDistanceTraveled;
         private float _originalMaxSpeed;
-        private bool _weaponTryDone;
 
         private HashSet<Agent> _hitAgents = new HashSet<Agent>();
         private float _lastHitTime = -999f;
 
         // 碰撞检测缓存
         private Collider[] _hitBuffer = new Collider[32];
-        private int _englishLayerMask;
+        /// <summary>
+        /// ✅ v1.15 修复：使用 ~0（所有层）作为兜底，
+        /// 实际检测通过 Agent 的 faction 进行过滤（非 Viking 且非自身）
+        /// 原代码使用 LayerMask.GetMask("English") 在 Bad North 中可能无效
+        /// </summary>
+        private int _enemyLayerMask = ~0;
 
         // 眩晕免疫
-        private enum StunImmunityStrategy { None, StunMultiplier }
-        private static StunImmunityStrategy _stunStrategy;
-        private static bool _stunCached;
         private static FieldInfo _stunMultiplierField;
+        private static bool _stunCached;
         private float _originalStunMultiplier = 1f;
         private Stun _stunComponent;
 
@@ -74,62 +90,38 @@ namespace BadNorthBlackSpearman
             _agent = agent;
             if (ReferenceEquals(_agent, null)) { Destroy(this); return; }
             _squad = _agent.squad;
-            _originalMaxSpeed = _agent.maxSpeed;
+
             CacheStun();
             _stunComponent = _agent.GetComponent<Stun>();
-            // 缓存 English faction 的 layer mask
-            _englishLayerMask = LayerMask.GetMask("English");
-            if (_englishLayerMask == 0)
-            {
-                // 回退：使用默认 layer（Bad North 中 English 通常在 Default layer）
-                _englishLayerMask = 1; // Default layer
-            }
+
+            // ✅ v1.15 修复：不再硬编码 "English" layer
+            // 使用 ~0（所有 layer），实际过滤通过 faction 判断
+            // Bad North 中 English 单位在 Default layer (0)，不是独立 layer
+            _enemyLayerMask = ~0;
+
             _phase = Phase.Idle;
             _phaseTimer = 0.5f;
-            Log("Setup OK. maxSpeed=" + _originalMaxSpeed.ToString("F1") + " layerMask=" + _englishLayerMask);
+            _originalMaxSpeed = _agent.maxSpeed;
+            Log("Setup OK. maxSpeed=" + _originalMaxSpeed.ToString("F1") + " layerMask=All (faction-filtered)");
         }
 
-        private void Update()
+        /// <summary>
+        /// IBrainAction 接口 — Brain 在 idle 状态 hz8 节拍调用
+        /// 检测附近是否有敌人，有则启动冲刺
+        /// </summary>
+        bool IBrainAction.MaybeAct(Brain brain)
         {
-            if (!_setupDone || ReferenceEquals(_agent, null)) return;
+            // 只在 Idle 阶段响应
+            if (_phase != Phase.Idle)
+                return false;
 
-            if (!ReferenceEquals(_agent.aliveState, null) && !_agent.aliveState.active)
-            {
-                TryEndCharge();
-                Destroy(this);
-                return;
-            }
+            if (!_setupDone || ReferenceEquals(_agent, null))
+                return false;
 
-            bool spawned = !ReferenceEquals(_agent.spawned, null) && _agent.spawned.active;
-            if (!spawned) return;
+            if (!_agent.navPos.island)
+                return false;
 
-            // 登岛后首次尝试武器搜索和武器替换
-            if (!_weaponTryDone && gameObject.activeInHierarchy)
-            {
-                _weaponTryDone = true;
-                Log("First island frame. WeaponCached=" + Plugin.WeaponCached + " activeInHierarchy=" + gameObject.activeInHierarchy);
-
-                if (!Plugin.WeaponCached)
-                    Plugin.SearchForPikemanWeapon();
-
-                if (Plugin.WeaponCached)
-                    Plugin.ReapplyWeaponIfNeeded(_agent);
-            }
-
-            switch (_phase)
-            {
-                case Phase.Idle: UpdateIdle(); break;
-                case Phase.Charging: DoCharging(); break;
-                case Phase.Cooldown: UpdateCooldown(); break;
-            }
-        }
-
-        private void OnDestroy() { TryEndCharge(); }
-
-        private void UpdateIdle()
-        {
-            if (!_agent.navPos.island) return;
-
+            // 武器未缓存时尝试搜索
             if (!Plugin.WeaponCached)
                 Plugin.SearchForPikemanWeapon();
 
@@ -141,8 +133,46 @@ namespace BadNorthBlackSpearman
             {
                 _chargeDirection = dir;
                 StartCharge();
+                return true; // 消耗 action 机会
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 保留独立 Update 用于冲刺执行阶段和冷却恢复
+        /// （movability/物理检测/冷却计时需要每帧运行）
+        /// </summary>
+        private void Update()
+        {
+            if (!_setupDone || ReferenceEquals(_agent, null)) return;
+
+            // 死亡检查
+            if (!ReferenceEquals(_agent.aliveState, null) && !_agent.aliveState.active)
+            {
+                TryEndCharge();
+                Destroy(this);
+                return;
+            }
+
+            bool spawned = !ReferenceEquals(_agent.spawned, null) && _agent.spawned.active;
+            if (!spawned) return;
+
+            switch (_phase)
+            {
+                case Phase.Idle:
+                    // Idle 阶段不做事，等待 IBrainAction.MaybeAct 触发
+                    break;
+                case Phase.Charging:
+                    DoCharging();
+                    break;
+                case Phase.Cooldown:
+                    UpdateCooldown();
+                    break;
             }
         }
+
+        private void OnDestroy() { TryEndCharge(); }
 
         private void StartCharge()
         {
@@ -212,13 +242,14 @@ namespace BadNorthBlackSpearman
         private void TryEndCharge() { if (_phase == Phase.Charging) EndCharge(); }
 
         /// <summary>
-        /// 使用 Physics.OverlapSphere 检测命中，替代全场景 FindObjectsOfType 遍历
+        /// ✅ 使用 Physics.OverlapSphere 检测命中
+        /// ✅ v1.15 修复：使用 ~0 mask + faction 过滤，不再依赖不存在的 "English" layer
         /// </summary>
         private void DetectAndApplyHit()
         {
             int hitCount = Physics.OverlapSphereNonAlloc(
                 _agent.transform.position, HitRadius,
-                _hitBuffer, _englishLayerMask, QueryTriggerInteraction.Ignore);
+                _hitBuffer, _enemyLayerMask, QueryTriggerInteraction.Ignore);
 
             for (int i = 0; i < hitCount; i++)
             {
@@ -239,15 +270,15 @@ namespace BadNorthBlackSpearman
         }
 
         /// <summary>
-        /// ✅ v1.14 改进：使用 Attack 结构体 + DealDamage 完整攻击链路
-        /// 护甲(Armor.ModifyAttack)、击退、眩晕(Stun.PostAttack)、音效、特效全部生效
+        /// ✅ v1.15 验证：使用 Attack 结构体 + DealDamage 完整攻击链路
+        /// 构造签名：Attack(AttackSettings settings, Vector3 direction, Vector3 pos, MonoBehaviour monoAttacker, Squad killerSquad, string weapon, ReusableEffect effect = null)
+        /// 与原版 Attack.cs 完全一致
         /// </summary>
         private void ApplyChargeDamage(Agent target)
         {
             if (ReferenceEquals(target, null)) return;
             try
             {
-                // ✅ 使用原版 AttackSettings 四维向量
                 var settings = new AttackSettings
                 {
                     damage = ChargeDamage,
@@ -259,23 +290,16 @@ namespace BadNorthBlackSpearman
                 Vector3 dirToTarget = (target.transform.position - _agent.transform.position).normalized;
                 dirToTarget.y = 0f;
 
-                // ✅ 使用原版 Attack 结构体
                 var attack = new Attack(
-                    settings,
-                    dirToTarget,
-                    target.transform.position,
-                    this,
-                    _squad,
-                    "Spear"
+                    settings,          // AttackSettings（四维向量）
+                    dirToTarget,       // direction
+                    target.transform.position,  // pos
+                    this,              // monoAttacker
+                    _squad,            // killerSquad
+                    "Sfx/English/Spear"  // weapon → sound = "Sfx/English/Spear/Hit"
                 );
 
-                // ✅ 走完整 DealDamage 链路
-                // → IAttackResponder 修正链（Armor 护甲减伤）
-                // → knockback 击退
-                // → launchImpulse 击飞
-                // → health 扣血
-                // → Stun.PostAttack 眩晕累加
-                // → 死亡特效/音效
+                // 走完整 DealDamage 链路
                 target.DealDamage(attack);
             }
             catch (Exception ex)
@@ -288,10 +312,9 @@ namespace BadNorthBlackSpearman
         {
             direction = Vector3.zero;
 
-            // 使用 Physics.OverlapSphere 检测附近敌人
             int hitCount = Physics.OverlapSphereNonAlloc(
                 _agent.transform.position, DetectionRadius,
-                _hitBuffer, _englishLayerMask, QueryTriggerInteraction.Ignore);
+                _hitBuffer, _enemyLayerMask, QueryTriggerInteraction.Ignore);
 
             Agent closest = null;
             float closestDist = DetectionRadius;
@@ -319,8 +342,18 @@ namespace BadNorthBlackSpearman
         private void SetStunImmunity(bool immune)
         {
             if (ReferenceEquals(_stunComponent, null)) return;
-            if (_stunStrategy == StunImmunityStrategy.StunMultiplier && !ReferenceEquals(_stunMultiplierField, null))
-                _stunMultiplierField.SetValue(_stunComponent, immune ? 0f : _originalStunMultiplier);
+            if (!ReferenceEquals(_stunMultiplierField, null))
+            {
+                if (immune)
+                {
+                    _originalStunMultiplier = (float)_stunMultiplierField.GetValue(_stunComponent);
+                    _stunMultiplierField.SetValue(_stunComponent, 0f);
+                }
+                else
+                {
+                    _stunMultiplierField.SetValue(_stunComponent, _originalStunMultiplier);
+                }
+            }
         }
 
         private static void CacheStun()
@@ -328,7 +361,6 @@ namespace BadNorthBlackSpearman
             if (_stunCached) return;
             _stunCached = true;
             _stunMultiplierField = typeof(Stun).GetField("stunMultiplier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            _stunStrategy = !ReferenceEquals(_stunMultiplierField, null) ? StunImmunityStrategy.StunMultiplier : StunImmunityStrategy.None;
         }
 
         private void Log(string msg)
