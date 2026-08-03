@@ -304,13 +304,20 @@ namespace BadNorthBlackSpearman
         {
             if (ReferenceEquals(agent, null)) return;
 
-            // 武器（如果已缓存）
+            // 武器搜索重试 + 应用
+            SearchForPikemanWeapon();
+
             ReapplyWeaponIfNeeded(agent);
 
             // 盾禁用
             agent.shield = false;
 
             // 数值
+            // 移除原有武器（剑/盾的渲染子对象）
+
+
+            RemoveOriginalWeapons(agent);
+
             agent.scale *= ScaleMultiplier;
             var s = agent.brain as Swordsman;
             if (!ReferenceEquals(s, null))
@@ -338,6 +345,48 @@ namespace BadNorthBlackSpearman
                 LogInfo("  Charge: IBrainAction scheduled via Swordsman.actions + Physics.OverlapSphere");
                 LogInfo("  Stab: IBrainAction scheduled via Swordsman.actions + Pursuing/Hunting aware");
                 LogInfo("  All attack pipelines via DealDamage (Armor/Stun/SFX active)");
+            }
+        }
+
+        /// <summary>
+        /// 移除原有武器渲染（剑/盾的 BatchedSprite 子对象）
+        /// 保留 Spear 子对象和主体渲染
+        /// </summary>
+        private static void RemoveOriginalWeapons(Agent agent)
+        {
+            if (ReferenceEquals(agent, null)) return;
+            var t = agent.transform;
+
+            // 收集要销毁的子对象（避免遍历时修改集合）
+            var toDestroy = new System.Collections.Generic.List<GameObject>();
+
+            for (int i = 0; i < t.childCount; i++)
+            {
+                var child = t.GetChild(i);
+                if (ReferenceEquals(child, null)) continue;
+                if (child.name == "Spear") continue; // 保留长矛
+
+                // 只检查 BatchedSprite（武器在 Bad North 中作为独立子对象时的明确标志）
+                // 不使用 MeshRenderer 检查，避免误伤身体渲染
+                var bs = child.GetComponent<BatchedSprite>();
+
+                if (!ReferenceEquals(bs, null))
+                {
+                    toDestroy.Add(child.gameObject);
+                }
+            }
+
+            foreach (var go in toDestroy)
+            {
+                try
+                {
+                    UnityEngine.Object.Destroy(go);
+                    LogInfo("[WEAPON] Destroyed original weapon: " + go.name);
+                }
+                catch (Exception ex)
+                {
+                    LogErr("[WEAPON] Failed to destroy " + go.name + ": " + ex.Message);
+                }
             }
         }
 
