@@ -172,7 +172,17 @@ namespace BadNorthBlackSpearman
             }
         }
 
-        private void OnDestroy() { TryEndCharge(); }
+        private void OnDestroy()
+        {
+            // v1.16: Always restore agent state, regardless of phase
+            if (!ReferenceEquals(_agent, null) && _setupDone)
+            {
+                _agent.movability = 1f;
+                _agent.maxSpeed = _originalMaxSpeed;
+                _agent.walkDir = Vector3.zero;
+            }
+            TryEndCharge();
+        }
 
         private void StartCharge()
         {

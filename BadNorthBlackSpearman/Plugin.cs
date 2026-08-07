@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx;
@@ -11,7 +11,7 @@ using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.15")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.17")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -52,7 +52,7 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.15 (BlackSpearmanBrain + IBrainAction) ======");
+            Logger.LogInfo("[BlackSpearman] ====== v1.17 (sprite2 Clear + Cache Validity Fix) ======");
             _harmony = new Harmony("black.spearman");
             _harmony.PatchAll(typeof(Patches));
             RegisterBlackSpearmanBrainPatches();
@@ -66,13 +66,40 @@ namespace BadNorthBlackSpearman
         {
             try
             {
-                var getAttackMethod = typeof(Swordsman).GetMethod("GetAttack", new[] { typeof(Agent) });
+                // v1.16: Use FlattenHierarchy + NonPublic to find GetAttack even if declared in parent class
+                var getAttackMethod = typeof(Swordsman).GetMethod("GetAttack",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy,
+                    null, new[] { typeof(Agent) }, null);
                 if (!ReferenceEquals(getAttackMethod, null))
                 {
                     var prefix = typeof(BlackSpearmanBrain).GetMethod("GetAttackPrefix",
                         BindingFlags.Public | BindingFlags.Static);
                     if (!ReferenceEquals(prefix, null))
+                    {
                         _harmony.Patch(getAttackMethod, new HarmonyMethod(prefix));
+                        LogInfo("[Brain] GetAttack patch OK: " + getAttackMethod.DeclaringType.Name + "." + getAttackMethod.Name);
+                    }
+                }
+                else
+                {
+                    LogWarn("[Brain] GetAttack(Agent) NOT FOUND on Swordsman! Checking CloseCombatBrain...");
+                    getAttackMethod = typeof(CloseCombatBrain).GetMethod("GetAttack",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy,
+                        null, new[] { typeof(Agent) }, null);
+                    if (!ReferenceEquals(getAttackMethod, null))
+                    {
+                        var prefix = typeof(BlackSpearmanBrain).GetMethod("GetAttackPrefix",
+                            BindingFlags.Public | BindingFlags.Static);
+                        if (!ReferenceEquals(prefix, null))
+                        {
+                            _harmony.Patch(getAttackMethod, new HarmonyMethod(prefix));
+                            LogInfo("[Brain] GetAttack patch OK (CloseCombatBrain): " + getAttackMethod.Name);
+                        }
+                    }
+                    else
+                    {
+                        LogErr("[Brain] GetAttack(Agent) NOT FOUND anywhere! BlackSpearmanBrain will NOT work!");
+                    }
                 }
 
                 var rangeProp = typeof(Swordsman).GetProperty("range",
@@ -181,7 +208,8 @@ namespace BadNorthBlackSpearman
 
         internal static void SearchForPikemanWeapon()
         {
-            if (WeaponCached) return;
+            // v1.17: Also check CachedSpearAnim still valid (Unity destroyed-object null)
+            if (WeaponCached && CachedSpearAnim != null) return;
             if (_weaponSearchAttempts >= MaxWeaponSearchAttempts) return;
             _weaponSearchAttempts++;
 
@@ -334,65 +362,74 @@ namespace BadNorthBlackSpearman
             if (!ReferenceEquals(charge, null)) charge.Setup(agent);
             // SpearStabAction 通过 IBrainAction.MaybeAct 由 Brain 调度
             agent.gameObject.AddComponent<SpearStabAction>();
+
+            // v1.16: 手动注册 IBrainAction 到 Swordsman.actions 列表
+            // （Brain.Setup() 已执行，新增组件不会自动被收集）
+            RegisterBrainActions(agent);
+
             UpdateVikingReference(agent);
 
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.15 (BlackSpearmanBrain + IBrainAction) =====");
+                LogInfo("===== v1.17 (sprite2 Weapon Clear + Cache Validity Fix) =====");
                 LogInfo("  WeaponCached: " + WeaponCached);
-                LogInfo("  Brain: GetAttack() → Spear-style 4D vector (dmg/kb/launch/stun) + extended range");
-                LogInfo("  Charge: IBrainAction scheduled via Swordsman.actions + Physics.OverlapSphere");
-                LogInfo("  Stab: IBrainAction scheduled via Swordsman.actions + Pursuing/Hunting aware");
-                LogInfo("  All attack pipelines via DealDamage (Armor/Stun/SFX active)");
+                LogInfo("  Brain: GetAttack() -> Spear-style 4D vector (FlattenHierarchy discovery)");
+                LogInfo("  Charge: IBrainAction registered to Swordsman.actions");
+                LogInfo("  Stab: IBrainAction registered to Swordsman.actions");
+                LogInfo("  Weapon: Clearing sprite2 on BodyAnim.SpriteAnimator (not child destroy)");
             }
         }
 
         /// <summary>
-        /// 移除原有武器渲染（剑/盾的 BatchedSprite 子对象）
-        /// 保留 Spear 子对象和主体渲染
+        /// v1.17: 清除原有武器渲染 — 清零 BodyAnim 上 SpriteAnimator.sprite2
+        /// SwordShield 的剑/盾通过 sprite2 纹理通道渲染，不是独立子对象。
         /// </summary>
         private static void RemoveOriginalWeapons(Agent agent)
         {
             if (ReferenceEquals(agent, null)) return;
-            var t = agent.transform;
-
-            // 收集要销毁的子对象（避免遍历时修改集合）
-            var toDestroy = new System.Collections.Generic.List<GameObject>();
-
-            for (int i = 0; i < t.childCount; i++)
+            try
             {
-                var child = t.GetChild(i);
-                if (ReferenceEquals(child, null)) continue;
-                if (child.name == "Spear") continue; // 保留长矛
-
-                // 只检查 BatchedSprite（武器在 Bad North 中作为独立子对象时的明确标志）
-                // 不使用 MeshRenderer 检查，避免误伤身体渲染
-                var bs = child.GetComponent<BatchedSprite>();
-
-                if (!ReferenceEquals(bs, null))
+                var bodyAnim = agent.transform.Find("BodyAnim");
+                if (!ReferenceEquals(bodyAnim, null))
                 {
-                    toDestroy.Add(child.gameObject);
+                    var sa = bodyAnim.GetComponent<SpriteAnimator>();
+                    if (!ReferenceEquals(sa, null))
+                    {
+                        var sprite2Prop = typeof(SpriteAnimator).GetProperty("sprite2",
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (!ReferenceEquals(sprite2Prop, null))
+                        {
+                            sprite2Prop.SetValue(sa, null, null);
+                            LogInfo("[WEAPON] Cleared sprite2 on BodyAnim (sword/shield hidden)");
+                            return;
+                        }
+                        LogWarn("[WEAPON] SpriteAnimator.sprite2 property not found!");
+                        return;
+                    }
+                    LogWarn("[WEAPON] BodyAnim has no SpriteAnimator!");
+                    return;
                 }
+                // Diagnostic fallback: list all children
+                var sb = new System.Text.StringBuilder();
+                var t = agent.transform;
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    var c = t.GetChild(i);
+                    if (!ReferenceEquals(c, null))
+                    {
+                        if (sb.Length > 0) sb.Append(", ");
+                        sb.Append(c.name);
+                    }
+                }
+                LogWarn("[WEAPON] No BodyAnim child! children: " + sb.ToString());
             }
-
-            foreach (var go in toDestroy)
-            {
-                try
-                {
-                    UnityEngine.Object.Destroy(go);
-                    LogInfo("[WEAPON] Destroyed original weapon: " + go.name);
-                }
-                catch (Exception ex)
-                {
-                    LogErr("[WEAPON] Failed to destroy " + go.name + ": " + ex.Message);
-                }
-            }
+            catch (Exception ex) { LogErr("[WEAPON] RemoveOriginalWeapons error: " + ex.Message); }
         }
 
         public static void ReapplyWeaponIfNeeded(Agent agent)
         {
-            if (ReferenceEquals(CachedSpearAnim, null)) return;
+            if (CachedSpearAnim == null) return;
 
             var existing = agent.transform.Find("Spear");
             if (!ReferenceEquals(existing, null)) return;
@@ -404,6 +441,56 @@ namespace BadNorthBlackSpearman
             spearClone.transform.localRotation = SpearLocalRot;
             spearClone.transform.localScale = SpearLocalScale;
             LogInfo("[WEAPON] Spear added to " + agent.name);
+        }
+
+        /// <summary>
+        /// v1.16: 将 IBrainAction 组件手动注册到 Swordsman.actions 列表。
+        /// Brain.Setup() 在 Agent 生成时已执行，运行时新增的 IBrainAction 组件
+        /// 不会自动被 GetComponentsInChildren 收集，必须手动添加到 actions 列表。
+        /// </summary>
+        private static void RegisterBrainActions(Agent agent)
+        {
+            try
+            {
+                var s = agent.brain as Swordsman;
+                if (ReferenceEquals(s, null)) return;
+
+                // 获取 Brain.actions (protected List<IBrainAction>)
+                var actionsField = typeof(Brain).GetField("actions",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(actionsField, null))
+                {
+                    LogErr("[BRAIN] Cannot find Brain.actions field!");
+                    return;
+                }
+
+                var actions = actionsField.GetValue(s) as System.Collections.IList;
+                if (ReferenceEquals(actions, null))
+                {
+                    LogErr("[BRAIN] Brain.actions is null!");
+                    return;
+                }
+
+                // 注册 SpearChargeComponent
+                var charge = agent.GetComponent<SpearChargeComponent>();
+                if (!ReferenceEquals(charge, null) && !actions.Contains(charge))
+                {
+                    actions.Add(charge);
+                    LogInfo("[BRAIN] Registered SpearChargeComponent to actions");
+                }
+
+                // 注册 SpearStabAction
+                var stab = agent.GetComponent<SpearStabAction>();
+                if (!ReferenceEquals(stab, null) && !actions.Contains(stab))
+                {
+                    actions.Add(stab);
+                    LogInfo("[BRAIN] Registered SpearStabAction to actions");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogErr("[BRAIN] RegisterBrainActions error: " + ex.Message);
+            }
         }
 
         // ============ 数值修改 ============
