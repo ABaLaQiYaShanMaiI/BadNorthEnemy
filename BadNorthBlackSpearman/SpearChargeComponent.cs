@@ -31,17 +31,17 @@ namespace BadNorthBlackSpearman
     {
         // 探测和命中范围
         private const float DetectionRadius = 7.0f;
-        private const float ChargeDistance = 5.0f;
-        private const float ChargeSpeed = 6.0f;
+        private const float ChargeDistance = 8.0f;      // v1.18: 5→8, 更长冲刺
+        private const float ChargeSpeed = 12.0f;         // v1.18: 6→12, 更快更猛
         private const float ChargeCooldown = 8.0f;
         private const float RecoveryTime = 0.4f;
-        private const float HitRadius = 3.0f;
-        private const float HitInterval = 0.1f;
+        private const float HitRadius = 3.5f;            // v1.18: 3→3.5, 更宽命中
+        private const float HitInterval = 0.08f;         // v1.18: 0.1→0.08, 更频繁检测
         private const float ChargeDuration = 0.83f;
 
         // 冲刺攻击参数
-        private const float ChargeDamage = 3.33f;
-        private const float ChargeKnockback = 0.5f;
+        private const float ChargeDamage = 4.0f;         // v1.18: 3.33→4, 更强伤害
+        private const float ChargeKnockback = 1.5f;      // v1.18: 0.5→1.5, 更强击退
         private const float ChargeStun = 10f;
 
         private enum Phase { Idle, Charging, Cooldown }
@@ -200,10 +200,13 @@ namespace BadNorthBlackSpearman
             float dt = Time.deltaTime;
             _chargeDistanceTraveled += ChargeSpeed * dt;
 
-            // 参考 Spear.cs 官方实现：movability = 0.5f（半限制而非完全禁用）
-            _agent.movability = 0.5f;
-            _agent.maxSpeed = ChargeSpeed;
-            _agent.walkDir = _chargeDirection;
+            // v1.18: 参考 Spear.charging 官方行为 — 锁定 movability=0, 直接操控位置
+            _agent.movability = 0f;
+            _agent.maxSpeed = 0f;
+            _agent.walkDir = Vector3.zero;
+            
+            // 直接位移（突破 AI 限制）
+            _agent.transform.position += _chargeDirection * ChargeSpeed * dt;
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
             if (Time.time - _lastHitTime >= HitInterval)

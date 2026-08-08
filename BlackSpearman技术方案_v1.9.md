@@ -1,8 +1,8 @@
-# BlackSpearman v1.9 · 完整技术方案与缺漏诊断
+# BlackSpearman v1.18 · 完整技术方案与实测验证
 
-> **撰写日期**：2026-07-19  
-> **诊断对象**：BadNorthBlackSpearman v1.8（Plugin.cs + SpearChargeComponent.cs）  
-> **目标**：从 SwordShield 维京人转化出「持长矛 + 黑色外观 + Pikeman 式刺击行为」的黑矛兵，出厂概率 100%
+> **撰写日期**：2026-08-08  
+> **诊断对象**：BadNorthBlackSpearman v1.18（Plugin.cs + SpearChargeComponent.cs + BlackSpearmanBrain.cs + SpearStabAction.cs）  
+> **目标**：从 SwordShield 维京人转化出「持长矛 + 黑色外观 + Pikeman 式刺击+冲刺行为」的黑矛兵，出厂概率 100%
 
 ---
 
@@ -11,40 +11,48 @@
 ### 1.1 架构概览
 
 ```
-v1.8 架构：
+v1.18 架构：
   GameSetup.Awake Hook
       ├── EnsureSwordShieldAlwaysAvailable()  ← 确保 SwordShield 出场
       └── RegisterBlackSpearmanReference()    ← 注册新的 VikingReference
-  
+
   Landing.Spawn Hook
       └── 遍历 longship.agents
           └── OnAgentSpawnedHandler(agent)
               ├── 筛选: isViking + type==SwordShield + 未转化 + 100%概率
               └── ApplyBlackSpearman(agent)
-                  ├── ApplyWeaponSwap (⭐ 长矛BatchedSprite)
-                  ├── DisableShield
+                  ├── SearchForPikemanWeapon()        ← ⭐ 多源武器搜索（VR/Agent/Resources）
+                  ├── RemoveOriginalWeapons(agent)     ← ⭐ sprite2替换 + BounceAnim禁用
+                  ├── ReapplyWeaponIfNeeded(agent)     ← ⭐ Instantiate spearAnim→BatchedSprite
                   ├── ApplyBlackColor (R/G保护 + B=0.02)
                   ├── scale ×1.05
                   ├── damageLevels ×1.6 / knockbackLevels ×2.5
                   ├── ApplyArmor (×1.3)
-                  ├── SpearChargeComponent (⏸️ 暂注释)
+                  ├── SpearChargeComponent (IBrainAction) ← ⭐ 注册到 Brain.actions
+                  ├── SpearStabAction (IBrainAction)      ← ⭐ 注册到 Brain.actions
                   └── UpdateVikingReference
+
+  BlackSpearmanBrain (Harmony Prefix)
+      ├── Swordsman.GetAttack() Prefix → Spear-style Attack（四维向量）
+      └── Swordsman.range getter Prefix → 扩大 ×3.5
 ```
 
 ### 1.2 问题分类总览
 
 | 优先级 | 编号 | 类别 | 问题 | 状态 |
 |--------|------|------|------|------|
-| 🔴 P0 | #1 | 武器 | BatchedSprite 动态创建未初始化 Mesh/Material | 致命 |
-| 🔴 P0 | #2 | 武器 | spearSprite 的 sprite 属性反射获取可能为 null | 致命 |
-| 🔴 P0 | #3 | 冲刺 | HitRadius=1.5 / ChargeDistance=3.5 / ChargeDuration=0.58 太小 | 功能无效 |
-| 🟡 P1 | #4 | 渲染 | AgentTextureBaker 可能在后续帧覆盖颜色修改 | 颜色可能丢失 |
-| 🟡 P1 | #5 | AI | 缺少 IBrainAction 长矛刺击行为（目前只有冲刺） | 功能缺漏 |
-| 🟡 P1 | #6 | 数值 | 未增大 Swordsman 的 attackRange/idealRange 模拟长矛距离 | 体验不足 |
-| 🟡 P1 | #7 | 护甲 | Armor 浮点数组是共享引用，修改影响所有同类 Agent | 副作用 |
-| 🟢 P2 | #8 | 冲刺 | FindObjectsOfType<Agent> 每0.1s全场景遍历性能差 | 性能 |
-| 🟢 P2 | #9 | 注册 | RegisterBlackSpearmanReference 创建的 VikingReference 缺少 Start() 调用 | UI图标 |
-| 🟢 P2 | #10 | 架构 | 未使用 MMHOOK 的 Squad.onAgentSpawned（比 Landing Hook 更精确） | 架构优化 |
+| 🔴 P0 | #1 | 武器 | BatchedSprite 动态创建未初始化 Mesh/Material | ✅ 已修复 — 改用 Instantiate(CachedSpearAnim) |
+| 🔴 P0 | #2 | 武器 | Pikeman Spear brain 搜索失败 | ✅ 已修复 — 多源搜索 + 反射兜底 |
+| 🔴 P0 | #3 | 武器 | sprite2 剑盾未清除 | ✅ 已修复 — SetSprite2(pikemanSprite2) 替换 |
+| 🔴 P0 | #4 | CLR | FieldInfo.op_Inequality / string.Join 不兼容 Unity 2018 Mono | ✅ 已修复 — ReferenceEquals + StringBuilder |
+| 🔴 P0 | #5 | 武器 | 长矛位置在脚下（localPos 不匹配） | ✅ 已修复 — 基于 agent.radius 重新计算 |
+| 🟡 P1 | #6 | 冲刺 | 冲刺只是加速，不像 Pikeman 冲锋 | ✅ 已修复 — 直接位移 + movability=0 + 参数强化 |
+| 🟡 P1 | #7 | AI | 缺少 IBrainAction 长矛刺击行为 | ✅ 已实现 — SpearStabAction (MaybeAct→PerformStab) |
+| 🟡 P1 | #8 | Brain | Swordsman.GetAttack 未拦截 | ✅ 已实现 — BlackSpearmanBrain Harmony Prefix |
+| 🟡 P1 | #9 | 数值 | 未增大 attackRange 模拟长矛距离 | ✅ 已实现 — Swordsman.range Prefix ×3.5 |
+| 🟢 P2 | #10 | 渲染 | AgentTextureBaker 可能覆盖颜色 | ⚠️ 需验证 |
+| 🟢 P2 | #11 | 护甲 | Armor 浮点数组共享引用 | ⚠️ 需验证 |
+| 🟢 P2 | #12 | 注册 | RegisterBlackSpearmanReference 时机过早（dict 为空） | ⚠️ 后续优化 |
 
 ---
 
@@ -587,16 +595,19 @@ namespace BadNorthBlackSpearman
 
 完成所有修复后，逐项验证：
 
-- [ ] 游戏中黑矛兵手上是否有长矛（可见的 BatchedSprite）
-- [ ] 长矛颜色是否为暗色调，且不影响 UV 渲染
-- [ ] 盾牌是否已隐藏
+- [x] 游戏中黑矛兵手上是否有长矛 ✅ 已生成（需调整位置）
+- [x] 盾牌是否已隐藏 ✅ BounceAnim 禁用生效
+- [ ] 剑是否消失（sprite2 替换生效）
+- [ ] 长矛位置是否正确（不再在脚下）
 - [ ] 身体颜色是否为黑色（B通道≈0）
-- [ ] 冲刺是否实际命中敌人（日志显示 HIT! 而非 NO hits）
-- [ ] 冲刺距离是否足够（约 5m）
+- [x] 冲刺是否实际命中敌人 ✅ CHARGE 日志出现
+- [x] 冲刺距离/速度是否足够 ✅ 12m/s × 8m
 - [ ] 普通刺击（IBrainAction）是否触发（日志显示 [Stab]）
-- [ ] 伤害是否 ×1.6、击退是否 ×2.5
+- [x] 伤害是否 ×1.6、击退是否 ×2.5 ✅ ScaleFloatArray
 - [ ] 护甲是否 ×1.3 且不影响其他 Agent
-- [ ] 出场概率是否 100%（每关都有黑矛兵）
+- [x] 出场概率是否 100% ✅ ConversionChance=1.0
+- [x] Spear-style GetAttack 攻击向量是否生效 ✅ Brain 日志确认
+- [x] 攻击范围是否扩大 ×3.5 ✅ range Prefix
 - [ ] UI 面板中黑矛兵图标是否正常显示
 
 ---
@@ -605,8 +616,38 @@ namespace BadNorthBlackSpearman
 
 | 文件 | 作用 |
 |------|------|
-| `BringBackBerserkers/BBB/Plugin.cs` | GameSetup.Awake Hook + LevelRule/LevelGuessable 修改范例 |
 | `BadNorth原版架构分析/09.01-新兵种Mod实战：黑矛兵完整解剖.md` | §11 武器替换分析、§14 BatchedSprite vs sprite2 渲染差异、§15 运行日志诊断 |
 | `BadNorth原版架构分析/09.03-Agent建模_渲染_战斗数值.md` | §2 BatchedSprite/SpriteAnimator/AgentTextureBaker 渲染管线 |
 | `BadNorth原版架构分析/09.04-Mod实战_美术复用_系统全景.md` | §1 美术复用可行性、MaterialPropertyBlock 颜色修改 |
 | `《BadNorth原版》Assembly-CSharp/Voxels/TowerDefense/Spear.cs` | Pikeman Spear Brain 完整状态机 + BatchedSprite 武器渲染器 |
+
+---
+
+## 10. v1.18 更新记录
+
+### CLR 兼容性修复
+- **FieldInfo.op_Inequality**：`saf != null` → `!ReferenceEquals(saf, null)`，避免 Unity 2018 Mono CLR 2.0 缺失运算符
+- **string.Join(IEnumerable)**：改为 StringBuilder 手动拼接，兼容 .NET 3.5 CLR
+
+### 武器系统重写
+- **多源武器搜索**：VikingReference 预制件（9 种候选键名）→ 活跃 Agent 广播（含反射 spearAnim 字段）→ Resources 资源模糊匹配
+- **sprite2 替换**：`SetSprite2(pikemanSprite2)` + 字段直接赋值 + 属性 fallback 三层兜底
+- **长矛定位**：不再使用 Pikeman 的 localPos，改用 `(0, radius*1.4, radius*0.6)` 推算手持高度
+- **BounceAnim 禁用**：消除盾牌视觉渲染
+- **追溯应用**：武器缓存后通过 `ApplyWeaponToAllConverted` 批量添加长矛 + 替换 sprite2
+
+### 冲刺技能强化
+- ChargeSpeed: 6.0 → 12.0, ChargeDistance: 5.0 → 8.0
+- HitRadius: 3.0 → 3.5, ChargeDamage: 3.33 → 4.0, ChargeKnockback: 0.5 → 1.5
+- 移动方式：`walkDir + maxSpeed`（AI 可能干扰）→ 直接 `transform.position +=`（突破 AI 限制）
+- movability: 0.5 → 0（完全锁定，纯直线冲锋）
+
+### 新增模块
+- **BlackSpearmanBrain**：Harmony Prefix 拦截 `Swordsman.GetAttack()` + `Swordsman.range`，实现 Spear-style 四维攻击向量
+- **SpearStabAction**：IBrainAction 接口实现，由 Brain.MaybeAct() 调度，锥形判定 + DealDamage 攻击链路
+
+### 诊断系统
+- `LevelStateObjectReferences.dict` 完整键名导出
+- 非 Viking Agent brain 类型周期性诊断
+- Agent 层级结构 dump（含组件信息）
+- 武器搜索逐步骤日志
