@@ -1,85 +1,40 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using Voxels.TowerDefense;
 
 namespace BadNorthBlackSpearman
 {
-    /// <summary>
-    /// 黑矛兵冲刺技能组件 — IBrainAction 实现。
-    /// 
-    /// v1.15 改进：
-    /// - 实现 IBrainAction 接口，冲刺「启动判定」由 Brain.MaybeAct() 调度（替代独立 Update 中的检测逻辑）
-    /// - 冲刺「执行阶段」保留独立 Update（movability 控制、物理检测需要每帧运行）
-    /// - 参考 AxeThrowing 模式：MaybeAct 触发 prepare，Update 执行 charging/cooldown
-    /// - 使用 Physics.OverlapSphere 替代 FindObjectsOfType 遍历
-    /// - 使用 Attack 结构体 + DealDamage 完整攻击链路
-    /// - 修复 layer mask：改为基于 faction 而非硬编码 "English" 字符串
-    ///
-    /// 调度机制：
-    /// - Brain.idle hz8 → MaybeAct → 检测敌人 → StartCharge
-    /// - Update → DoCharging / UpdateCooldown（需要每帧更新）
-    /// - 冲刺结束后回退到 idle，等待 Brain 下次调度 MaybeAct
-    ///
-    /// 参考：
-    /// - AxeThrowing.cs（IBrainAction + prepare/axeThrowing 状态机）
-    /// - Spear.cs（movability = 0.5f，charging/stabbing 状态机）
-    /// - Attack.cs 构造签名验证
-    /// </summary>
     public class SpearChargeComponent : MonoBehaviour, IBrainAction
     {
-        // 探测和命中范围
-        private const float DetectionRadius = 7.0f;
-        private const float ChargeDistance = 8.0f;      // v1.18: 5→8, 更长冲刺
-        private const float ChargeSpeed = 12.0f;         // v1.18: 6→12, 更快更猛
-        private const float ChargeCooldown = 8.0f;
-        private const float RecoveryTime = 0.4f;
-        private const float HitRadius = 3.5f;            // v1.18: 3→3.5, 更宽命中
-        private const float HitInterval = 0.08f;         // v1.18: 0.1→0.08, 更频繁检测
-        private const float ChargeDuration = 0.83f;
+        private const float DetectionRadius = 5.0f;
+        private const float ReadyDist = 3.5f;
+        private const float StabDist = 1.5f;
+        private const float ChargeSpeed = 1.0f;
+        private const float CooldownTime = 1.5f;
+        private const float WindUpDuration = 0.25f;
+        private const float ChargingMaxTime = 3.0f;
+        private const float StabDamage = 3.0f;
+        private const float StabKnockback = 2.5f;
+        private const float StabStun = 8f;
 
-        // 冲刺攻击参数
-        private const float ChargeDamage = 4.0f;         // v1.18: 3.33→4, 更强伤害
-        private const float ChargeKnockback = 1.5f;      // v1.18: 0.5→1.5, 更强击退
-        private const float ChargeStun = 10f;
-
-        private enum Phase { Idle, Charging, Cooldown }
+        private enum Phase { Idle, WindUp, Charging, Stab, Cooldown }
         private Phase _phase = Phase.Idle;
-
         private Agent _agent;
         private Squad _squad;
         private bool _setupDone;
         private float _phaseTimer;
         private Vector3 _chargeDirection;
-        private float _chargeDistanceTraveled;
-        private float _originalMaxSpeed;
-
-        private HashSet<Agent> _hitAgents = new HashSet<Agent>();
-        private float _lastHitTime = -999f;
-
-        // 碰撞检测缓存
-        private Collider[] _hitBuffer = new Collider[32];
-        /// <summary>
-        /// ✅ v1.15 修复：使用 ~0（所有层）作为兜底，
-        /// 实际检测通过 Agent 的 faction 进行过滤（非 Viking 且非自身）
-        /// 原代码使用 LayerMask.GetMask("English") 在 Bad North 中可能无效
-        /// </summary>
-        private int _enemyLayerMask = ~0;
-
-        // 眩晕免疫
-        private static FieldInfo _stunMultiplierField;
-        private static bool _stunCached;
-        private float _originalStunMultiplier = 1f;
-        private Stun _stunComponent;
-
+        private float _originalSpeed;
+        private Agent _targetAgent;
+        private Collider[] _hitBuffer = new Collider[16];
         private float _lastLogTime = -999f;
 
         public static SpearChargeComponent AddTo(Agent agent)
         {
             if (ReferenceEquals(agent, null)) return null;
-            var existing = agent.GetComponent<SpearChargeComponent>();
-            if (!ReferenceEquals(existing, null)) return existing;
+            var e = agent.GetComponent<SpearChargeComponent>();
+            if (!ReferenceEquals(e, null)) return e;
             return agent.gameObject.AddComponent<SpearChargeComponent>();
         }
 
@@ -90,297 +45,150 @@ namespace BadNorthBlackSpearman
             _agent = agent;
             if (ReferenceEquals(_agent, null)) { Destroy(this); return; }
             _squad = _agent.squad;
-
-            CacheStun();
-            _stunComponent = _agent.GetComponent<Stun>();
-
-            // ✅ v1.15 修复：不再硬编码 "English" layer
-            // 使用 ~0（所有 layer），实际过滤通过 faction 判断
-            // Bad North 中 English 单位在 Default layer (0)，不是独立 layer
-            _enemyLayerMask = ~0;
-
-            _phase = Phase.Idle;
-            _phaseTimer = 0.5f;
-            _originalMaxSpeed = _agent.maxSpeed;
-            Log("Setup OK. maxSpeed=" + _originalMaxSpeed.ToString("F1") + " layerMask=All (faction-filtered)");
+            _originalSpeed = _agent.maxSpeed;
+            Log("Setup OK. speed=" + _originalSpeed.ToString("F1"));
         }
 
-        /// <summary>
-        /// IBrainAction 接口 — Brain 在 idle 状态 hz8 节拍调用
-        /// 检测附近是否有敌人，有则启动冲刺
-        /// </summary>
         bool IBrainAction.MaybeAct(Brain brain)
         {
-            // 只在 Idle 阶段响应
-            if (_phase != Phase.Idle)
-                return false;
-
-            if (!_setupDone || ReferenceEquals(_agent, null))
-                return false;
-
-            if (!_agent.navPos.island)
-                return false;
-
-            // 武器未缓存时尝试搜索
-            if (!Plugin.WeaponCached)
-                Plugin.SearchForPikemanWeapon();
-
-            if (Plugin.WeaponCached)
-                Plugin.ReapplyWeaponIfNeeded(_agent);
-
-            Vector3 dir;
-            if (HasNearbyEnemy(out dir))
-            {
-                _chargeDirection = dir;
-                StartCharge();
-                return true; // 消耗 action 机会
-            }
-
-            return false;
+            if (_phase != Phase.Idle) return false;
+            if (ReferenceEquals(_agent, null) || ReferenceEquals(_agent.aliveState, null)
+                || !_agent.aliveState.active || !_agent.dangerous) return false;
+            if (!FindNearestEnemy(out _chargeDirection, out _targetAgent)) return false;
+            StartWindUp();
+            return true;
         }
 
-        /// <summary>
-        /// 保留独立 Update 用于冲刺执行阶段和冷却恢复
-        /// （movability/物理检测/冷却计时需要每帧运行）
-        /// </summary>
         private void Update()
         {
-            if (!_setupDone || ReferenceEquals(_agent, null)) return;
-
-            // 死亡检查
-            if (!ReferenceEquals(_agent.aliveState, null) && !_agent.aliveState.active)
-            {
-                TryEndCharge();
-                Destroy(this);
-                return;
-            }
-
-            bool spawned = !ReferenceEquals(_agent.spawned, null) && _agent.spawned.active;
-            if (!spawned) return;
-
             switch (_phase)
             {
-                case Phase.Idle:
-                    // Idle 阶段不做事，等待 IBrainAction.MaybeAct 触发
-                    break;
-                case Phase.Charging:
-                    DoCharging();
-                    break;
-                case Phase.Cooldown:
-                    UpdateCooldown();
-                    break;
+                case Phase.Idle: break;
+                case Phase.WindUp: DoWindUp(); break;
+                case Phase.Charging: DoCharging(); break;
+                case Phase.Stab: DoStab(); break;
+                case Phase.Cooldown: UpdateCooldown(); break;
             }
         }
 
-        private void OnDestroy()
+        private void StartWindUp()
         {
-            // v1.16: Always restore agent state, regardless of phase
-            if (!ReferenceEquals(_agent, null) && _setupDone)
+            _phase = Phase.WindUp;
+            _phaseTimer = WindUpDuration;
+            _agent.movability = 0f;
+            _agent.maxSpeed = 0f;
+            _agent.walkDir = Vector3.zero;
+            Log("WIND-UP");
+        }
+
+        private void DoWindUp()
+        {
+            _agent.LookInDirection(_chargeDirection, 720f, 10f);
+            _phaseTimer -= Time.deltaTime;
+            if (_phaseTimer <= 0f)
             {
+                _phase = Phase.Charging;
+                _phaseTimer = ChargingMaxTime;
                 _agent.movability = 1f;
-                _agent.maxSpeed = _originalMaxSpeed;
-                _agent.walkDir = Vector3.zero;
+                _agent.maxSpeed = ChargeSpeed;
+                _agent.walkDir = _chargeDirection;
+                Log("CHARGING speed=" + ChargeSpeed);
             }
-            TryEndCharge();
-        }
-
-        private void StartCharge()
-        {
-            _phase = Phase.Charging;
-            _chargeDistanceTraveled = 0f;
-            _hitAgents.Clear();
-            _phaseTimer = ChargeDuration;
-            _originalMaxSpeed = _agent.maxSpeed;
-            SetStunImmunity(true);
-            Log("CHARGE! Dir=" + _chargeDirection.ToString("F1"));
         }
 
         private void DoCharging()
         {
-            float dt = Time.deltaTime;
-            _chargeDistanceTraveled += ChargeSpeed * dt;
-
-            // v1.18: 参考 Spear.charging 官方行为 — 锁定 movability=0, 直接操控位置
-            _agent.movability = 0f;
-            _agent.maxSpeed = 0f;
-            _agent.walkDir = Vector3.zero;
-            
-            // 直接位移（突破 AI 限制）
-            _agent.transform.position += _chargeDirection * ChargeSpeed * dt;
+            _phaseTimer -= Time.deltaTime;
+            if (!ReferenceEquals(_targetAgent, null) && _targetAgent.aliveState.active)
+            {
+                _chargeDirection = (_targetAgent.transform.position - _agent.transform.position);
+                _chargeDirection.y = 0f;
+                _chargeDirection.Normalize();
+            }
+            _agent.maxSpeed = ChargeSpeed;
+            _agent.walkDir = _chargeDirection;
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
-            if (Time.time - _lastHitTime >= HitInterval)
-                DetectAndApplyHit();
+            float dist = ReferenceEquals(_targetAgent, null) ? 999f :
+                Vector3.Distance(_agent.transform.position, _targetAgent.transform.position);
+            if (_phaseTimer <= 0f || dist > ReadyDist) { EndCharge(); return; }
+            if (dist <= StabDist)
+            {
+                _phase = Phase.Stab;
+                _phaseTimer = 0.15f;
+                _agent.maxSpeed = 0f;
+                _agent.walkDir = Vector3.zero;
+                _agent.movability = 0f;
+            }
+        }
 
-            if (_chargeDistanceTraveled >= ChargeDistance)
-                EndCharge();
+        private void DoStab()
+        {
+            _phaseTimer -= Time.deltaTime;
+            if (_phaseTimer <= 0f) { PerformStab(); EndCharge(); }
+        }
+
+        private void PerformStab()
+        {
+            var t = _targetAgent;
+            if (ReferenceEquals(t, null)) t = _agent.enemyAgent;
+            if (ReferenceEquals(t, null)) return;
+            try
+            {
+                float prev = t.health;
+                var s = new AttackSettings { damage = StabDamage, knockback = StabKnockback, launchImpulse = 0f, stun = StabStun };
+                Vector3 d = (t.transform.position - _agent.transform.position).normalized;
+                d.y = 0f;
+                if (d.sqrMagnitude < 0.001f) d = _agent.transform.forward;
+                t.DealDamage(new Attack(s, d, t.transform.position, this, _squad, "Sfx/English/Spear"));
+                Log("HIT " + t.name + " dmg=" + StabDamage + " hp=" + prev.ToString("F1") + "\u2192" + t.health.ToString("F1"));
+            }
+            catch (Exception ex) { Plugin.LogErr("[Charge] " + ex.Message); }
         }
 
         private void EndCharge()
         {
             _phase = Phase.Cooldown;
-            _phaseTimer = ChargeCooldown;
-            SetStunImmunity(false);
+            _phaseTimer = CooldownTime;
             _agent.maxSpeed = 0f;
-            Log("Charge ended. Hits: " + _hitAgents.Count);
+            _agent.walkDir = Vector3.zero;
+            _agent.movability = 1f;
+            _targetAgent = null;
         }
 
         private void UpdateCooldown()
         {
             _phaseTimer -= Time.deltaTime;
-            float recoveryEnd = ChargeCooldown - RecoveryTime;
-
-            if (_phaseTimer > recoveryEnd)
-            {
-                _agent.movability = 0.35f;
-                _agent.maxSpeed = 0f;
-                _agent.walkDir = Vector3.zero;
-            }
-            else
-            {
-                _agent.movability = 1f;
-                _agent.maxSpeed = _originalMaxSpeed;
-            }
-
-            if (_phaseTimer <= 0f)
-            {
-                _phase = Phase.Idle;
-                _phaseTimer = 0f;
-                _hitAgents.Clear();
-                _agent.movability = 1f;
-                _agent.maxSpeed = _originalMaxSpeed;
-            }
+            if (_phaseTimer <= 0f) { _phase = Phase.Idle; _agent.maxSpeed = _originalSpeed; }
         }
 
-        private void TryEndCharge() { if (_phase == Phase.Charging) EndCharge(); }
-
-        /// <summary>
-        /// ✅ 使用 Physics.OverlapSphere 检测命中
-        /// ✅ v1.15 修复：使用 ~0 mask + faction 过滤，不再依赖不存在的 "English" layer
-        /// </summary>
-        private void DetectAndApplyHit()
+        private void OnDestroy()
         {
-            int hitCount = Physics.OverlapSphereNonAlloc(
-                _agent.transform.position, HitRadius,
-                _hitBuffer, _enemyLayerMask, QueryTriggerInteraction.Ignore);
-
-            for (int i = 0; i < hitCount; i++)
-            {
-                Collider col = _hitBuffer[i];
-                if (ReferenceEquals(col, null)) continue;
-
-                Agent other = col.GetComponentInParent<Agent>();
-                if (ReferenceEquals(other, null)) continue;
-                if (ReferenceEquals(other, _agent)) continue;
-                if (other.isViking) continue;
-                if (_hitAgents.Contains(other)) continue;
-                if (!ReferenceEquals(other.aliveState, null) && !other.aliveState.active) continue;
-
-                _hitAgents.Add(other);
-                _lastHitTime = Time.time;
-                ApplyChargeDamage(other);
-            }
+            if (_phase == Phase.Charging || _phase == Phase.Stab || _phase == Phase.WindUp)
+            { _agent.maxSpeed = _originalSpeed; _agent.movability = 1f; }
         }
 
-        /// <summary>
-        /// ✅ v1.15 验证：使用 Attack 结构体 + DealDamage 完整攻击链路
-        /// 构造签名：Attack(AttackSettings settings, Vector3 direction, Vector3 pos, MonoBehaviour monoAttacker, Squad killerSquad, string weapon, ReusableEffect effect = null)
-        /// 与原版 Attack.cs 完全一致
-        /// </summary>
-        private void ApplyChargeDamage(Agent target)
+        private bool FindNearestEnemy(out Vector3 dir, out Agent target)
         {
-            if (ReferenceEquals(target, null)) return;
-            try
+            dir = Vector3.zero; target = null;
+            int n = Physics.OverlapSphereNonAlloc(_agent.transform.position, DetectionRadius, _hitBuffer, ~0, QueryTriggerInteraction.Ignore);
+            float best = DetectionRadius;
+            for (int i = 0; i < n; i++)
             {
-                var settings = new AttackSettings
-                {
-                    damage = ChargeDamage,
-                    knockback = ChargeKnockback,
-                    launchImpulse = 0f,
-                    stun = ChargeStun
-                };
-
-                Vector3 dirToTarget = (target.transform.position - _agent.transform.position).normalized;
-                dirToTarget.y = 0f;
-
-                var attack = new Attack(
-                    settings,          // AttackSettings（四维向量）
-                    dirToTarget,       // direction
-                    target.transform.position,  // pos
-                    this,              // monoAttacker
-                    _squad,            // killerSquad
-                    "Sfx/English/Spear"  // weapon → sound = "Sfx/English/Spear/Hit"
-                );
-
-                // 走完整 DealDamage 链路
-                target.DealDamage(attack);
+                var c = _hitBuffer[i];
+                if (ReferenceEquals(c, null)) continue;
+                var a = c.GetComponentInParent<Agent>();
+                if (ReferenceEquals(a, null) || ReferenceEquals(a, _agent) || a.isViking) continue;
+                if (!ReferenceEquals(a.aliveState, null) && !a.aliveState.active) continue;
+                float dist = Vector3.Distance(_agent.transform.position, a.transform.position);
+                if (dist < best) { best = dist; target = a; }
             }
-            catch (Exception ex)
-            {
-                Plugin.LogErr("[Charge] DmgErr: " + ex.Message);
-            }
-        }
-
-        private bool HasNearbyEnemy(out Vector3 direction)
-        {
-            direction = Vector3.zero;
-
-            int hitCount = Physics.OverlapSphereNonAlloc(
-                _agent.transform.position, DetectionRadius,
-                _hitBuffer, _enemyLayerMask, QueryTriggerInteraction.Ignore);
-
-            Agent closest = null;
-            float closestDist = DetectionRadius;
-
-            for (int i = 0; i < hitCount; i++)
-            {
-                Collider col = _hitBuffer[i];
-                if (ReferenceEquals(col, null)) continue;
-
-                Agent other = col.GetComponentInParent<Agent>();
-                if (ReferenceEquals(other, null)) continue;
-                if (ReferenceEquals(other, _agent)) continue;
-                if (other.isViking) continue;
-                if (!ReferenceEquals(other.aliveState, null) && !other.aliveState.active) continue;
-
-                float dist = Vector3.Distance(_agent.transform.position, other.transform.position);
-                if (dist < closestDist) { closestDist = dist; closest = other; }
-            }
-
-            if (ReferenceEquals(closest, null)) return false;
-            direction = (closest.transform.position - _agent.transform.position).normalized;
+            if (ReferenceEquals(target, null)) return false;
+            dir = (target.transform.position - _agent.transform.position).normalized;
+            dir.y = 0f;
             return true;
         }
 
-        private void SetStunImmunity(bool immune)
-        {
-            if (ReferenceEquals(_stunComponent, null)) return;
-            if (!ReferenceEquals(_stunMultiplierField, null))
-            {
-                if (immune)
-                {
-                    _originalStunMultiplier = (float)_stunMultiplierField.GetValue(_stunComponent);
-                    _stunMultiplierField.SetValue(_stunComponent, 0f);
-                }
-                else
-                {
-                    _stunMultiplierField.SetValue(_stunComponent, _originalStunMultiplier);
-                }
-            }
-        }
-
-        private static void CacheStun()
-        {
-            if (_stunCached) return;
-            _stunCached = true;
-            _stunMultiplierField = typeof(Stun).GetField("stunMultiplier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        }
-
-        private void Log(string msg)
-        {
-            if (Time.time - _lastLogTime < 1f) return;
-            _lastLogTime = Time.time;
-            Plugin.LogInfo("[Charge] " + msg);
-        }
+        private void Log(string msg) { if (Time.time - _lastLogTime >= 1f) { _lastLogTime = Time.time; Plugin.LogInfo("[Charge] " + msg); } }
     }
 }

@@ -58,6 +58,11 @@ namespace BadNorthBlackSpearman
             _harmony = new Harmony("black.spearman");
             _harmony.PatchAll(typeof(Patches));
             RegisterBlackSpearmanBrainPatches();
+            
+            // v1.18: 主动运行时诊断 — 扫描所有已加载 Assembly 中的 Spear 类型
+            DumpSpearTypes();
+            // v1.18: Hook Brain.Setup 以最早捕获 Spear brain
+            PatchBrainSetup();
         }
 
         /// <summary>
@@ -480,13 +485,12 @@ namespace BadNorthBlackSpearman
                 if (!ReferenceEquals(agent, null) && agent.isViking)
                 {
                     ReapplyWeaponIfNeeded(agent);
-                    // v1.18: 武器缓存后，重新替换 sprite2（之前可能被设为 null）
                     ApplySprite2Replacement(agent);
                     count++;
                 }
             }
             if (count > 0)
-                LogInfo("[WEAPON] Applied to " + count + " existing BlackSpearmans");
+                LogInfo("[WEAPON] Applied spear+sprite2 to " + count + " BlackSpearmans");
         }
 
         /// <summary>
@@ -583,7 +587,7 @@ namespace BadNorthBlackSpearman
             if (ConvertedAgents.Contains(agent)) return;
             if (UnityEngine.Random.value > ConversionChance) return;
             ConvertedAgents.Add(agent);
-            LogInfo("[SPAWN] Converting " + agent.name + " to BlackSpearman (#" + (ConvertedAgents.Count) + ")");
+            LogInfo("[SPAWN] Converting " + agent.name + " to BlackSpearman (#" + ConvertedAgents.Count + ")");
             try { ApplyBlackSpearman(agent); } catch (Exception ex) { LogErr("Apply: " + ex); }
             if (Instance != null) Instance._totalConvertedCount++;
         }
@@ -698,25 +702,10 @@ namespace BadNorthBlackSpearman
                     }
                 }
 
-                // Fallback: 如果 CachedSpearSprite2 为空，至少清空原 sprite2
-                if (!cleared && allSA != null)
+                // Fallback: 没有 Pikeman sprite2 时不操作（设 null 会导致死亡 NPE）
+                if (!cleared && allSA != null && CachedSpearSprite2 == null)
                 {
-                    foreach (var sa in allSA)
-                    {
-                        if (ReferenceEquals(sa, null)) continue;
-                        try
-                        {
-                            var field = typeof(SpriteAnimator).GetField("sprite2",
-                                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            if (!ReferenceEquals(field, null))
-                            {
-                                field.SetValue(sa, null);
-                                cleared = true;
-                                LogInfo("[WEAPON] Cleared sprite2 (no Pikeman ref yet) on " + sa.name);
-                            }
-                        }
-                        catch { }
-                    }
+                    LogInfo("[WEAPON] sprite2 left as-is (no Pikeman ref, null causes death crash)");
                 }
 
                 // Step 2: 递归禁用武器相关子对象
@@ -1020,6 +1009,138 @@ namespace BadNorthBlackSpearman
         {
             if (arr == null) return;
             for (int i = 0; i < arr.Length; i++) arr[i] *= mult;
+        }
+
+        // ============ v1.18 主动诊断 ============
+
+        /// <summary>
+        /// 扫描 AppDomain 中所有 Spear 类型，并尝试 Resources.FindObjectsOfTypeAll 找预制件
+        /// </summary>
+        private static void DumpSpearTypes()
+        {
+            try
+            {
+                var asms = System.AppDomain.CurrentDomain.GetAssemblies();
+                var spearTypes = new List<Type>();
+                foreach (var asm in asms)
+                {
+                    try
+                    {
+                        foreach (var t in asm.GetTypes())
+                        {
+                            if (t.Name == "Spear" && t.IsSubclassOf(typeof(Brain)))
+                                spearTypes.Add(t);
+                        }
+                    }
+                    catch { }
+                }
+                if (spearTypes.Count > 0)
+                {
+                    foreach (var st in spearTypes)
+                        LogInfo("[DIAG] Found Spear type: " + st.FullName + " in " + st.Assembly.GetName().Name);
+                    
+                    // v1.18: 主动从预制件提取武器
+                    try
+                    {
+                        var allSpears = Resources.FindObjectsOfTypeAll(spearTypes[0]);
+                        LogInfo("[DIAG] FindObjectsOfTypeAll(Spear): " + (allSpears != null ? allSpears.Length : 0) + " instances");
+                        if (!WeaponCached && allSpears != null && allSpears.Length > 0)
+                        {
+                            foreach (var obj in allSpears)
+                            {
+                                if (ReferenceEquals(obj, null)) continue;
+                                var spearBrain = obj as Brain;
+                                if (!ReferenceEquals(spearBrain, null))
+                                {
+                                    LogInfo("[DIAG] Extracting weapon from prefab: " + obj.name);
+                                    if (ExtractWeapon(spearBrain))
+                                    {
+                                        LogInfo("[DIAG] ✅ Weapon extracted proactively!");
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex) { LogErr("[DIAG] FindObjectsOfTypeAll: " + ex.Message); }
+                }
+                else
+                {
+                    LogWarn("[DIAG] No Spear type found in any loaded assembly!");
+                    // 列出所有 Brain 子类帮助诊断
+                    var sb = new System.Text.StringBuilder();
+                    foreach (var asm in asms)
+                    {
+                        try
+                        {
+                            foreach (var t in asm.GetTypes())
+                            {
+                                if (t.IsSubclassOf(typeof(Brain)) && !t.IsAbstract)
+                                {
+                                    if (sb.Length > 0) sb.Append(", ");
+                                    sb.Append(t.Name);
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                    LogInfo("[DIAG] All Brain subclasses: [" + sb.ToString() + "]");
+                }
+            }
+            catch (Exception ex) { LogErr("[DIAG] DumpSpearTypes: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Hook Brain.Setup() — 任何 Brain（包含 Spear）实例化时立即捕获
+        /// </summary>
+        private void PatchBrainSetup()
+        {
+            try
+            {
+                // Brain.Setup 可能是 virtual/abstract，用 Swordsman.Setup 或 Spear.Setup 代替
+                var setupMethod = typeof(Spear).GetMethod("Setup",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(setupMethod, null))
+                {
+                    // fallback: 用 Brain 的声明方法
+                    setupMethod = typeof(Brain).GetMethod("Setup", 
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                }
+                if (ReferenceEquals(setupMethod, null))
+                {
+                    LogWarn("[DIAG] Cannot hook Brain.Setup — trying Agent.Setup instead");
+                    setupMethod = typeof(Agent).GetMethod("Setup",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                }
+                if (!ReferenceEquals(setupMethod, null))
+                {
+                    var postfix = typeof(Plugin).GetMethod("BrainSetupPostfix",
+                        BindingFlags.NonPublic | BindingFlags.Static);
+                    _harmony.Patch(setupMethod, null, new HarmonyMethod(postfix));
+                    LogInfo("[DIAG] Hooked " + setupMethod.DeclaringType.Name + "." + setupMethod.Name);
+                }
+            }
+            catch (Exception ex) { LogErr("[DIAG] PatchBrainSetup: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Brain.Setup() Postfix — 捕获任何 Spear brain 的最早出现
+        /// </summary>
+        private static void BrainSetupPostfix(Brain __instance)
+        {
+            if (ReferenceEquals(__instance, null)) return;
+            var typeName = __instance.GetType().Name;
+            if (typeName == "Spear" || typeName.Contains("Spear") || typeName.Contains("Pike"))
+            {
+                LogInfo("[DIAG] Brain.Setup: " + typeName + " on " + __instance.name + " frame=" + Time.frameCount);
+                
+                // 主动触发武器缓存
+                if (!WeaponCached)
+                {
+                    LogInfo("[DIAG] Proactively extracting weapon from " + typeName + " at Setup time!");
+                    SearchForPikemanWeapon();
+                }
+            }
         }
 
         internal static void LogInfo(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BlackSpearman] " + msg); }
