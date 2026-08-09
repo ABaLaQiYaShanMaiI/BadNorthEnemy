@@ -11,7 +11,7 @@ using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.17")]
+    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.19")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -54,7 +54,7 @@ namespace BadNorthBlackSpearman
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman] ====== v1.18 (Weapon Multi-Source + Hierarchy Diagnostic) ======");
+            Logger.LogInfo("[BlackSpearman] ====== v1.19 (Sword Destroy + Shield Keep + Black Body + Icon Tint) ======");
             _harmony = new Harmony("black.spearman");
             _harmony.PatchAll(typeof(Patches));
             RegisterBlackSpearmanBrainPatches();
@@ -486,11 +486,12 @@ namespace BadNorthBlackSpearman
                 {
                     ReapplyWeaponIfNeeded(agent);
                     ApplySprite2Replacement(agent);
+                    ApplyBlackColor(agent); // v1.19: 追溯应用黑色外观
                     count++;
                 }
             }
             if (count > 0)
-                LogInfo("[WEAPON] Applied spear+sprite2 to " + count + " BlackSpearmans");
+                LogInfo("[WEAPON] Applied spear+sprite2+black to " + count + " BlackSpearmans");
         }
 
         /// <summary>
@@ -603,14 +604,14 @@ namespace BadNorthBlackSpearman
 
             ReapplyWeaponIfNeeded(agent);
 
-            // 盾禁用
-            agent.shield = false;
-
             // 数值
-            // 移除原有武器（剑/盾的渲染子对象）
+            // 移除原有武器（仅剑的渲染子对象，保留盾牌）
 
 
             RemoveOriginalWeapons(agent);
+
+            // 黑色外观（敌方风格，与玩家 Pikeman 区分）
+            ApplyBlackColor(agent);
 
             agent.scale *= ScaleMultiplier;
             var s = agent.brain as Swordsman;
@@ -638,20 +639,66 @@ namespace BadNorthBlackSpearman
             if (!_firstConversionDiagnosticDone)
             {
                 _firstConversionDiagnosticDone = true;
-                LogInfo("===== v1.18 (Weapon Multi-Source + Hierarchy Diagnostic) =====");
+                LogInfo("===== v1.19 (Sword Destroy + Shield Keep + Black Body + Icon Tint) =====");
                 LogInfo("  WeaponCached: " + WeaponCached);
                 LogInfo("  SearchAttempts: " + _weaponSearchAttempts);
                 LogInfo("  Brain: GetAttack() -> Spear-style 4D vector");
                 LogInfo("  Charge: IBrainAction -> Swordsman.actions");
                 LogInfo("  Stab: IBrainAction -> Swordsman.actions");
-                LogInfo("  Weapon: Multi-source search + Hierarchy dump on fail");
+                LogInfo("  Body: Black color (B=0.02, R/G preserved) + Shield kept");
+                LogInfo("  Icon: Tinted for preview/kill-stat differentiation");
+                LogInfo("  ColorPersistence: LateUpdate re-check in SpearChargeComponent");
+                BlackSpearmanBrain.DumpConvertedAgents();
             }
         }
 
+        // ============ 黑色外观（敌方风格） ============
+
         /// <summary>
-        /// v1.18: 清除原有武器渲染 — 递归查找 SpriteAnimator 并清零 sprite2
+        /// 将 Agent 身上所有 BatchedSprite 的颜色改为暗黑色调。
+        /// 保留 R/G 通道（UV 编码），仅将 B 通道降至 0.02，模拟敌方单位的黑色外观。
+        /// 与玩家 Pikeman 形成明显区分。
+        /// </summary>
+        private static void ApplyBlackColor(Agent agent)
+        {
+            if (ReferenceEquals(agent, null)) return;
+            try
+            {
+                var allBS = agent.GetComponentsInChildren<BatchedSprite>(true);
+                if (allBS == null || allBS.Length == 0) return;
+
+                var colorProp = typeof(BatchedSprite).GetProperty("color",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(colorProp, null)) return;
+
+                int modified = 0;
+                foreach (var bs in allBS)
+                {
+                    if (ReferenceEquals(bs, null)) continue;
+                    try
+                    {
+                        var oldColor = (Color)colorProp.GetValue(bs, null);
+                        // v1.19: 更激进的暗色 — 不仅 B=0.02，R/G 也压暗至 30%
+                        // 保留 R/G 的比值关系（UV 编码），但整体压暗
+                        // 同时 B 通道设 0 以完全消除蓝色调（敌方单位特征）
+                        float r = oldColor.r * 0.35f;
+                        float g = oldColor.g * 0.35f;
+                        colorProp.SetValue(bs, new Color(r, g, 0.01f, oldColor.a), null);
+                        modified++;
+                    }
+                    catch { }
+                }
+
+                if (modified > 0)
+                    LogInfo("[COLOR] Applied black body to " + modified + " BatchedSprites on " + agent.name);
+            }
+            catch (Exception ex) { LogErr("[COLOR] ApplyBlackColor error: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// v1.18: 清除原有武器渲染 — 替换 sprite2（剑 → 长矛身体姿态）+ 仅禁用剑子对象
         /// Hierarchy from log: BodyAnim/BodySprite/BodySprite[SpriteAnimator] + Weapon child
-        /// Shield: BounceAnim/ShieldAimer/ShieldAnim
+        /// Shield: BounceAnim/ShieldAimer/ShieldAnim — 保留！
         /// </summary>
         private static void RemoveOriginalWeapons(Agent agent)
         {
@@ -708,21 +755,19 @@ namespace BadNorthBlackSpearman
                     LogInfo("[WEAPON] sprite2 left as-is (no Pikeman ref, null causes death crash)");
                 }
 
-                // Step 2: 递归禁用武器相关子对象
+                // Step 2: 递归禁用武器相关子对象（仅剑，保留盾牌）
                 int disabled = DisableWeaponChildren(agent.transform);
 
-                // Step 3: 禁用盾渲染层次 (BounceAnim/ShieldAimer/ShieldAnim)
-                var bounceAnim = agent.transform.Find("BounceAnim");
-                if (!ReferenceEquals(bounceAnim, null))
-                {
-                    bounceAnim.gameObject.SetActive(false);
-                    disabled++;
-                    LogInfo("[WEAPON] Disabled BounceAnim (shield hierarchy)");
-                }
+                // Step 3: 盾渲染层次 (BounceAnim) — 保留！黑矛兵持盾+长矛
+                // 不再禁用 BounceAnim，盾牌保留
 
                 if (cleared || disabled > 0)
                 {
-                    if (!cleared) LogInfo("[WEAPON] sprite2 not found, disabled " + disabled + " render objects instead");
+                    // v1.19: 额外按 BatchedSprite.sprite 名称查找并禁用剑
+                    int spriteDisabled = DisableSwordBatchedSprites(agent);
+                    if (!cleared) LogInfo("[WEAPON] sprite2 not found, disabled " + disabled + " sword objects + " + spriteDisabled + " sword sprites instead");
+                    else if (disabled > 0 || spriteDisabled > 0)
+                        LogInfo("[WEAPON] sprite2 replaced, additionally disabled " + disabled + " objects + " + spriteDisabled + " sword sprites");
                     return;
                 }
 
@@ -750,9 +795,9 @@ namespace BadNorthBlackSpearman
                 if (ReferenceEquals(c, null)) continue;
                 var cn = c.name.ToLower();
 
-                if (cn.Contains("sword") || cn.Contains("shield") || cn.Contains("weapon")
+                if (cn.Contains("sword") || cn.Contains("weapon")
                     || cn.Contains("右") || cn.Contains("左") || cn.Contains("r_weapon")
-                    || cn.Contains("l_weapon") || cn == "shieldaimer" || cn == "shieldanim")
+                    || cn.Contains("l_weapon"))
                 {
                     c.gameObject.SetActive(false);
                     count++;
@@ -766,7 +811,51 @@ namespace BadNorthBlackSpearman
         }
 
         /// <summary>
-        /// 获取相对于 agent 的路径（诊断用）
+        /// v1.19: 按 BatchedSprite.sprite 名称查找并禁用剑的 BatchedSprite
+        /// （GameObject 名称匹配不到的剑可能在 BatchedSprite 层级）
+        /// </summary>
+        private static int DisableSwordBatchedSprites(Agent agent)
+        {
+            int count = 0;
+            try
+            {
+                if (!_batchedSpriteSpritePropCached)
+                {
+                    _batchedSpriteSpritePropCached = true;
+                    _batchedSpriteSpriteProp = typeof(BatchedSprite).GetProperty("sprite",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                }
+                if (ReferenceEquals(_batchedSpriteSpriteProp, null)) return 0;
+
+                var allBS = agent.GetComponentsInChildren<BatchedSprite>(true);
+                if (allBS == null || allBS.Length == 0) return 0;
+
+                foreach (var bs in allBS)
+                {
+                    if (ReferenceEquals(bs, null)) continue;
+                    try
+                    {
+                        var sprite = _batchedSpriteSpriteProp.GetValue(bs, null) as Sprite;
+                        if (ReferenceEquals(sprite, null)) continue;
+                        string sn = sprite.name.ToLower();
+                        // 剑相关 sprite 名称匹配
+                        if (sn.Contains("sword") || sn.Contains("blade") || sn.Contains("weapon")
+                            || sn.Contains("viking_sword") || sn.Contains("viking_axe"))
+                        {
+                            bs.gameObject.SetActive(false);
+                            count++;
+                            LogInfo("[WEAPON] Disabled sword BatchedSprite: " + sprite.name + " on " + bs.gameObject.name);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex) { LogErr("[WEAPON] DisableSwordBatchedSprites error: " + ex.Message); }
+            return count;
+        }
+
+        private static PropertyInfo _batchedSpriteSpriteProp;
+        private static bool _batchedSpriteSpritePropCached;
         /// </summary>
         private static string GetTransformPath(Transform t, Transform root)
         {
@@ -967,30 +1056,247 @@ namespace BadNorthBlackSpearman
             SetLevelExpr(vr.GetComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
         }
 
+        /// <summary>
+        /// v1.19: 预制件主动剥离 — 启动时克隆 SwordShield 预制件，
+        /// 物理删除剑 + 染黑所有 BatchedSprite → 注册为黑矛兵专用预制件。
+        /// </summary>
         private void RegisterBlackSpearmanReference()
         {
             if (LevelStateObjectReferences.dict.ContainsKey(BlackSpearmanRefName)) return;
             CacheLevelFields();
+
             UnityEngine.Object obj;
             if (!LevelStateObjectReferences.dict.TryGetValue("Viking_SwordShield", out obj)) return;
-            var orig = obj as VikingReference;
-            if (ReferenceEquals(orig, null)) return;
+            var origVR = obj as VikingReference;
+            if (ReferenceEquals(origVR, null)) return;
+
+            // 获取原始 viking 预制件并克隆
+            var origVikingField = typeof(VikingReference).GetField("viking",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            GameObject origPrefab = null;
+            if (!ReferenceEquals(origVikingField, null))
+            {
+                var vikingVal = origVikingField.GetValue(origVR);
+                if (vikingVal is GameObject prefabGO) origPrefab = prefabGO;
+                else if (vikingVal is Component comp) origPrefab = comp.gameObject;
+            }
+
+            if (ReferenceEquals(origPrefab, null))
+            {
+                LogWarn("[PREFAB] Could not get viking prefab, using fallback");
+                RegisterBlackSpearmanReferenceFallback(origVR);
+                return;
+            }
+
+            // 深克隆预制件 → 剥离剑 → 染黑
+            var strippedPrefab = UnityEngine.Object.Instantiate(origPrefab);
+            strippedPrefab.name = "BlackSpearman_Stripped";
+            DontDestroyOnLoad(strippedPrefab);
+            strippedPrefab.SetActive(false);
+            StripSwordFromPrefab(strippedPrefab);
+            BlackenPrefab(strippedPrefab);
+            ApplyPikemanSpriteToPrefab(strippedPrefab);
+            strippedPrefab.SetActive(true);
+
+            // 创建 BlackSpearman 的 VikingReference
             var go = new GameObject(BlackSpearmanRefName);
             DontDestroyOnLoad(go);
             var nr = go.AddComponent<VikingReference>();
-            CopyVikingReferenceFields(orig, nr);
+            CopyVikingReferenceFields(origVR, nr);
+            if (!ReferenceEquals(origVikingField, null))
+                origVikingField.SetValue(nr, strippedPrefab);
+
+            // 图标用 Pikeman 的 sprite2
+            if (!ReferenceEquals(CachedSpearSprite2, null))
+            {
+                var s2f = typeof(VikingReference).GetField("sprite2",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(s2f, null))
+                    s2f.SetValue(nr, CachedSpearSprite2);
+            }
+
+            ApplyIconTint(nr);
             SetLevelExpr(go.AddComponent<LevelRule>(), _levelRuleConditionField, "true");
             SetLevelExpr(go.AddComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
             LevelStateObjectReferences.AddToDict(nr);
+
+            LogInfo("[PREFAB] ✅ Stripped prefab: sword=" + _prefabSwordStripped + " black=" + _prefabSpritesBlackened);
+        }
+
+        private static int _prefabSwordStripped;
+        private static int _prefabSpritesBlackened;
+
+        /// <summary>
+        /// 从预制件中物理删除所有剑相关的 GameObject 和 BatchedSprite
+        /// </summary>
+        private static void StripSwordFromPrefab(GameObject prefab)
+        {
+            _prefabSwordStripped = 0;
+            if (ReferenceEquals(prefab, null)) return;
+            try
+            {
+                var allT = prefab.GetComponentsInChildren<Transform>(true);
+                foreach (var t in allT)
+                {
+                    if (ReferenceEquals(t, null)) continue;
+                    string ln = t.name.ToLower();
+                    if (ln.Contains("sword") || ln.Contains("blade") || ln.Contains("weapon")
+                        || ln.Contains("右") || ln.Contains("左") || ln == "r_weapon" || ln == "l_weapon")
+                    {
+                        UnityEngine.Object.DestroyImmediate(t.gameObject);
+                        _prefabSwordStripped++;
+                    }
+                }
+                // 按 BatchedSprite.sprite 名称删除
+                var allBS = prefab.GetComponentsInChildren<BatchedSprite>(true);
+                var sp = typeof(BatchedSprite).GetProperty("sprite",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(sp, null))
+                {
+                    foreach (var bs in allBS)
+                    {
+                        if (ReferenceEquals(bs, null)) continue;
+                        try
+                        {
+                            var s = sp.GetValue(bs, null) as Sprite;
+                            if (ReferenceEquals(s, null)) continue;
+                            string sn = s.name.ToLower();
+                            if (sn.Contains("sword") || sn.Contains("blade") || sn.Contains("viking_sword"))
+                            {
+                                UnityEngine.Object.DestroyImmediate(bs.gameObject);
+                                _prefabSwordStripped++;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                LogInfo("[PREFAB] Stripped " + _prefabSwordStripped + " sword objects");
+            }
+            catch (Exception ex) { LogErr("[PREFAB] Strip error: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// 将预制件所有 BatchedSprite 染黑（R/G→35%, B→0.01）
+        /// </summary>
+        private static void BlackenPrefab(GameObject prefab)
+        {
+            _prefabSpritesBlackened = 0;
+            if (ReferenceEquals(prefab, null)) return;
+            try
+            {
+                var allBS = prefab.GetComponentsInChildren<BatchedSprite>(true);
+                var cp = typeof(BatchedSprite).GetProperty("color",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(cp, null)) return;
+                foreach (var bs in allBS)
+                {
+                    if (ReferenceEquals(bs, null)) continue;
+                    try
+                    {
+                        var c = (Color)cp.GetValue(bs, null);
+                        cp.SetValue(bs, new Color(c.r * 0.35f, c.g * 0.35f, 0.01f, c.a), null);
+                        _prefabSpritesBlackened++;
+                    }
+                    catch { }
+                }
+                LogInfo("[PREFAB] Blackened " + _prefabSpritesBlackened + " BatchedSprites");
+            }
+            catch (Exception ex) { LogErr("[PREFAB] Blacken error: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// 将预制件中 SpriteAnimator.sprite2 替换为 Pikeman 的（持矛身体姿态）
+        /// </summary>
+        private static void ApplyPikemanSpriteToPrefab(GameObject prefab)
+        {
+            if (ReferenceEquals(prefab, null) || ReferenceEquals(CachedSpearSprite2, null)) return;
+            try
+            {
+                var allSA = prefab.GetComponentsInChildren<SpriteAnimator>(true);
+                var s2f = typeof(SpriteAnimator).GetField("sprite2",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(s2f, null)) return;
+                int applied = 0;
+                foreach (var sa in allSA)
+                {
+                    if (ReferenceEquals(sa, null)) continue;
+                    try { s2f.SetValue(sa, CachedSpearSprite2); applied++; }
+                    catch { }
+                }
+                if (applied > 0)
+                    LogInfo("[PREFAB] Applied Pikeman sprite2 to " + applied + " SpriteAnimators");
+            }
+            catch (Exception ex) { LogErr("[PREFAB] PikemanSprite error: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// 降级方案：获取不到 viking 预制件时回退
+        /// </summary>
+        private void RegisterBlackSpearmanReferenceFallback(VikingReference origVR)
+        {
+            var go = new GameObject(BlackSpearmanRefName);
+            DontDestroyOnLoad(go);
+            var nr = go.AddComponent<VikingReference>();
+            CopyVikingReferenceFields(origVR, nr);
+            ApplyIconTint(nr);
+            SetLevelExpr(go.AddComponent<LevelRule>(), _levelRuleConditionField, "true");
+            SetLevelExpr(go.AddComponent<LevelGuessable>(), _levelGuessableProbabilityField, "1");
+            LevelStateObjectReferences.AddToDict(nr);
+            LogWarn("[PREFAB] Fallback registration (runtime stripping will be used)");
         }
 
         private void CopyVikingReferenceFields(VikingReference src, VikingReference dst)
         {
-            foreach (string n in new[] { "type", "viking", "bounty", "sprite2" })
+            foreach (string n in new[] { "type", "viking", "bounty", "sprite2", "icon", "infoSprite", "previewSprite", "iconSprite" })
             {
                 var f = typeof(VikingReference).GetField(n, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 if (!ReferenceEquals(f, null)) f.SetValue(dst, f.GetValue(src));
             }
+        }
+
+        /// <summary>
+        /// 为黑矛兵的 VikingReference 图标应用暗色调，
+        /// 使其在关卡兵种预览和击杀统计中与普通 SwordShield 区分。
+        /// </summary>
+        private static void ApplyIconTint(VikingReference vr)
+        {
+            if (ReferenceEquals(vr, null)) return;
+            try
+            {
+                // 方式1: 修改 icon sprite 的 BatchedSprite 颜色（如果图标是 BatchedSprite 渲染）
+                if (!ReferenceEquals(vr.vikingClone, null))
+                {
+                    var allBS = vr.vikingClone.GetComponentsInChildren<BatchedSprite>(true);
+                    if (allBS != null)
+                    {
+                        var colorProp = typeof(BatchedSprite).GetProperty("color",
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (!ReferenceEquals(colorProp, null))
+                        {
+                            foreach (var bs in allBS)
+                            {
+                                if (ReferenceEquals(bs, null)) continue;
+                                try
+                                {
+                                    var oldColor = (Color)colorProp.GetValue(bs, null);
+                                    colorProp.SetValue(bs, new Color(oldColor.r * 0.35f, oldColor.g * 0.35f, 0.01f, oldColor.a), null);
+                                }
+                                catch { }
+                            }
+                            LogInfo("[ICON] Tinted vikingClone BatchedSprites for BlackSpearman preview icon");
+                        }
+                    }
+                }
+
+                // 方式2: 尝试修改 VikingReference 上的 SpriteRenderer 颜色
+                var sr = vr.GetComponentInChildren<SpriteRenderer>(true);
+                if (!ReferenceEquals(sr, null))
+                {
+                    sr.color = new Color(0.3f, 0.3f, 0.3f, 1f);
+                    LogInfo("[ICON] Tinted SpriteRenderer for BlackSpearman icon");
+                }
+            }
+            catch (Exception ex) { LogErr("[ICON] ApplyIconTint error: " + ex.Message); }
         }
 
         private static void UpdateVikingReference(Agent agent)

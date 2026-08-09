@@ -43,6 +43,7 @@ namespace BadNorthBlackSpearman
         private static FieldInfo _knockbackLevelsField;
         private static FieldInfo _stunLevelsField;
         private static bool _fieldsCached;
+        private static bool _interceptLogged;
 
         private static void CacheFields()
         {
@@ -64,9 +65,15 @@ namespace BadNorthBlackSpearman
             if (!Plugin.ConvertedAgents.Contains(__instance.agent))
                 return true; // 非黑矛兵走原方法
 
+            // v1.19: 首次命中日志（确认拦截生效）
+            if (!_interceptLogged)
+            {
+                _interceptLogged = true;
+                Plugin.LogInfo("[Brain] 🔒 INTERCEPT: Swordsman.GetAttack → Spear-style for " + __instance.agent.name);
+            }
+
             if (ReferenceEquals(target, null))
             {
-                // 原方法也会因 target 为 null 出问题，跳过
                 __result = default(Attack);
                 return false;
             }
@@ -152,11 +159,23 @@ namespace BadNorthBlackSpearman
                 return true;
 
             // 扩大 range，模拟长矛的长度优势
-            // Swordsman 原生: agent.radius * 0.7f ≈ 0.10
-            // 长矛兵等效: agent.radius * 0.7f * SpearRangeMultiplier
             float baseRange = __instance.agent.radius * 0.7f;
             __result = baseRange * SpearRangeMultiplier;
             return false;
+        }
+
+        /// <summary>
+        /// v1.19: 诊断 — 检查 ConvertedAgents 中实际有多少 agent 被追踪
+        /// </summary>
+        public static void DumpConvertedAgents()
+        {
+            int alive = 0;
+            foreach (var a in Plugin.ConvertedAgents)
+            {
+                if (!ReferenceEquals(a, null) && !ReferenceEquals(a.aliveState, null) && a.aliveState.active)
+                    alive++;
+            }
+            Plugin.LogInfo("[Brain] ConvertedAgents count=" + Plugin.ConvertedAgents.Count + " alive=" + alive);
         }
     }
 }

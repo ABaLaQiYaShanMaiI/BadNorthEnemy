@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using Voxels.TowerDefense;
+using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
@@ -69,6 +71,63 @@ namespace BadNorthBlackSpearman
                 case Phase.Stab: DoStab(); break;
                 case Phase.Cooldown: UpdateCooldown(); break;
             }
+        }
+
+        /// <summary>
+        /// v1.19: 每帧在 LateUpdate 中持续重刷黑色，
+        /// 对抗 AgentTextureBaker 后续帧的纹理重烘焙覆盖。
+        /// 前60帧全量刷，之后仅 B 通道异常时刷。
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_colorFrames < 60)
+            {
+                _colorFrames++;
+                ReapplyBlackColor();
+            }
+            else if (Time.frameCount % 30 == 0) // 每30帧抽查
+            {
+                ReapplyBlackColor();
+            }
+        }
+
+        private int _colorFrames;
+        private static PropertyInfo _batchedSpriteColorProp;
+        private static bool _batchedSpriteColorPropCached;
+
+        private void ReapplyBlackColor()
+        {
+            if (ReferenceEquals(_agent, null)) return;
+            try
+            {
+                if (!_batchedSpriteColorPropCached)
+                {
+                    _batchedSpriteColorPropCached = true;
+                    _batchedSpriteColorProp = typeof(BatchedSprite).GetProperty("color",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                }
+                if (ReferenceEquals(_batchedSpriteColorProp, null)) return;
+
+                var allBS = _agent.GetComponentsInChildren<BatchedSprite>(true);
+                if (allBS == null || allBS.Length == 0) return;
+
+                foreach (var bs in allBS)
+                {
+                    if (ReferenceEquals(bs, null)) continue;
+                    try
+                    {
+                        var c = (Color)_batchedSpriteColorProp.GetValue(bs, null);
+                        // 如果 B 通道 > 0.05 → 被 AgentTextureBaker 覆盖了，重新刷黑
+                        // v1.19: R/G 压暗至 35%，B 设 0
+                        if (c.b > 0.05f)
+                        {
+                            _batchedSpriteColorProp.SetValue(bs, new Color(c.r * 0.35f, c.g * 0.35f, 0.01f, c.a), null);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
 
         private void StartWindUp()
