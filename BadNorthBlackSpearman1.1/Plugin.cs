@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx;
@@ -16,260 +17,298 @@ namespace BadNorthBlackSpearman1_1
         public static Plugin Instance;
         public static BepInEx.Logging.ManualLogSource SharedLogger;
 
-        internal const string BlackSpearmanRefName = "Viking_BlackSpearman";
-        internal const string TemplateRefName = "Viking_SwordShield";
+        internal const string NewKey = "Viking_BlackSpearman";
+        internal const string TplKey = "Viking_SwordShield";
+        internal const float DmgM = 1.6f, KbM = 2.5f, ArmM = 1.3f, ScM = 1.05f, RngM = 3.5f;
 
-        internal const float DamageMultiplier = 1.6f;
-        internal const float KnockbackMultiplier = 2.5f;
-        internal const float ArmorMultiplier = 1.3f;
-        internal const float ScaleMultiplier = 1.05f;
-        internal const float RangeMultiplier = 3.5f;
-        internal const float ConversionChance = 0.4f;
+        internal static readonly HashSet<Agent> BlackAgents = new HashSet<Agent>();
 
-        internal static readonly HashSet<Agent> BlackSpearmanAgents = new HashSet<Agent>();
+        private Harmony _h;
+        private bool _reg, _patchesOk;
+        private int _spn, _mod, _atk, _rng;
+        private int _registerAttempts;
+        private const int MaxRegisterAttempts = 60;
 
-        private Harmony _harmony;
-        private bool _enemyRegistered;
-
-        private void Start()
+        // 使用 Awake 而非 Start，确保在 GameSetup.Awake 之前注册 hook
+        private void Awake()
         {
             Instance = this;
             SharedLogger = Logger;
-            Logger.LogInfo("[BlackSpearman1.1] ====== v1.1 Traditional Enemy Pool ======");
+            LogB("v1.1 NEW ENEMY TYPE — Awake");
 
-            _harmony = new Harmony("black.spearman.v1.1");
-            On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake;
-            PatchGetAttack();
-            PatchRangeGetter();
-            SubscribeAgentSpawned();
+            _h = new Harmony("black.spearman.v1.1");
 
-            Logger.LogInfo("[BlackSpearman1.1] All hooks registered. Waiting for GameSetup.Awake...");
+            // MMHOOK GameSetup.Awake
+            try { On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake; LogOK("MMHOOK GameSetup.Awake"); }
+            catch (Exception e) { LogFL("MMHOOK", e); }
+
+            // Harmony patches (必须在 Start 之前注册，因为 GetAttack 可能是 virtual)
+            PatchAtk();
+            PatchRng();
         }
 
-        // ============ MMHOOK：GameSetup.Awake 注册 ============
-
-        private void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
+        private void Start()
         {
-            orig(self);
-            if (_enemyRegistered) return;
-            _enemyRegistered = true;
-            Logger.LogInfo("[BlackSpearman1.1] GameSetup.Awake done - registering new enemy type...");
-            try { RegisterBlackSpearmanEnemy(); }
-            catch (Exception ex) { Logger.LogError("[BlackSpearman1.1] Register failed: " + ex); }
+            LogI("Will register '" + NewKey + "' from '" + TplKey + "'");
+            LogI("Stats: Dmg=x" + DmgM + " KB=x" + KbM + " Armor=x" + ArmM + " Scale=x" + ScM + " Range=x" + RngM);
+            SubSpawn();
+            InvokeRepeating("Beat", 20f, 60f);
+            LogB("Ready");
         }
 
-        private void RegisterBlackSpearmanEnemy()
+        private void Beat()
         {
-            if (LevelStateObjectReferences.dict.ContainsKey(BlackSpearmanRefName))
-            { Logger.LogInfo("[BlackSpearman1.1] Already registered"); return; }
+            int a = 0;
+            foreach (var x in BlackAgents)
+                if (!ReferenceEquals(x, null) && x != null && !ReferenceEquals(x.aliveState, null) && x.aliveState.active) a++;
+            LogI(string.Format("[BEAT] Reg={0} Patches={1} Spn={2} Mod={3} Alive={4} Atk={5} Rng={6}",
+                _reg, _patchesOk, _spn, _mod, a, _atk, _rng));
+        }
+        // ====== REGISTRATION (with retry) ======
 
+        private void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake o, GameSetup s)
+        {
+            LogI(">>> GameSetup.Awake <<<");
+            o(s);
+            LogI(">>> orig() returned <<<");
+            if (_reg) return;
+            // 启动协程：每 0.5 秒检查一次 dict，最多 60 次
+            StartCoroutine(RegisterWhenReady());
+        }
+
+        private IEnumerator RegisterWhenReady()
+        {
+            for (int attempt = 1; attempt <= MaxRegisterAttempts; attempt++)
+            {
+                yield return new WaitForSeconds(0.5f);
+                _registerAttempts = attempt;
+                try
+                {
+                    int count = LevelStateObjectReferences.dict.Count;
+                    if (attempt <= 3 || attempt % 10 == 0 || count > 0)
+                        LogI(string.Format("[REG-WAIT] attempt={0}/{1} dictSize={2}", attempt, MaxRegisterAttempts, count));
+
+                    if (count > 0 && LevelStateObjectReferences.dict.ContainsKey(TplKey))
+                    {
+                        LogI("[REG-WAIT] Dict ready! Proceeding with registration...");
+                        Register();
+                        yield break;
+                    }
+                }
+                catch (Exception e) { LogE("[REG-WAIT] Error: " + e.Message); }
+            }
+            LogFL("Dict never populated after " + MaxRegisterAttempts + " attempts", null);
+        }
+
+        private void Register()
+        {
+            if (_reg) return;
+            _reg = true;
+            LogB("REGISTRATION START");
+            DumpD();
+
+            if (LevelStateObjectReferences.dict.ContainsKey(NewKey))
+            { LogI("[REG] Already in dict"); InsVR(NewKey); return; }
+
+            LogI("[REG] Step1: template '" + TplKey + "'");
             UnityEngine.Object obj;
-            if (!LevelStateObjectReferences.dict.TryGetValue(TemplateRefName, out obj))
-            { Logger.LogError("[BlackSpearman1.1] Template not found!"); DumpDictKeys(); return; }
+            if (!LevelStateObjectReferences.dict.TryGetValue(TplKey, out obj))
+            { LogFL("Template not found after all waits!", null); DumpD(); return; }
+            var tpl = obj as VikingReference;
+            if (ReferenceEquals(tpl, null)) { LogFL("Not VR! type=" + obj.GetType().Name, null); return; }
+            InsVR(tpl, "TEMPLATE");
 
-            var templateVR = obj as VikingReference;
-            if (ReferenceEquals(templateVR, null)) { Logger.LogError("[BlackSpearman1.1] Not VR!"); return; }
+            LogI("[REG] Step2: clone prefab");
+            var vf = typeof(VikingReference).GetField("viking", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            GameObject pf = null;
+            if (!ReferenceEquals(vf, null))
+            { var v = vf.GetValue(tpl); LogI("viking=" + (v != null ? v.GetType().Name : "NULL")); pf = v as GameObject; if (ReferenceEquals(pf, null) && v is Component c) pf = c.gameObject; }
+            if (ReferenceEquals(pf, null) && !ReferenceEquals(tpl.vikingClone, null))
+            { pf = tpl.vikingClone.gameObject; LogI("Fallback: vikingClone"); }
+            if (ReferenceEquals(pf, null)) { LogFL("No prefab!", null); return; }
+            DmpH(pf.transform, 3);
 
-            var vikingField = typeof(VikingReference).GetField("viking",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            GameObject templatePrefab = null;
-            if (!ReferenceEquals(vikingField, null))
-            {
-                var val = vikingField.GetValue(templateVR);
-                templatePrefab = val as GameObject;
-                if (ReferenceEquals(templatePrefab, null) && val is Component comp) templatePrefab = comp.gameObject;
-            }
-            if (ReferenceEquals(templatePrefab, null) && !ReferenceEquals(templateVR.vikingClone, null))
-                templatePrefab = templateVR.vikingClone.gameObject;
-            if (ReferenceEquals(templatePrefab, null)) { Logger.LogError("[BlackSpearman1.1] No prefab!"); return; }
+            LogI("[REG] Step3: recolor prefab");
+            var blk = Instantiate(pf); blk.name = "BlackSpearman_Prefab";
+            DontDestroyOnLoad(blk); blk.SetActive(false);
+            int rc = Recolor(blk.transform);
+            int sw = NoSwords(blk.transform);
+            LogI(string.Format("[REG] Recolored={0} SwordsOff={1}", rc, sw));
+            DmpH(blk.transform, 2);
 
-            // Clone + recolor prefab
-            var clonedPrefab = Instantiate(templatePrefab);
-            clonedPrefab.name = "BlackSpearman_Prefab";
-            DontDestroyOnLoad(clonedPrefab);
-            clonedPrefab.SetActive(false);
-            int recolored = DeepRecolorToBlack(clonedPrefab.transform);
-            int swordsOff = DisableSwordRenderers(clonedPrefab.transform);
-            Logger.LogInfo(string.Format("[BlackSpearman1.1] Recolored: {0}, Swords off: {1}", recolored, swordsOff));
+            LogI("[REG] Step4: clone VR GO");
+            var vg = Instantiate(tpl.gameObject); vg.name = NewKey;
+            DontDestroyOnLoad(vg); vg.SetActive(false);
+            var nv = vg.GetComponent<VikingReference>();
+            if (ReferenceEquals(nv, null)) { LogFL("No VR!", null); Destroy(vg); return; }
+            if (!ReferenceEquals(vf, null))
+            { var va = blk.GetComponent<VikingAgent>(); vf.SetValue(nv, !ReferenceEquals(va, null) ? (object)va : blk); }
+            nv.bounty = Mathf.Max(tpl.bounty + 1, 4);
+            var vcf = typeof(VikingReference).GetField("vikingClone", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (!ReferenceEquals(vcf, null)) vcf.SetValue(nv, null);
+            nv.SendMessage("Start", SendMessageOptions.DontRequireReceiver);
 
-            // Clone VR GO + replace viking field
-            var clonedVRGO = Instantiate(templateVR.gameObject);
-            clonedVRGO.name = BlackSpearmanRefName;
-            DontDestroyOnLoad(clonedVRGO);
-            clonedVRGO.SetActive(false);
-            var clonedVR = clonedVRGO.GetComponent<VikingReference>();
-            if (ReferenceEquals(clonedVR, null)) { Destroy(clonedVRGO); return; }
+            LogI("[REG] Step5: dict['" + NewKey + "']=" + nv.name);
+            LevelStateObjectReferences.dict[NewKey] = nv;
 
-            if (!ReferenceEquals(vikingField, null))
-            {
-                var va = clonedPrefab.GetComponent<VikingAgent>();
-                vikingField.SetValue(clonedVR, !ReferenceEquals(va, null) ? (object)va : clonedPrefab);
-            }
-            clonedVR.bounty = Mathf.Max(templateVR.bounty + 1, 4);
+            LogI("[REG] Step6: campaign config");
+            CfgCampaign(vg);
+            InsVR(nv, "REGISTERED");
+            DumpD();
+            LogB("NEW ENEMY TYPE REGISTERED: " + NewKey);
         }
 
-        private int DeepRecolorToBlack(Transform root)
+        private int Recolor(Transform r)
         {
-            int count = 0;
-            var allBS = root.GetComponentsInChildren<BatchedSprite>(true);
-            if (allBS == null) return 0;
-            var colorProp = typeof(BatchedSprite).GetProperty("color",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (ReferenceEquals(colorProp, null)) return 0;
-            foreach (var bs in allBS)
-            {
-                if (ReferenceEquals(bs, null)) continue;
-                try { var c = (Color)colorProp.GetValue(bs, null); colorProp.SetValue(bs, new Color(c.r, c.g, 0.01f, c.a), null); count++; }
-                catch { }
-            }
-            return count;
-        }
-
-        private int DisableSwordRenderers(Transform root)
-        {
-            int count = 0;
-            for (int i = root.childCount - 1; i >= 0; i--)
-            {
-                var c = root.GetChild(i);
-                var cn = c.name.ToLower();
-                if (cn.Contains("sword") || cn.Contains("weapon") || cn.Contains("blade")
-                    || cn.Contains("r_weapon") || cn.Contains("l_weapon"))
-                { c.gameObject.SetActive(false); count++; continue; }
-                count += DisableSwordRenderers(c);
-            }
-            return count;
-        }
-        private void ConfigureCampaignAppearance(GameObject vrGO)
-        {
-            try
-            {
-                var lr = vrGO.GetComponent<LevelRule>();
-                if (!ReferenceEquals(lr, null))
-                {
-                    var cf = typeof(LevelRule).GetField("condition", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(cf, null))
-                    {
-                        var cond = cf.GetValue(lr);
-                        if (!ReferenceEquals(cond, null))
-                        {
-                            var ef = cond.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            if (!ReferenceEquals(ef, null)) ef.SetValue(cond, "(fraction > 0.35 && fraction < 0.8)");
-                        }
-                    }
-                }
-                var lg = vrGO.GetComponent<LevelGuessable>();
-                if (!ReferenceEquals(lg, null))
-                {
-                    var pf = typeof(LevelGuessable).GetField("probability", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (!ReferenceEquals(pf, null))
-                    {
-                        var prob = pf.GetValue(lg);
-                        if (!ReferenceEquals(prob, null))
-                        {
-                            var ef = prob.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            if (!ReferenceEquals(ef, null)) ef.SetValue(prob, "0.8");
-                        }
-                    }
-                }
-                Logger.LogInfo("[BlackSpearman1.1] Campaign appearance configured");
-            }
-            catch (Exception ex) { Logger.LogWarning("[BlackSpearman1.1] Campaign config: " + ex.Message); }
-        }
-
-        private void SubscribeAgentSpawned()
-        {
-            try
-            {
-                var m = typeof(Squad).GetMethod("AddAgent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(m, null))
-                {
-                    _harmony.Patch(m, postfix: new HarmonyMethod(typeof(Plugin).GetMethod("SquadAddAgentPostfix", BindingFlags.NonPublic | BindingFlags.Static)));
-                    Logger.LogInfo("[BlackSpearman1.1] Patched Squad.AddAgent");
-                    return;
-                }
-            }
-            catch (Exception ex) { Logger.LogError("[BlackSpearman1.1] Squad.AddAgent: " + ex.Message); }
-        }
-
-        private static void SquadAddAgentPostfix(Squad __instance, Agent agent) { OnAgentSpawned(agent); }
-
-        private static void OnAgentSpawned(Agent agent)
-        {
-            if (ReferenceEquals(agent, null) || !agent.isViking) return;
-            var va = agent.GetComponent<VikingAgent>();
-            if (ReferenceEquals(va, null) || va.type != VikingAgent.Type.SwordShield) return;
-            if (BlackSpearmanAgents.Contains(agent)) return;
-            if (UnityEngine.Random.value > ConversionChance) return;
-            ApplyBlackSpearmanMods(agent);
-        }
-
-        internal static void ApplyBlackSpearmanMods(Agent agent)
-        {
-            if (ReferenceEquals(agent, null) || BlackSpearmanAgents.Contains(agent)) return;
-            BlackSpearmanAgents.Add(agent);
-            LogInfo("[SPAWN] Converting " + agent.name);
-            DeepRecolorAgentToBlack(agent);
-            DisableAgentSwords(agent);
-            agent.scale *= ScaleMultiplier;
-            var s = agent.brain as Swordsman;
-            if (!ReferenceEquals(s, null))
-            {
-                ScaleFloatArray(s.damageLevels, DamageMultiplier);
-                ScaleFloatArray(s.knockbackLevels, KnockbackMultiplier);
-            }
-            ApplyArmorMod(agent);
-            var charge = SpearChargeComponent.AddTo(agent);
-            if (!ReferenceEquals(charge, null)) charge.Setup(agent);
-            agent.gameObject.AddComponent<SpearStabAction>();
-            RegisterBrainActions(agent);
-        }
-
-        private static void DeepRecolorAgentToBlack(Agent agent)
-        {
-            var allBS = agent.GetComponentsInChildren<BatchedSprite>(true);
-            if (allBS == null) return;
+            var all = r.GetComponentsInChildren<BatchedSprite>(true);
+            if (all == null || all.Length == 0) { LogW("[RECOLOR] No BS on " + r.name); return 0; }
             var cp = typeof(BatchedSprite).GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (ReferenceEquals(cp, null)) return;
-            foreach (var bs in allBS)
-            {
-                if (ReferenceEquals(bs, null)) continue;
-                try { var c = (Color)cp.GetValue(bs, null); cp.SetValue(bs, new Color(c.r, c.g, 0.01f, c.a), null); } catch { }
-            }
-        }
-
-        private static void DisableAgentSwords(Agent agent) { DisableSwordRecursive(agent.transform); }
-
-        private static int DisableSwordRecursive(Transform root)
-        {
+            if (ReferenceEquals(cp, null)) return 0;
             int c = 0;
-            for (int i = root.childCount - 1; i >= 0; i--)
-            {
-                var ch = root.GetChild(i);
-                var cn = ch.name.ToLower();
-                if (cn.Contains("sword") || cn.Contains("weapon") || cn.Contains("blade") || cn.Contains("r_weapon") || cn.Contains("l_weapon"))
-                { ch.gameObject.SetActive(false); c++; continue; }
-                c += DisableSwordRecursive(ch);
-            }
+            foreach (var bs in all)
+            { if (ReferenceEquals(bs, null)) continue; try { var o = (Color)cp.GetValue(bs, null); cp.SetValue(bs, new Color(o.r, o.g, 0.01f, o.a), null); c++; } catch { } }
+            LogI("[RECOLOR] " + c + "/" + all.Length + " on " + r.name);
             return c;
         }
 
-        private void PatchGetAttack()
+        private int NoSwords(Transform r)
+        {
+            int c = 0;
+            for (int i = r.childCount - 1; i >= 0; i--)
+            { var ch = r.GetChild(i); var cn = ch.name.ToLower(); if (cn.Contains("sword") || cn.Contains("weapon") || cn.Contains("blade") || cn.Contains("r_weapon") || cn.Contains("l_weapon")) { ch.gameObject.SetActive(false); c++; continue; } c += NoSwords(ch); }
+            return c;
+        }
+
+        private void CfgCampaign(GameObject g)
         {
             try
             {
-                var m = typeof(Swordsman).GetMethod("GetAttack",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy,
-                    null, new[] { typeof(Agent) }, null);
-                if (!ReferenceEquals(m, null))
+                var lr = g.GetComponent<LevelRule>();
+                var lg = g.GetComponent<LevelGuessable>();
+                if (!ReferenceEquals(lr, null))
                 {
-                    _harmony.Patch(m, new HarmonyMethod(typeof(Plugin).GetMethod("GetAttackPrefix", BindingFlags.NonPublic | BindingFlags.Static)));
-                    Logger.LogInfo("[BlackSpearman1.1] Patched GetAttack");
+                    var cf = typeof(LevelRule).GetField("condition", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(cf, null)) { var co = cf.GetValue(lr); if (!ReferenceEquals(co, null)) { var ef = co.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic); if (!ReferenceEquals(ef, null)) ef.SetValue(co, "(fraction > 0.3 && fraction < 0.85)"); } }
                 }
+                if (!ReferenceEquals(lg, null))
+                {
+                    var pf = typeof(LevelGuessable).GetField("probability", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (!ReferenceEquals(pf, null)) { var pr = pf.GetValue(lg); if (!ReferenceEquals(pr, null)) { var ef = pr.GetType().GetField("expression", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic); if (!ReferenceEquals(ef, null)) ef.SetValue(pr, "0.9"); } }
+                }
+                LogI(string.Format("[CAMPAIGN] LR={0} LG={1}", !ReferenceEquals(lr, null), !ReferenceEquals(lg, null)));
             }
-            catch (Exception ex) { Logger.LogError("[BlackSpearman1.1] GetAttack: " + ex.Message); }
+            catch (Exception e) { LogE("[CAMPAIGN] " + e); }
         }
 
-        private void PatchRangeGetter()
+        // ====== SPAWN DETECTION (polling, like v1.0) ======
+
+        private void SubSpawn()
+        {
+            // 用 InvokeRepeating 轮询，每 2 秒检查一次新生成的 Agent
+            InvokeRepeating("PollForBlackAgents", 3f, 2f);
+            LogOK("Polling for black agents every 2s");
+        }
+
+        private void PollForBlackAgents()
+        {
+            try
+            {
+                var all = FindObjectsOfType<Agent>();
+                if (all == null) return;
+                foreach (var a in all)
+                {
+                    if (ReferenceEquals(a, null) || !a.isViking) continue;
+                    if (BlackAgents.Contains(a)) continue;
+                    if (!IsBlack(a)) continue;
+                    _spn++;
+                    LogB("BLACK SPEARMAN FOUND: " + a.name + " (#" + _spn + ")");
+                    ApplyStats(a);
+                }
+            }
+            catch (Exception e) { LogE("[POLL] " + e.Message); }
+        }
+
+        private static bool IsBlack(Agent a)
+        {
+            try
+            {
+                var all = a.GetComponentsInChildren<BatchedSprite>(true);
+                if (all == null || all.Length == 0) return false;
+                var cp = typeof(BatchedSprite).GetProperty("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(cp, null)) return false;
+                int bc = 0;
+                foreach (var bs in all)
+                { if (ReferenceEquals(bs, null)) continue; try { var c = (Color)cp.GetValue(bs, null); if (c.b < 0.05f) bc++; } catch { } }
+                return (float)bc / all.Length > 0.5f;
+            }
+            catch { return false; }
+        }
+
+        // ====== STATS ======
+
+        internal static void ApplyStats(Agent a)
+        {
+            if (ReferenceEquals(a, null) || BlackAgents.Contains(a)) return;
+            BlackAgents.Add(a);
+            Instance._mod++;
+            LogI("[MOD] " + a.name + " scale " + a.scale + "->" + (a.scale * ScM));
+            a.scale *= ScM;
+            var s = a.brain as Swordsman;
+            if (!ReferenceEquals(s, null))
+            { LogI("[MOD] dmg x" + DmgM); SclArr(s.damageLevels, DmgM); LogI("[MOD] kb x" + KbM); SclArr(s.knockbackLevels, KbM); }
+            else LogW("[MOD] brain=" + (a.brain != null ? a.brain.GetType().Name : "NULL"));
+            var ar = a.GetComponent<Armor>();
+            if (!ReferenceEquals(ar, null))
+            {
+                var af = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (!ReferenceEquals(af, null))
+                { var o = af.GetValue(ar) as float[]; if (!ReferenceEquals(o, null)) { var cp = new float[o.Length]; Array.Copy(o, cp, o.Length); for (int i = 0; i < cp.Length; i++) cp[i] *= ArmM; af.SetValue(ar, cp); LogI("[MOD] armor done"); } }
+            }
+            var ch = SpearChargeComponent.AddTo(a);
+            if (!ReferenceEquals(ch, null)) ch.Setup(a);
+            a.gameObject.AddComponent<SpearStabAction>();
+            RegBA(a);
+            LogB("BLACK SPEARMAN READY #" + Instance._mod + ": " + a.name);
+        }
+
+        private static void SclArr(float[] ar, float m) { if (ar == null) return; for (int i = 0; i < ar.Length; i++) ar[i] *= m; }
+
+        private static void RegBA(Agent a)
+        {
+            try
+            {
+                var s = a.brain as Swordsman; if (ReferenceEquals(s, null)) return;
+                var af = typeof(Brain).GetField("actions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(af, null)) return;
+                var acts = af.GetValue(s) as System.Collections.IList;
+                if (ReferenceEquals(acts, null)) return;
+                var ch = a.GetComponent<SpearChargeComponent>();
+                if (!ReferenceEquals(ch, null) && !acts.Contains(ch)) { acts.Add(ch); LogI("[BRAIN] +Charge"); }
+                var st = a.GetComponent<SpearStabAction>();
+                if (!ReferenceEquals(st, null) && !acts.Contains(st)) { acts.Add(st); LogI("[BRAIN] +Stab"); }
+            }
+            catch (Exception e) { LogE("[BRAIN] " + e); }
+        }
+
+        // ====== ATTACK PATCHES (FIXED: __instance name) ======
+
+        private void PatchAtk()
+        {
+            try
+            {
+                var m = typeof(Swordsman).GetMethod("GetAttack", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy, null, new[] { typeof(Agent) }, null);
+                if (!ReferenceEquals(m, null))
+                {
+                    _h.Patch(m, new HarmonyMethod(typeof(Plugin).GetMethod("AtkPre", BindingFlags.NonPublic | BindingFlags.Static)));
+                    _patchesOk = true;
+                    LogOK("GetAttack");
+                }
+                else LogW("GetAttack not found!");
+            }
+            catch (Exception e) { LogFL("GetAttack", e); }
+        }
+
+        private void PatchRng()
         {
             try
             {
@@ -279,96 +318,131 @@ namespace BadNorthBlackSpearman1_1
                     var g = p.GetGetMethod(true);
                     if (!ReferenceEquals(g, null))
                     {
-                        _harmony.Patch(g, new HarmonyMethod(typeof(Plugin).GetMethod("RangePrefix", BindingFlags.NonPublic | BindingFlags.Static)));
+                        _h.Patch(g, new HarmonyMethod(typeof(Plugin).GetMethod("RngPre", BindingFlags.NonPublic | BindingFlags.Static)));
+                        LogOK("range");
                     }
                 }
             }
-            catch (Exception ex) { Logger.LogWarning("[BlackSpearman1.1] Range: " + ex.Message); }
+            catch (Exception e) { LogW("[RANGE] " + e); }
         }
 
-        private static bool GetAttackPrefix(Swordsman __instance, Agent target, ref Attack __result)
+        // CRITICAL: 第一个参数必须命名为 __instance，Harmony 按名称匹配！
+        private static bool AtkPre(Swordsman __instance, Agent target, ref Attack __result)
         {
-            if (!BlackSpearmanAgents.Contains(__instance.agent)) return true;
+            if (!BlackAgents.Contains(__instance.agent)) return true;
             if (ReferenceEquals(target, null)) { __result = default(Attack); return false; }
+            Instance._atk++;
+            bool dbg = Instance._atk <= 3 || Instance._atk % 30 == 0;
             try
             {
-                int lv = (__instance.agent.squad != null) ? Mathf.Clamp(__instance.agent.squad.level, 0, int.MaxValue) : 0;
-                float dmg = 2.5f, kb = 1.2f, st = 6f;
+                int lv = __instance.agent.squad != null ? __instance.agent.squad.level : 0;
+                float d = 2.5f, k = 1.2f, s = 6f;
                 var df = typeof(Swordsman).GetField("damageLevels", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(df, null)) { var a = df.GetValue(__instance) as float[]; if (a != null && lv < a.Length) dmg = Mathf.Max(dmg, a[lv]); }
+                if (!ReferenceEquals(df, null)) { var arr = df.GetValue(__instance) as float[]; if (arr != null && lv < arr.Length) d = Mathf.Max(d, arr[lv]); }
                 var kf = typeof(Swordsman).GetField("knockbackLevels", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(kf, null)) { var a = kf.GetValue(__instance) as float[]; if (a != null && lv < a.Length) kb = Mathf.Max(kb, a[lv]); }
+                if (!ReferenceEquals(kf, null)) { var arr = kf.GetValue(__instance) as float[]; if (arr != null && lv < arr.Length) k = Mathf.Max(k, arr[lv]); }
                 var sf = typeof(Swordsman).GetField("stunLevels", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (!ReferenceEquals(sf, null)) { var a = sf.GetValue(__instance) as float[]; if (a != null && lv < a.Length) st = Mathf.Max(st, a[lv]); }
+                if (!ReferenceEquals(sf, null)) { var arr = sf.GetValue(__instance) as float[]; if (arr != null && lv < arr.Length) s = Mathf.Max(s, arr[lv]); }
                 Vector3 dir = (target.chestPos - __instance.agent.chestPos).normalized; dir.y = 0f;
                 if (dir.sqrMagnitude < 0.001f) dir = __instance.transform.forward;
-                __result = new Attack(new AttackSettings(dmg, kb, 0f, st), dir,
-                    (target.wChestPos + __instance.agent.wChestPos) / 2f, __instance, __instance.agent.squad, "Sfx/English/Spear");
+                __result = new Attack(new AttackSettings(d, k, 0f, s), dir, (target.wChestPos + __instance.agent.wChestPos) / 2f, __instance, __instance.agent.squad, "Sfx/English/Spear");
+                if (dbg) LogI(string.Format("[ATK#{0}] tgt={1} d={2:F1} k={3:F1} s={4:F0} dist={5:F2}", Instance._atk, target.name, d, k, s, Vector3.Distance(__instance.transform.position, target.transform.position)));
                 return false;
             }
-            catch (Exception ex) { LogErr("[ATTACK] " + ex.Message); return true; }
+            catch (Exception e) { LogE("[ATK] " + e); return true; }
         }
 
-        private static bool RangePrefix(Swordsman __instance, ref float __result)
+        private static bool RngPre(Swordsman __instance, ref float __result)
         {
-            if (!BlackSpearmanAgents.Contains(__instance.agent)) return true;
-            __result = __instance.agent.radius * 0.7f * RangeMultiplier;
+            if (!BlackAgents.Contains(__instance.agent)) return true;
+            Instance._rng++;
+            __result = __instance.agent.radius * 0.7f * RngM;
+            if (Instance._rng <= 2) LogI("[RNG#" + Instance._rng + "] " + (__instance.agent.radius * 0.7f).ToString("F3") + "->" + __result.ToString("F3"));
             return false;
         }
 
-        private static void RegisterBrainActions(Agent agent)
+        // ====== DIAGNOSTICS ======
+
+        private void DumpD()
         {
             try
             {
-                var s = agent.brain as Swordsman;
-                if (ReferenceEquals(s, null)) return;
-                var af = typeof(Brain).GetField("actions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (ReferenceEquals(af, null)) return;
-                var actions = af.GetValue(s) as System.Collections.IList;
-                if (ReferenceEquals(actions, null)) return;
-                var charge = agent.GetComponent<SpearChargeComponent>();
-                if (!ReferenceEquals(charge, null) && !actions.Contains(charge)) actions.Add(charge);
-                var stab = agent.GetComponent<SpearStabAction>();
-                if (!ReferenceEquals(stab, null) && !actions.Contains(stab)) actions.Add(stab);
+                var sb = new System.Text.StringBuilder(); int n = 0;
+                foreach (var k in LevelStateObjectReferences.dict.Keys)
+                {
+                    if (sb.Length > 0) sb.Append(" | ");
+                    var o = LevelStateObjectReferences.dict[k];
+                    var vr = o as VikingReference;
+                    string vi = "";
+                    if (!ReferenceEquals(vr, null)) vi = string.Format(" b={0} t={1}", vr.bounty, vr.type);
+                    sb.Append(k + "(" + (o != null ? o.GetType().Name : "NULL") + vi + ")");
+                    n++;
+                }
+                LogI("[DICT] " + n + " entries: [" + sb + "]");
             }
-            catch (Exception ex) { LogErr("[BRAIN] " + ex.Message); }
+            catch (Exception e) { LogE("[DICT] " + e); }
         }
 
-        private static void ApplyArmorMod(Agent agent)
+        private void InsVR(VikingReference vr, string l)
         {
-            var a = agent.GetComponent<Armor>();
-            if (ReferenceEquals(a, null)) return;
-            var af = typeof(Armor).GetField("armor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (ReferenceEquals(af, null)) return;
-            var orig = af.GetValue(a) as float[];
-            if (ReferenceEquals(orig, null)) return;
-            var copy = new float[orig.Length];
-            Array.Copy(orig, copy, orig.Length);
-            for (int i = 0; i < copy.Length; i++) copy[i] *= ArmorMultiplier;
-            af.SetValue(a, copy);
-        }
-
-        private static void ScaleFloatArray(float[] arr, float m)
-        { if (arr == null) return; for (int i = 0; i < arr.Length; i++) arr[i] *= m; }
-
-        private static void DumpDictKeys()
-        {
+            if (ReferenceEquals(vr, null)) { LogI("[VR:" + l + "] NULL"); return; }
             try
             {
-                var sb = new System.Text.StringBuilder();
-                foreach (var k in LevelStateObjectReferences.dict.Keys) { if (sb.Length > 0) sb.Append(", "); sb.Append(k); }
-                LogInfo("[DIAG] Dict keys: [" + sb.ToString() + "]");
+                var vf = typeof(VikingReference).GetField("viking", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                string vv = "?";
+                if (!ReferenceEquals(vf, null)) { var v = vf.GetValue(vr); vv = v != null ? v.GetType().Name : "NULL"; }
+                LogI(string.Format("[VR:{0}] nm={1} b={2} t={3} v={4} vc={5}", l, vr.name, vr.bounty, vr.type, vv, vr.vikingClone != null ? vr.vikingClone.name : "NULL"));
             }
-            catch (Exception ex) { LogErr("[DIAG] " + ex.Message); }
+            catch (Exception e) { LogE("[VR:" + l + "] " + e); }
         }
 
-        internal static void LogInfo(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BS1.1] " + msg); }
-        internal static void LogWarn(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogWarning("[BS1.1] " + msg); }
-        internal static void LogErr(string msg) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogError("[BS1.1] " + msg); }
+        private void InsVR(string k)
+        {
+            if (!LevelStateObjectReferences.dict.ContainsKey(k)) { LogI("[VR] Key '" + k + "' not in dict"); return; }
+            InsVR(LevelStateObjectReferences.dict[k] as VikingReference, k);
+        }
+
+        private void DmpH(Transform t, int md)
+        {
+            if (ReferenceEquals(t, null)) return;
+            var sb = new System.Text.StringBuilder();
+            DmpTx(t, "", 0, md, sb);
+            LogI("[HIER] " + t.name + ":\n" + sb.ToString());
+        }
+
+        private void DmpTx(Transform t, string ind, int d, int md, System.Text.StringBuilder sb)
+        {
+            if (ReferenceEquals(t, null) || d > md) return;
+            var comps = t.GetComponents<Component>();
+            var cn = new List<string>();
+            foreach (var c in comps)
+            {
+                if (c == null) continue;
+                string n = c.GetType().Name;
+                if (c is BatchedSprite) n += "(BS)";
+                else if (c is SpriteAnimator) n += "(SA)";
+                cn.Add(n);
+            }
+            sb.AppendLine(ind + "[" + d + "] " + t.name + (t.gameObject.activeSelf ? "" : " OFF") + " | " + string.Join(", ", cn));
+            for (int i = 0; i < t.childCount; i++) DmpTx(t.GetChild(i), ind + "  ", d + 1, md, sb);
+        }
+
+        // ====== LOG ======
+
+        private static void LogB(string m) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BS1.1] ======== " + m + " ========"); }
+        private static void LogOK(string m) { LogI("[OK] " + m); }
+        private static void LogFL(string c, Exception e) { if (e != null) SharedLogger.LogError("[BS1.1] [FAIL:" + c + "] " + e.GetType().Name + ": " + e.Message + "\n" + e.StackTrace); else SharedLogger.LogError("[BS1.1] [FAIL:" + c + "]"); }
+        internal static void LogI(string m) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogInfo("[BS1.1] " + m); }
+        internal static void LogW(string m) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogWarning("[BS1.1] " + m); }
+        internal static void LogE(string m) { if (!ReferenceEquals(SharedLogger, null)) SharedLogger.LogError("[BS1.1] " + m); }
 
         private void OnDestroy()
         {
             try { On.Voxels.TowerDefense.GameSetup.Awake -= OnGameSetupAwake; } catch { }
+            CancelInvoke();
+            int a = 0;
+            foreach (var x in BlackAgents) if (!ReferenceEquals(x, null) && x != null && !ReferenceEquals(x.aliveState, null) && x.aliveState.active) a++;
+            LogB("SHUTDOWN: Spn=" + _spn + " Mod=" + _mod + " Atk=" + _atk + " Alive=" + a);
         }
     }
 }

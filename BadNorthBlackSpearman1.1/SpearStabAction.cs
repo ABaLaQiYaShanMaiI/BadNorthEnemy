@@ -151,13 +151,13 @@ namespace BadNorthBlackSpearman1_1
                 // 走完整 DealDamage 链路
                 target.DealDamage(attack);
 
-                Plugin.LogInfo("[Stab] Hit " + target.name + " | dmg=" + StabDamage +
+                Plugin.LogI("[Stab] Hit " + target.name + " | dmg=" + StabDamage +
                     " | prevHP=" + prevHealth.ToString("F1") + "→" + target.health.ToString("F1") +
                     " | dist=" + Vector3.Distance(_agent.transform.position, target.transform.position).ToString("F2"));
             }
             catch (Exception ex)
             {
-                Plugin.LogErr("[Stab] Error: " + ex.Message);
+                Plugin.LogE("[Stab] Error: " + ex.Message);
             }
         }
     }

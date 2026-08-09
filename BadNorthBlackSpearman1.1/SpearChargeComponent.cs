@@ -207,7 +207,7 @@ namespace BadNorthBlackSpearman1_1
                 t.DealDamage(new Attack(s, d, t.transform.position, this, _squad, "Sfx/English/Spear"));
                 Log("HIT " + t.name + " dmg=" + StabDamage + " hp=" + prev.ToString("F1") + "\u2192" + t.health.ToString("F1"));
             }
-            catch (Exception ex) { Plugin.LogErr("[Charge] " + ex.Message); }
+            catch (Exception ex) { Plugin.LogE("[Charge] " + ex.Message); }
         }
 
         private void EndCharge()
@@ -253,6 +253,6 @@ namespace BadNorthBlackSpearman1_1
             return true;
         }
 
-        private void Log(string msg) { if (Time.time - _lastLogTime >= 1f) { _lastLogTime = Time.time; Plugin.LogInfo("[Charge] " + msg); } }
+        private void Log(string msg) { if (Time.time - _lastLogTime >= 1f) { _lastLogTime = Time.time; Plugin.LogI("[Charge] " + msg); } }
     }
 }
