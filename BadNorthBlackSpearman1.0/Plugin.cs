@@ -11,7 +11,7 @@ using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman
 {
-    [BepInPlugin("black.spearman", "Bad North - Black Spearman", "1.20")]
+    [BepInPlugin("black.spearman.v1.0", "Bad North - Black Spearman v1.0", "1.20")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance;
@@ -55,7 +55,7 @@ namespace BadNorthBlackSpearman
             Instance = this;
             SharedLogger = Logger;
             Logger.LogInfo("[BlackSpearman] ====== v1.20 (Clone Alongside + Keep Original) ======");
-            _harmony = new Harmony("black.spearman");
+            _harmony = new Harmony("black.spearman.v1.0");
             _harmony.PatchAll(typeof(Patches));
             RegisterBlackSpearmanBrainPatches();
             
