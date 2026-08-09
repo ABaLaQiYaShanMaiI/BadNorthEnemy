@@ -485,13 +485,13 @@ namespace BadNorthBlackSpearman
                 if (!ReferenceEquals(agent, null) && agent.isViking)
                 {
                     ReapplyWeaponIfNeeded(agent);
-                    ApplySprite2Replacement(agent);
-                    ApplyBlackColor(agent); // v1.19: 追溯应用黑色外观
+                    // 不再替换 sprite2 — 保留 SwordShield 深色贴图
+                    ApplyBlackColor(agent);
                     count++;
                 }
             }
             if (count > 0)
-                LogInfo("[WEAPON] Applied spear+sprite2+black to " + count + " BlackSpearmans");
+                LogInfo("[WEAPON] Applied spear+black to " + count + " BlackSpearmans");
         }
 
         /// <summary>
@@ -678,12 +678,10 @@ namespace BadNorthBlackSpearman
                     try
                     {
                         var oldColor = (Color)colorProp.GetValue(bs, null);
-                        // v1.19: 更激进的暗色 — 不仅 B=0.02，R/G 也压暗至 30%
-                        // 保留 R/G 的比值关系（UV 编码），但整体压暗
-                        // 同时 B 通道设 0 以完全消除蓝色调（敌方单位特征）
-                        float r = oldColor.r * 0.35f;
-                        float g = oldColor.g * 0.35f;
-                        colorProp.SetValue(bs, new Color(r, g, 0.01f, oldColor.a), null);
+                        // ⚠️ R/G 是 UV 坐标编码（SpriteAnimator），绝对不能动！
+                        // 只能改 B 通道（蓝色分量）来降低亮度 → 暗黑效果
+                        // A 通道保持原样
+                        colorProp.SetValue(bs, new Color(oldColor.r, oldColor.g, 0.01f, oldColor.a), null);
                         modified++;
                     }
                     catch { }
@@ -696,8 +694,9 @@ namespace BadNorthBlackSpearman
         }
 
         /// <summary>
-        /// v1.18: 清除原有武器渲染 — 替换 sprite2（剑 → 长矛身体姿态）+ 仅禁用剑子对象
-        /// Hierarchy from log: BodyAnim/BodySprite/BodySprite[SpriteAnimator] + Weapon child
+        /// v1.19: 清除剑的渲染 — 保留 SwordShield 原始 sprite2（深色维京身体）+
+        /// 仅禁用剑子对象。不再替换为 Pikeman sprite2（那是玩家方白色贴图）。
+        /// Hierarchy: BodyAnim/BodySprite/BodySprite[SpriteAnimator] + Weapon child
         /// Shield: BounceAnim/ShieldAimer/ShieldAnim — 保留！
         /// </summary>
         private static void RemoveOriginalWeapons(Agent agent)
@@ -705,69 +704,17 @@ namespace BadNorthBlackSpearman
             if (ReferenceEquals(agent, null)) return;
             try
             {
+                // Step 1: 不再替换 sprite2！
+                // Pikeman 的 PartTex_English 是玩家方白色贴图 → 导致蓝白外观
+                // SwordShield 原始 sprite2 = 深色维京身体 → 保留！
+                // 仅禁用剑子对象（保留盾牌 BounceAnim）
                 bool cleared = false;
-
-                // Step 1: 用 Pikeman sprite2 替换 SwordShield 的 sprite2（剑+盾 → 长矛姿势）
-                var allSA = agent.GetComponentsInChildren<SpriteAnimator>(true);
-                if (allSA != null && CachedSpearSprite2 != null)
-                {
-                    foreach (var sa in allSA)
-                    {
-                        if (ReferenceEquals(sa, null)) continue;
-                        
-                        // 方式 A: SetSprite2(pikemanSprite2) 方法
-                        try
-                        {
-                            var setMethod = typeof(SpriteAnimator).GetMethod("SetSprite2",
-                                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            if (!ReferenceEquals(setMethod, null))
-                            {
-                                setMethod.Invoke(sa, new[] { CachedSpearSprite2 });
-                                cleared = true;
-                                LogInfo("[WEAPON] Replaced sprite2 with Pikeman's on " + sa.name 
-                                    + " path=" + GetTransformPath(sa.transform, agent.transform));
-                                continue;
-                            }
-                        }
-                        catch (Exception ex) { LogErr("[WEAPON] SetSprite2: " + ex.Message); }
-
-                        // 方式 B: 直接设 sprite2 字段
-                        try
-                        {
-                            var field = typeof(SpriteAnimator).GetField("sprite2",
-                                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                            if (!ReferenceEquals(field, null))
-                            {
-                                field.SetValue(sa, CachedSpearSprite2);
-                                cleared = true;
-                                LogInfo("[WEAPON] sprite2 field → Pikeman on " + sa.name 
-                                    + " path=" + GetTransformPath(sa.transform, agent.transform));
-                                continue;
-                            }
-                        }
-                        catch (Exception ex) { LogErr("[WEAPON] sprite2 field: " + ex.Message); }
-                    }
-                }
-
-                // Fallback: 没有 Pikeman sprite2 时不操作（设 null 会导致死亡 NPE）
-                if (!cleared && allSA != null && CachedSpearSprite2 == null)
-                {
-                    LogInfo("[WEAPON] sprite2 left as-is (no Pikeman ref, null causes death crash)");
-                }
-
-                // Step 2: 递归禁用武器相关子对象（仅剑，保留盾牌）
                 int disabled = DisableWeaponChildren(agent.transform);
+                int spriteDisabled = DisableSwordBatchedSprites(agent);
 
-                // Step 3: 盾渲染层次 (BounceAnim) — 保留！黑矛兵持盾+长矛
-                // 不再禁用 BounceAnim，盾牌保留
-
-                if (cleared || disabled > 0)
+                if (disabled > 0 || spriteDisabled > 0)
                 {
-                    // v1.19: 额外按 BatchedSprite.sprite 名称查找并禁用剑
-                    int spriteDisabled = DisableSwordBatchedSprites(agent);
-                    if (!cleared) LogInfo("[WEAPON] sprite2 not found, disabled " + disabled + " sword objects + " + spriteDisabled + " sword sprites instead");
-                    else if (disabled > 0 || spriteDisabled > 0)
-                        LogInfo("[WEAPON] sprite2 replaced, additionally disabled " + disabled + " objects + " + spriteDisabled + " sword sprites");
+                    LogInfo("[WEAPON] Disabled " + disabled + " sword objects + " + spriteDisabled + " sword sprites (sprite2 kept as SwordShield dark body)");
                     return;
                 }
 
@@ -1095,7 +1042,7 @@ namespace BadNorthBlackSpearman
             strippedPrefab.SetActive(false);
             StripSwordFromPrefab(strippedPrefab);
             BlackenPrefab(strippedPrefab);
-            ApplyPikemanSpriteToPrefab(strippedPrefab);
+            // 不再替换 sprite2 — SwordShield 原始贴图是深色维京风格
             strippedPrefab.SetActive(true);
 
             // 创建 BlackSpearman 的 VikingReference
@@ -1103,8 +1050,17 @@ namespace BadNorthBlackSpearman
             DontDestroyOnLoad(go);
             var nr = go.AddComponent<VikingReference>();
             CopyVikingReferenceFields(origVR, nr);
+
+            // viking 字段类型是 VikingAgent（组件），不是 GameObject
+            // 从剥离后的预制件上获取 VikingAgent 组件
             if (!ReferenceEquals(origVikingField, null))
-                origVikingField.SetValue(nr, strippedPrefab);
+            {
+                var va = strippedPrefab.GetComponent<VikingAgent>();
+                if (!ReferenceEquals(va, null))
+                    origVikingField.SetValue(nr, va);
+                else
+                    LogWarn("[PREFAB] No VikingAgent on stripped prefab, keeping original viking ref");
+            }
 
             // 图标用 Pikeman 的 sprite2
             if (!ReferenceEquals(CachedSpearSprite2, null))
@@ -1194,7 +1150,8 @@ namespace BadNorthBlackSpearman
                     try
                     {
                         var c = (Color)cp.GetValue(bs, null);
-                        cp.SetValue(bs, new Color(c.r * 0.35f, c.g * 0.35f, 0.01f, c.a), null);
+                        // ⚠️ R/G 是 UV 编码，只改 B 通道
+                        cp.SetValue(bs, new Color(c.r, c.g, 0.01f, c.a), null);
                         _prefabSpritesBlackened++;
                     }
                     catch { }
@@ -1279,7 +1236,8 @@ namespace BadNorthBlackSpearman
                                 try
                                 {
                                     var oldColor = (Color)colorProp.GetValue(bs, null);
-                                    colorProp.SetValue(bs, new Color(oldColor.r * 0.35f, oldColor.g * 0.35f, 0.01f, oldColor.a), null);
+                                    // ⚠️ R/G 是 UV 编码，只改 B 通道
+                                    colorProp.SetValue(bs, new Color(oldColor.r, oldColor.g, 0.01f, oldColor.a), null);
                                 }
                                 catch { }
                             }

@@ -63,6 +63,8 @@ namespace BadNorthBlackSpearman
 
         private void Update()
         {
+            // 抢救：如果 agent 已销毁，自毁
+            if (ReferenceEquals(_agent, null) || _agent == null) { Destroy(this); return; }
             switch (_phase)
             {
                 case Phase.Idle: break;
@@ -76,7 +78,6 @@ namespace BadNorthBlackSpearman
         /// <summary>
         /// v1.19: 每帧在 LateUpdate 中持续重刷黑色，
         /// 对抗 AgentTextureBaker 后续帧的纹理重烘焙覆盖。
-        /// 前60帧全量刷，之后仅 B 通道异常时刷。
         /// </summary>
         private void LateUpdate()
         {
@@ -85,7 +86,7 @@ namespace BadNorthBlackSpearman
                 _colorFrames++;
                 ReapplyBlackColor();
             }
-            else if (Time.frameCount % 30 == 0) // 每30帧抽查
+            else if (Time.frameCount % 30 == 0)
             {
                 ReapplyBlackColor();
             }
@@ -118,10 +119,10 @@ namespace BadNorthBlackSpearman
                     {
                         var c = (Color)_batchedSpriteColorProp.GetValue(bs, null);
                         // 如果 B 通道 > 0.05 → 被 AgentTextureBaker 覆盖了，重新刷黑
-                        // v1.19: R/G 压暗至 35%，B 设 0
+                        // ⚠️ R/G 是 UV 编码，只改 B 通道
                         if (c.b > 0.05f)
                         {
-                            _batchedSpriteColorProp.SetValue(bs, new Color(c.r * 0.35f, c.g * 0.35f, 0.01f, c.a), null);
+                            _batchedSpriteColorProp.SetValue(bs, new Color(c.r, c.g, 0.01f, c.a), null);
                         }
                     }
                     catch { }
@@ -158,7 +159,10 @@ namespace BadNorthBlackSpearman
         private void DoCharging()
         {
             _phaseTimer -= Time.deltaTime;
-            if (!ReferenceEquals(_targetAgent, null) && _targetAgent.aliveState.active)
+            // 双检：Unity 已销毁对象 ReferenceEquals 不为 null，但 == null 为 true
+            bool targetValid = !ReferenceEquals(_targetAgent, null) && _targetAgent != null
+                && !ReferenceEquals(_targetAgent.aliveState, null) && _targetAgent.aliveState.active;
+            if (targetValid)
             {
                 _chargeDirection = (_targetAgent.transform.position - _agent.transform.position);
                 _chargeDirection.y = 0f;
@@ -168,8 +172,9 @@ namespace BadNorthBlackSpearman
             _agent.walkDir = _chargeDirection;
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
-            float dist = ReferenceEquals(_targetAgent, null) ? 999f :
-                Vector3.Distance(_agent.transform.position, _targetAgent.transform.position);
+            float dist = targetValid
+                ? Vector3.Distance(_agent.transform.position, _targetAgent.transform.position)
+                : 999f;
             if (_phaseTimer <= 0f || dist > ReadyDist) { EndCharge(); return; }
             if (dist <= StabDist)
             {
