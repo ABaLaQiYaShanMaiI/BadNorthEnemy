@@ -85,12 +85,12 @@ namespace BadNorthBlackSpearman1_3
                 var attack = new Attack(settings, kbDir, target.transform.position, this, _squad, "Sfx/English/Spear");
                 target.DealDamage(attack);
 
-                Plugin.Log?.LogInfo("[Stab] Hit " + target.name + " | dmg=" + StabDamage +
+                BSLog.Info("[Stab] Hit " + target.name + " | dmg=" + StabDamage +
                     " | dist=" + Vector3.Distance(_agent.transform.position, target.transform.position).ToString("F2"));
             }
             catch (Exception ex)
             {
-                Plugin.Log?.LogError("[Stab] Error: " + ex.Message);
+                BSLog.Error("[Stab] Error: " + ex);
             }
         }
     }

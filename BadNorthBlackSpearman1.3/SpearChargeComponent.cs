@@ -14,13 +14,13 @@ namespace BadNorthBlackSpearman1_3
         const float DetectionRadius = 5.0f;
         const float ReadyDist = 3.5f;
         const float StabDist = 1.5f;
-        const float ChargeSpeed = 1.0f;
+        const float ChargeSpeed = 1.5f;
         const float CooldownTime = 1.5f;
         const float WindUpDuration = 0.25f;
         const float ChargingMaxTime = 3.0f;
         const float StabDamage = 3.0f;
-        const float StabKnockback = 2.5f;
-        const float StabStun = 8f;
+        const float StabKnockback = 5.0f;
+        const float StabStun = 10f;
 
         enum Phase { Idle, WindUp, Charging, Stab, Cooldown }
 
@@ -34,6 +34,7 @@ namespace BadNorthBlackSpearman1_3
         Agent _targetAgent;
         readonly Collider[] _hitBuffer = new Collider[16];
         float _lastLogTime = -999f;
+        AgentState _chargeState;
 
         public void Setup(Agent agent)
         {
@@ -43,6 +44,9 @@ namespace BadNorthBlackSpearman1_3
             if (_agent == null) { Destroy(this); return; }
             _squad = _agent.squad;
             _originalSpeed = _agent.maxSpeed;
+            // ★ 关键：把冲刺做成 exclusives 下的独占状态，激活时锁住 Swordsman 大脑，
+            //    避免大脑每帧覆盖 walkDir 导致的"瞬移回原位"。
+            _chargeState = new AgentState("BlackSpearmanCharge", _agent.exclusives, false, true);
             Log("Setup OK. speed=" + _originalSpeed.ToString("F1"));
         }
 
@@ -71,6 +75,7 @@ namespace BadNorthBlackSpearman1_3
         {
             _phase = Phase.WindUp;
             _phaseTimer = WindUpDuration;
+            if (_chargeState != null) _chargeState.SetActive(true);
             _agent.movability = 0f;
             _agent.maxSpeed = 0f;
             _agent.walkDir = Vector3.zero;
@@ -141,13 +146,14 @@ namespace BadNorthBlackSpearman1_3
                 t.DealDamage(new Attack(s, d, t.transform.position, this, _squad, "Sfx/English/Spear"));
                 Log("HIT " + t.name + " dmg=" + StabDamage);
             }
-            catch (Exception ex) { Plugin.Log?.LogError("[Charge] " + ex.Message); }
+            catch (Exception ex) { BSLog.Error("[Charge] " + ex); }
         }
 
         void EndCharge()
         {
             _phase = Phase.Cooldown;
             _phaseTimer = CooldownTime;
+            if (_chargeState != null) _chargeState.SetActive(false);
             _agent.maxSpeed = 0f;
             _agent.walkDir = Vector3.zero;
             _agent.movability = 1f;
@@ -162,6 +168,7 @@ namespace BadNorthBlackSpearman1_3
 
         void OnDestroy()
         {
+            if (_chargeState != null) _chargeState.SetActive(false);
             if (_phase == Phase.Charging || _phase == Phase.Stab || _phase == Phase.WindUp)
             {
                 _agent.maxSpeed = _originalSpeed;
@@ -196,7 +203,7 @@ namespace BadNorthBlackSpearman1_3
             if (Time.time - _lastLogTime >= 1f)
             {
                 _lastLogTime = Time.time;
-                Plugin.Log?.LogInfo("[Charge] " + msg);
+                BSLog.Info("[Charge] " + msg);
             }
         }
     }

@@ -37,7 +37,7 @@ namespace BadNorthBlackSpearman1_3
                 var candidates = new[]
                 {
                     Path.Combine(dir, ICON_FILE),
-                    Path.Combine(dir, "Resources", ICON_FILE)
+                    Path.Combine(Path.Combine(dir, "Resources"), ICON_FILE)
                 };
 
                 string path = null;
@@ -53,7 +53,7 @@ namespace BadNorthBlackSpearman1_3
             }
             catch (Exception e)
             {
-                Plugin.Log?.LogWarning("[BS] PNG 图标加载失败: " + e.Message);
+                BSLog.Warn("[ART] PNG 图标加载失败: " + e);
                 return null;
             }
         }
@@ -106,7 +106,7 @@ namespace BadNorthBlackSpearman1_3
             }
             catch (Exception e)
             {
-                Plugin.Log?.LogWarning("[BS] 本地化注册失败: " + e.Message);
+                BSLog.Warn("[ART] 本地化注册失败: " + e);
             }
         }
 
