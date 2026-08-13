@@ -75,6 +75,7 @@ namespace BadNorthBlackSpearman1_3
 
                 var harmony = new Harmony(GUID);
                 PatchLevelNodeSetup(harmony);
+                PatchSwordsman(harmony);
 
                 BSLog.Info($"[BS v1.3] Ready. 新单位: {NewVikingName.Value}");
                 BSLog.Info($"[配置] Source={SourceVikingName.Value} New={NewVikingName.Value} Bounty={Bounty.Value} " +
@@ -93,7 +94,7 @@ namespace BadNorthBlackSpearman1_3
 
         void BindConfig()
         {
-            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_SwordShield",
+            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_Twohanded",
                 "借用其 VikingAgent 预制体作为视觉/行为模板（仅借用引用，不克隆整个 VikingReference）。");
             NewVikingName = Config.Bind("General", "NewVikingName", "Viking_BlackSpearman",
                 "新单位在敌人生成池中的名字。");
@@ -228,6 +229,78 @@ namespace BadNorthBlackSpearman1_3
                 typeof(Plugin).GetMethod("LevelNodeSetupPostfix",
                     BindingFlags.NonPublic | BindingFlags.Static)));
             BSLog.Info("[PATCH] 已 Patch LevelNode.Setup（用于把新单位注入敌人生成池）");
+        }
+
+        void PatchSwordsman(Harmony harmony)
+        {
+            // 1) 长矛攻击距离：Patch Swordsman.range getter（默认 radius*0.7，长矛更长）
+            PropertyInfo rangeProp = typeof(Swordsman).GetProperty("range");
+            if (!ReferenceEquals(rangeProp, null))
+            {
+                MethodInfo rangeGet = rangeProp.GetGetMethod();
+                if (!ReferenceEquals(rangeGet, null))
+                {
+                    harmony.Patch(rangeGet, postfix: new HarmonyMethod(
+                        typeof(Plugin).GetMethod("SwordsmanRangePostfix",
+                            BindingFlags.NonPublic | BindingFlags.Static)));
+                    BSLog.Info("[PATCH] 已 Patch Swordsman.range（长矛攻击距离）");
+                }
+                else BSLog.Error("[PATCH] Swordsman.range 无 getter");
+            }
+            else BSLog.Error("[PATCH] 未找到 Swordsman.range");
+
+            // 2) 长矛攻击表现：Patch Swordsman.GetAttack（换成长矛音效/方向）
+            MethodInfo getAttack = typeof(Swordsman).GetMethod("GetAttack",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, new[] { typeof(Agent) }, null);
+            if (!ReferenceEquals(getAttack, null))
+            {
+                harmony.Patch(getAttack, prefix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("SwordsmanGetAttackPrefix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+                BSLog.Info("[PATCH] 已 Patch Swordsman.GetAttack（长矛攻击）");
+            }
+            else BSLog.Error("[PATCH] 未找到 Swordsman.GetAttack");
+        }
+
+        static void SwordsmanRangePostfix(Swordsman __instance, ref float __result)
+        {
+            try
+            {
+                if (__instance == null || __instance.agent == null) return;
+                if (!_done.Contains(__instance.agent)) return;
+                __result = __instance.agent.radius * 0.7f * 2.2f; // 长矛攻击距离约为剑的 2.2 倍
+            }
+            catch { }
+        }
+
+        static bool SwordsmanGetAttackPrefix(Swordsman __instance, Agent target, ref Attack __result)
+        {
+            try
+            {
+                if (__instance == null || __instance.agent == null || target == null) return true;
+                if (!_done.Contains(__instance.agent)) return true;
+
+                Vector3 dir = (target.chestPos - __instance.agent.chestPos).normalized;
+                dir.y = 0f;
+                if (dir.sqrMagnitude < 0.001f) dir = __instance.transform.forward;
+
+                var settings = new AttackSettings
+                {
+                    damage = __instance.damage,
+                    knockback = __instance.knockback,
+                    launchImpulse = 0f,
+                    stun = __instance.stun
+                };
+                __result = new Attack(settings, dir, (target.wChestPos + __instance.agent.wChestPos) / 2f,
+                    __instance, __instance.agent.squad, "Sfx/English/Spear");
+                return false; // 跳过原版剑击
+            }
+            catch (Exception e)
+            {
+                BSLog.Warn("[PATCH] 长矛攻击改写异常: " + e);
+                return true;
+            }
         }
 
         static void LevelNodeSetupPostfix(LevelNode __instance)

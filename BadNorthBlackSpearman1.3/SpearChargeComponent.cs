@@ -14,10 +14,10 @@ namespace BadNorthBlackSpearman1_3
         const float DetectionRadius = 5.0f;
         const float ReadyDist = 3.5f;
         const float StabDist = 1.5f;
-        const float ChargeSpeed = 1.5f;
+        const float ChargeSpeed = 3.0f;
         const float CooldownTime = 1.5f;
-        const float WindUpDuration = 0.25f;
-        const float ChargingMaxTime = 3.0f;
+        const float WindUpDuration = 0.5f;
+        const float ChargingMaxTime = 1.0f;
         const float StabDamage = 3.0f;
         const float StabKnockback = 5.0f;
         const float StabStun = 10f;
@@ -35,6 +35,9 @@ namespace BadNorthBlackSpearman1_3
         readonly Collider[] _hitBuffer = new Collider[16];
         float _lastLogTime = -999f;
         AgentState _chargeState;
+        float _hitTimer;
+        Transform _spearTransform;
+        Quaternion _spearRestRotation;
 
         public void Setup(Agent agent)
         {
@@ -47,7 +50,10 @@ namespace BadNorthBlackSpearman1_3
             // ★ 关键：把冲刺做成 exclusives 下的独占状态，激活时锁住 Swordsman 大脑，
             //    避免大脑每帧覆盖 walkDir 导致的"瞬移回原位"。
             _chargeState = new AgentState("BlackSpearmanCharge", _agent.exclusives, false, true);
-            Log("Setup OK. speed=" + _originalSpeed.ToString("F1"));
+            // 找到挂载的长矛（由 BlackSpearmanWeapon 挂载，命名 Spear_BlackSpearman）
+            _spearTransform = _agent.transform.Find("Spear_BlackSpearman");
+            if (_spearTransform != null) _spearRestRotation = _spearTransform.localRotation;
+            Log("Setup OK. speed=" + _originalSpeed.ToString("F1") + " spear=" + (_spearTransform != null));
         }
 
         bool IBrainAction.MaybeAct(Brain brain)
@@ -79,6 +85,7 @@ namespace BadNorthBlackSpearman1_3
             _agent.movability = 0f;
             _agent.maxSpeed = 0f;
             _agent.walkDir = Vector3.zero;
+            RaiseSpear();
             Log("WIND-UP");
         }
 
@@ -100,29 +107,57 @@ namespace BadNorthBlackSpearman1_3
         void DoCharging()
         {
             _phaseTimer -= Time.deltaTime;
-            bool targetValid = _targetAgent != null
-                && _targetAgent.aliveState != null && _targetAgent.aliveState.active;
-            if (targetValid)
-            {
-                _chargeDirection = _targetAgent.transform.position - _agent.transform.position;
-                _chargeDirection.y = 0f;
-                _chargeDirection.Normalize();
-            }
+
+            // ★ 直线冲锋：方向固定（不再追踪目标），高速冲刺，像原版 Pike Charge 一样推着矛尖撞过去
             _agent.maxSpeed = ChargeSpeed;
             _agent.walkDir = _chargeDirection;
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
-            float dist = targetValid
-                ? Vector3.Distance(_agent.transform.position, _targetAgent.transform.position)
-                : 999f;
-            if (_phaseTimer <= 0f || dist > ReadyDist) { EndCharge(); return; }
-            if (dist <= StabDist)
+            // 冲锋途中每 0.15s 对半径 1.5m 内敌人造成伤害+击退
+            _hitTimer -= Time.deltaTime;
+            if (_hitTimer <= 0f)
             {
-                _phase = Phase.Stab;
-                _phaseTimer = 0.15f;
-                _agent.maxSpeed = 0f;
-                _agent.walkDir = Vector3.zero;
-                _agent.movability = 0f;
+                _hitTimer = 0.15f;
+                DealChargeDamage();
+            }
+
+            if (_phaseTimer <= 0f) { EndCharge(); return; }
+        }
+
+        void RaiseSpear()
+        {
+            if (_spearTransform == null) return;
+            // 原版 Spear.LateUpdate 的举矛公式：LookRotation(矛尖方向, 角色right) * Euler(0,0,90)
+            _spearTransform.rotation = Quaternion.LookRotation(_chargeDirection, _agent.transform.right) * Quaternion.Euler(0f, 0f, 90f);
+        }
+
+        void LowerSpear()
+        {
+            if (_spearTransform == null) return;
+            // 放矛：矛尖朝上（原版 spearDown 时 idealSpearTipDir = Vector3.up）
+            _spearTransform.rotation = Quaternion.LookRotation(Vector3.up, _agent.transform.right) * Quaternion.Euler(0f, 0f, 90f);
+        }
+
+        void DealChargeDamage()
+        {
+            int hn = Physics.OverlapSphereNonAlloc(_agent.transform.position, 1.5f, _hitBuffer, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hn; i++)
+            {
+                var c = _hitBuffer[i];
+                if (c == null) continue;
+                var a = c.GetComponentInParent<Agent>();
+                if (a == null || a == _agent || a.isViking) continue;
+                if (a.aliveState == null || !a.aliveState.active) continue;
+                try
+                {
+                    var s = new AttackSettings { damage = StabDamage, knockback = StabKnockback, launchImpulse = 0f, stun = StabStun };
+                    Vector3 d = (a.transform.position - _agent.transform.position).normalized;
+                    d.y = 0f;
+                    if (d.sqrMagnitude < 0.001f) d = _agent.transform.forward;
+                    a.DealDamage(new Attack(s, d, a.transform.position, this, _squad, "Sfx/English/Spear"));
+                    Log("HIT " + a.name + " dmg=" + StabDamage);
+                }
+                catch (Exception ex) { BSLog.Error("[Charge] " + ex); }
             }
         }
 
@@ -158,6 +193,7 @@ namespace BadNorthBlackSpearman1_3
             _agent.walkDir = Vector3.zero;
             _agent.movability = 1f;
             _targetAgent = null;
+            LowerSpear();
         }
 
         void UpdateCooldown()

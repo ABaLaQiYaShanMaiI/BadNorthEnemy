@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
 using Voxels.TowerDefense.RaidGeneration;
+using Voxels.TowerDefense.Upgrades;
 
 namespace BadNorthBlackSpearman1_3
 {
@@ -16,6 +17,7 @@ namespace BadNorthBlackSpearman1_3
 
         const float HeartbeatInterval = 8f;
         float _lastHeartbeat;
+        float _autoTimer = 0.2f;
 
         void Awake()
         {
@@ -32,6 +34,10 @@ namespace BadNorthBlackSpearman1_3
                     DumpFull();
                     BSLog.Raw("==================== 手动完整诊断结束 ====================\n");
                 }
+                if (Input.GetKeyDown(KeyCode.F9))
+                {
+                    DumpSpearPoses();
+                }
             }
             catch { }
 
@@ -40,6 +46,42 @@ namespace BadNorthBlackSpearman1_3
                 _lastHeartbeat = Time.time;
                 Heartbeat();
             }
+
+            AutoMeasurePikeCharge();
+        }
+
+        void AutoMeasurePikeCharge()
+        {
+            _autoTimer -= Time.deltaTime;
+            if (_autoTimer > 0f) return;
+            _autoTimer = 0.2f;
+
+            var pccs = Resources.FindObjectsOfTypeAll<PikeChargeComponent>();
+            bool any = false;
+            foreach (var pcc in pccs)
+            {
+                if (pcc != null && pcc.pikeCharge.active) { any = true; break; }
+            }
+            if (!any) return;
+
+            BSLog.Raw("\n[自动测量] PikeCharge 进行中:");
+            foreach (var pcc in pccs)
+            {
+                if (pcc == null || !pcc.pikeCharge.active) continue;
+                try
+                {
+                    BSLog.Raw($"  PCC {pcc.name}: anticipation={pcc.anticipation.active} charge={pcc.charge.active} travelling={pcc.travelling.active} arrived={pcc.arrived.active} energy={pcc.energy}");
+                    var spear = pcc.spear;
+                    if (spear != null)
+                    {
+                        if (spear.spearAim != null)
+                            BSLog.Raw($"    spearAim.worldRot(euler)={spear.spearAim.rotation.eulerAngles.ToString("F1")}");
+                        BSLog.Raw($"    spear: up={spear.spearUp.active} down={spear.spearDown.active} stabbing={spear.stabbing.active} idealTip={spear.idealSpearTipDir.ToString("F2")}");
+                    }
+                }
+                catch (Exception e) { BSLog.Warn("[自动测量] " + e); }
+            }
+            BSLog.Raw("[自动测量结束]");
         }
 
         void Heartbeat()
@@ -165,6 +207,77 @@ namespace BadNorthBlackSpearman1_3
                 }
             }
             catch (Exception e) { BSLog.Error("DumpShip 异常: " + e); }
+        }
+
+        /// <summary>
+        /// 测量我方长矛兵 Spear 的 spearAim/spearAnim 骨骼在"举矛/放矛"下的真实旋转，
+        /// 用于校准黑矛兵 RaiseSpear 的角度。按 F9 触发。
+        /// </summary>
+        public static void DumpSpearPoses()
+        {
+            BSLog.Raw("\n========== [测量] 我方长矛兵 spear 骨骼姿态 ==========");
+            try
+            {
+                var spears = Resources.FindObjectsOfTypeAll<Spear>();
+                BSLog.Raw($"找到 Spear 组件 {spears.Length} 个");
+                int n = 0;
+                foreach (var s in spears)
+                {
+                    if (s == null) continue;
+                    if (n++ >= 8) break;
+                    try
+                    {
+                        BSLog.Raw($"── {s.name} ──");
+                        BSLog.Raw($"   状态: spearUp={s.spearUp.active} spearDown={s.spearDown.active} charging={s.charging.active} stabbing={s.stabbing.active}");
+                        BSLog.Raw($"   idealSpearTipDir={s.idealSpearTipDir.ToString("F3")}");
+                        if (s.spearAim != null)
+                            BSLog.Raw($"   spearAim.localPos={s.spearAim.localPosition.ToString("F3")}  localRot(euler)={s.spearAim.localRotation.eulerAngles.ToString("F2")}  worldRot(euler)={s.spearAim.rotation.eulerAngles.ToString("F2")}");
+                        if (s.spearAnim != null)
+                            BSLog.Raw($"   spearAnim.localPos={s.spearAnim.localPosition.ToString("F3")}  localRot(euler)={s.spearAnim.localRotation.eulerAngles.ToString("F2")}  worldRot(euler)={s.spearAnim.rotation.eulerAngles.ToString("F2")}");
+                        BSLog.Raw($"   spearLength={s.spearLength}  spearSprite={s.spearSprite != null}");
+                    }
+                    catch (Exception e) { BSLog.Warn("[测量] " + e); }
+                }
+            }
+            catch (Exception e) { BSLog.Warn("[测量] 扫描 Spear 失败: " + e); }
+
+            // ---- PikeChargeComponent 阶段状态 ----
+            try
+            {
+                var pccs = Resources.FindObjectsOfTypeAll<PikeChargeComponent>();
+                BSLog.Raw($"\n[测量] PikeChargeComponent {pccs.Length} 个");
+                foreach (var pcc in pccs)
+                {
+                    if (pcc == null) continue;
+                    try
+                    {
+                        BSLog.Raw($"  PCC {pcc.name}: pikeCharge={pcc.pikeCharge.active} anticipation={pcc.anticipation.active} charge={pcc.charge.active} travelling={pcc.travelling.active} arrived={pcc.arrived.active} energy={pcc.energy} walkSpeed={pcc.walkSpeed}");
+                    }
+                    catch (Exception e2) { BSLog.Warn("[测量] PCC " + e2); }
+                }
+            }
+            catch (Exception e) { BSLog.Warn("[测量] 扫描 PikeChargeComponent 失败: " + e); }
+
+            // ---- PikeChargeAbility 状态（含私有字段） ----
+            try
+            {
+                var pcas = Resources.FindObjectsOfTypeAll<PikeChargeAbility>();
+                BSLog.Raw($"\n[测量] PikeChargeAbility {pcas.Length} 个");
+                foreach (var pca in pcas)
+                {
+                    if (pca == null) continue;
+                    try
+                    {
+                        BSLog.Raw($"  PCA {pca.name}: charging={pca.charging.active} dir={pca.dir.ToString("F2")}");
+                        BSLog.Raw($"    settings.range={pca.settings.range}  settings.speed={pca.settings.speed}");
+                        BSLog.Raw(BSLog.DumpFields(pca));
+                    }
+                    catch (Exception e2) { BSLog.Warn("[测量] PCA " + e2); }
+                }
+            }
+            catch (Exception e) { BSLog.Warn("[测量] 扫描 PikeChargeAbility 失败: " + e); }
+
+            BSLog.Raw("========== 测量结束 ==========\n");
         }
     }
 }

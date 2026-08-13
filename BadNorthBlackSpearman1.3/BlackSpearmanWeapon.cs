@@ -77,9 +77,18 @@ namespace BadNorthBlackSpearman1_3
                 var spears = Resources.FindObjectsOfTypeAll<Spear>();
                 foreach (var s in spears)
                 {
-                    if (s == null || s.spearAnim == null) continue;
-                    BSLog.Info($"[WEAPON] 找到我方长矛模板: {s.name} (spearSprite={(s.spearSprite != null)})");
-                    return s.spearAnim;
+                    if (s == null) continue;
+                    // 优先克隆 spearAim（瞄准骨，其旋转决定"举矛/放矛"），否则克隆 spearAnim
+                    if (s.spearAim != null)
+                    {
+                        BSLog.Info($"[WEAPON] 找到我方长矛模板(aim骨): {s.name} (spearSprite={(s.spearSprite != null)})");
+                        return s.spearAim;
+                    }
+                    if (s.spearAnim != null)
+                    {
+                        BSLog.Info($"[WEAPON] 找到我方长矛模板(anim骨): {s.name} (spearSprite={(s.spearSprite != null)})");
+                        return s.spearAnim;
+                    }
                 }
                 if (Time.time - _lastNoSpearLog > 5f)
                 {
