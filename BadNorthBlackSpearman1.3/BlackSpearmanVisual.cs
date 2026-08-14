@@ -39,6 +39,17 @@ namespace BadNorthBlackSpearman1_3
             {
                 var all = _agent.GetComponentsInChildren<BatchedSprite>(true);
                 if (all == null) return;
+                if (_frames < 5)
+                {
+                    BSLog.Info("[VISUAL] 染色帧#" + _frames + ": " + all.Length + " 个 BatchedSprite");
+                    foreach (var bs in all)
+                    {
+                        if (bs == null) continue;
+                        Color c = bs.color;
+                        BSLog.Info("[VISUAL]   · " + bs.name + ": color=(" +
+                            c.r.ToString("F2") + "," + c.g.ToString("F2") + "," + c.b.ToString("F2") + "," + c.a.ToString("F2") + ")");
+                    }
+                }
                 foreach (var bs in all)
                 {
                     if (bs == null) continue;

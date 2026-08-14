@@ -490,39 +490,84 @@ namespace BadNorthBlackSpearman1_3
 
         // ============ 可选：隐藏身体上的剑（视觉增强） ============
 
-        static Sprite _noWeaponPartTex;
+        /// <summary>
+        /// 按源 PartTex 纹理缓存的全透明替代（key=源纹理，value=透明 sprite）。
+        /// 关键：透明纹理必须与源 PartTex 同尺寸 + textureRect 与原 sprite2 完全相同，
+        /// 这样 SpriteAnimator.SetSprite2 编码出的 color.r/g（图集网格坐标）自动与原值一致，
+        /// 身体主纹理着色不变，只有武器部件区域透明 → 只去剑、不伤身体。
+        /// </summary>
+        static readonly Dictionary<Texture2D, Sprite> _noWeaponCache = new Dictionary<Texture2D, Sprite>();
 
-        static Sprite GetNoWeaponPartTex()
+        static Sprite GetNoWeaponPartTex(Texture2D src, Rect rect, Vector2 pivot)
         {
-            if (_noWeaponPartTex != null) return _noWeaponPartTex;
+            Sprite cached;
+            if (_noWeaponCache.TryGetValue(src, out cached)) return cached;
             try
             {
-                // ⚠️ 必须 ≥256×256：SpriteAnimator.SetSprite2 里 sprite2.texture.width/256 会整数除法，
-                //    太小会除零崩溃。256 时 num=1 → color.r/g = 0（顶点色 → 身体变黑）。
-                var tex = new Texture2D(256, 256, TextureFormat.RGBA32, false);
-                var px = new Color32[256 * 256];
-                for (int i = 0; i < px.Length; i++) px[i] = new Color32(0, 0, 0, 0);
-                tex.SetPixels32(px);
-                tex.Apply();
-                tex.filterMode = FilterMode.Bilinear;
-                _noWeaponPartTex = Sprite.Create(tex, new Rect(0, 0, 256, 256), new Vector2(0.5f, 0.5f));
+                // ★ 复制原图集，只把"剑部件区域(rect)"涂透明，其余保留。
+                //    关键认知（日志实证）：PartTex_Median_BlurAlpha 是带 alpha 的"身体渲染遮罩"，
+                //    整张透明会把身体轮廓也裁掉（身体消失）。必须只透明剑的 textureRect。
+                var copy = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
+                Color32[] px = src.GetPixels32(0);
+                if (px == null || px.Length != src.width * src.height)
+                {
+                    BSLog.Warn("[VISUAL] 图集像素读取失败，去剑跳过（保持原样，不再破坏身体）");
+                    return null;
+                }
+                int xMin = Mathf.Clamp((int)rect.xMin, 0, src.width - 1);
+                int xMax = Mathf.Clamp((int)rect.xMax, 0, src.width);
+                int yMin = Mathf.Clamp((int)rect.yMin, 0, src.height - 1);
+                int yMax = Mathf.Clamp((int)rect.yMax, 0, src.height);
+                int cleared = 0;
+                for (int y = yMin; y < yMax; y++)
+                {
+                    for (int x = xMin; x < xMax; x++)
+                    {
+                        int idx = y * src.width + x;
+                        if (px[idx].a > 0) cleared++;
+                        px[idx] = new Color32(0, 0, 0, 0);
+                    }
+                }
+                copy.SetPixels32(px);
+                copy.Apply();
+                copy.filterMode = FilterMode.Bilinear;
+                cached = Sprite.Create(copy, rect, pivot, 100f, 0, SpriteMeshType.FullRect);
+                _noWeaponCache[src] = cached;
+                BSLog.Info("[VISUAL] 图集复制成功: " + src.width + "x" + src.height +
+                    " 清除剑区域 rect=" + rect + " 非透明像素=" + cleared + "（仅剑透明，身体遮罩保留）");
             }
-            catch (Exception e) { BSLog.Warn("[VISUAL] 透明部件创建失败: " + e); }
-            return _noWeaponPartTex;
+            catch (Exception e)
+            {
+                BSLog.Warn("[VISUAL] 图集复制异常(可能纹理不可读): " + e.Message + " —— 去剑跳过，保持原样");
+            }
+            return cached;
         }
 
         static void HideSwordPart(Agent a)
         {
             try
             {
-                var sp = GetNoWeaponPartTex();
-                if (sp == null) return;
-                var sa = a.GetComponentInChildren<SpriteAnimator>(true);
-                if (sa == null) return;
-                sa.SetSprite2(sp);   // 部件纹理 → 透明：手里的剑不再绘制（身体随之变黑，符合黑矛兵设定）
-                BSLog.Info("[VISUAL] 已用透明部件纹理隐藏手里剑（身体变黑属于预期效果）");
+                var allSas = a.GetComponentsInChildren<SpriteAnimator>(true);
+                BSLog.Info("[VISUAL] 找到 SpriteAnimator x" + allSas.Length + (allSas.Length > 0 ? " 首个=" + allSas[0].name : ""));
+                if (allSas.Length == 0) return;
+                var sa = allSas[0];
+                if (sa == null || sa.sprite2 == null) { BSLog.Info("[VISUAL] sprite2 为 null，跳过去剑"); return; }
+                Texture2D src = sa.sprite2.texture;
+                if (src == null) { BSLog.Info("[VISUAL] sprite2.texture 为 null，跳过去剑"); return; }
+                Color before = sa.color;
+                Rect rect = sa.sprite2.textureRect;
+                BSLog.Info("[VISUAL] 源 sprite2: texture=" + src.name + " " + src.width + "x" + src.height +
+                    " rect=" + rect + " pivot=" + sa.sprite2.pivot +
+                    " 设置前color=(" + before.r.ToString("F3") + "," + before.g.ToString("F3") + "," + before.b.ToString("F3") + "," + before.a.ToString("F3") + ")");
+                var sp = GetNoWeaponPartTex(src, rect, sa.sprite2.pivot);
+                if (sp == null) { BSLog.Info("[VISUAL] 透明部件创建失败，跳过"); return; }
+                sa.SetSprite2(sp);
+                Color after = sa.color;
+                bool rgOk = Mathf.Abs(before.r - after.r) < 0.001f && Mathf.Abs(before.g - after.g) < 0.001f;
+                BSLog.Info("[VISUAL] SetSprite2 后 color=(" + after.r.ToString("F3") + "," + after.g.ToString("F3") + "," + after.b.ToString("F3") + "," + after.a.ToString("F3") +
+                    ") R/G保持一致=" + rgOk + " 新sprite2.texture=" + (sa.sprite2 != null && sa.sprite2.texture != null ? sa.sprite2.texture.width + "x" + sa.sprite2.texture.height : "null"));
             }
-            catch (Exception e) { BSLog.Warn("[VISUAL] 隐藏剑失败: " + e); }
+            catch (Exception e) { BSLog.Warn("[VISUAL] 隐藏剑异常: " + e); }
         }
     }
 }

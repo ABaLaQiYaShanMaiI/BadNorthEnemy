@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
+using Voxels.TowerDefense.SpriteMagic;
 using Voxels.TowerDefense.Upgrades;
 
 namespace BadNorthBlackSpearman1_3
@@ -24,6 +25,7 @@ namespace BadNorthBlackSpearman1_3
                 {
                     BSLog.Raw("\n==================== 手动完整诊断 (F8) ====================");
                     DumpFull();
+                    DumpBlackSpearmanRender();
                     BSLog.Raw("==================== 手动完整诊断结束 ====================\n");
                 }
                 if (Input.GetKeyDown(KeyCode.F9))
@@ -40,6 +42,71 @@ namespace BadNorthBlackSpearman1_3
             }
 
             AutoMeasurePikeCharge();
+        }
+
+        /// <summary>
+        /// 黑矛兵渲染健康检查（F8 触发）：打印每个黑矛兵的 SpriteAnimator color/sprite2 纹理、
+        /// Body 状态、Animator Speed、BodySprite 是否 active —— 用于定位"去剑后身体消失"的渲染链路问题。
+        /// </summary>
+        void DumpBlackSpearmanRender()
+        {
+            try
+            {
+                var vr = Plugin.BlackSpearman;
+                if (vr == null) { BSLog.Raw("[渲染诊断] BlackSpearman 未注册"); return; }
+                var agents = Resources.FindObjectsOfTypeAll<Agent>();
+                int n = 0;
+                foreach (var a in agents)
+                {
+                    if (a == null) continue;
+                    var va = a.GetComponent<VikingAgent>();
+                    if (va == null || !ReferenceEquals(va.vikingReference, vr)) continue;
+                    n++;
+                    BSLog.Raw("\n[渲染诊断] 黑矛兵#" + n + " " + a.name +
+                        " pos=" + a.transform.position.ToString("F2") +
+                        " navPos=" + a.navPos.pos.ToString("F2") +
+                        " alive=" + a.aliveState.active + " grounded=" + a.groundedState.active);
+
+                    // SpriteAnimator 细节
+                    var sas = a.GetComponentsInChildren<SpriteAnimator>(true);
+                    BSLog.Raw("  SpriteAnimator x" + sas.Length);
+                    foreach (var sa in sas)
+                    {
+                        if (sa == null) continue;
+                        Color c = sa.color;
+                        string s2info = "null";
+                        if (sa.sprite2 != null && sa.sprite2.texture != null)
+                            s2info = sa.sprite2.texture.name + " " + sa.sprite2.texture.width + "x" + sa.sprite2.texture.height;
+                        string rectInfo = (sa.sprite2 != null) ? sa.sprite2.textureRect.ToString() : "null";
+                        BSLog.Raw("  · " + sa.name + ": color=(" + c.r.ToString("F3") + "," + c.g.ToString("F3") + "," + c.b.ToString("F3") + "," + c.a.ToString("F3") +
+                            ") sprite2=" + s2info + " rect=" + rectInfo + " activeSelf=" + sa.gameObject.activeSelf);
+                    }
+
+                    // Body / 动画
+                    if (a.body != null)
+                        BSLog.Raw("  Body: stand=" + a.body.standing.active + " step=" + a.body.stepping.active +
+                            " slide=" + a.body.sliding.active + " hop=" + a.body.hopping.active +
+                            " moveAnimate=" + a.moveAnimate);
+                    if (a.animator != null)
+                    {
+                        try { BSLog.Raw("  Animator Speed=" + a.animator.GetFloat("Speed").ToString("F2")); }
+                        catch { BSLog.Raw("  Animator Speed=读取失败"); }
+                    }
+
+                    // 身体主 SpriteRenderer 是否 active / 有 sprite
+                    var sprs = a.GetComponentsInChildren<SpriteRenderer>(true);
+                    foreach (var spr in sprs)
+                    {
+                        if (spr == null) continue;
+                        BSLog.Raw("  SpriteRenderer · " + spr.name + ": enabled=" + spr.enabled +
+                            " active=" + spr.gameObject.activeSelf +
+                            " sprite=" + (spr.sprite != null ? spr.sprite.name : "null") +
+                            " color=(" + spr.color.r.ToString("F2") + "," + spr.color.g.ToString("F2") + "," + spr.color.b.ToString("F2") + ")");
+                    }
+                }
+                BSLog.Raw("\n[渲染诊断] 共 " + n + " 个黑矛兵\n");
+            }
+            catch (Exception e) { BSLog.Warn("[渲染诊断] 异常: " + e); }
         }
 
         void AutoMeasurePikeCharge()

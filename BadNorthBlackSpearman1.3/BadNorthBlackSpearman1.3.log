@@ -1,26 +1,26 @@
 
 
 ================================================================================
- Black Spearman v1.3 诊断日志  2026-08-14 13:39:13
+ Black Spearman v1.3 诊断日志  2026-08-14 14:53:53
 ================================================================================
-[13:39:13.642][INFO] 日志系统已初始化: D:\Steam\steamapps\common\BadNorth\BepInEx\plugins\BadNorthBlackSpearman1.3.log
-[13:39:13.674][INFO] [PATCH] 已 Patch LevelNode.Setup（用于把新单位注入敌人生成池）
-[13:39:13.682][INFO] [PATCH] 已 Patch Swordsman.range（长矛攻击距离）
-[13:39:13.688][INFO] [PATCH] 已 Patch Swordsman.GetAttack（长矛攻击）
-[13:39:13.689][INFO] [BS v1.3] Ready. 新单位: Viking_BlackSpearman
-[13:39:13.691][INFO] [配置] Source=Viking_Sword New=Viking_BlackSpearman Bounty=8 SpawnChance=0.7 ForceFirstWave=False DMG=1.6 KB=2.5 Stun=1.2 Scale=1.05 Recolor=True WeaponSwap=True Charge=True Stab=True
-[13:39:14.312][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:39:14.314][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:39:17.635][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:39:17.638][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:39:17.649][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:39:17.651][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:39:17.789][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:39:17.791][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:39:18.722][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:39:18.724][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:39:18.863][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:39:18.865][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:53:53.849][INFO] 日志系统已初始化: D:\Steam\steamapps\common\BadNorth\BepInEx\plugins\BadNorthBlackSpearman1.3.log
+[14:53:53.883][INFO] [PATCH] 已 Patch LevelNode.Setup（用于把新单位注入敌人生成池）
+[14:53:53.891][INFO] [PATCH] 已 Patch Swordsman.range（长矛攻击距离）
+[14:53:53.897][INFO] [PATCH] 已 Patch Swordsman.GetAttack（长矛攻击）
+[14:53:53.898][INFO] [BS v1.3] Ready. 新单位: Viking_BlackSpearman
+[14:53:53.899][INFO] [配置] Source=Viking_Sword New=Viking_BlackSpearman Bounty=8 SpawnChance=0.7 ForceFirstWave=True DMG=1.6 KB=2.5 Stun=1.2 Scale=1.05 Recolor=True WeaponSwap=True Charge=True Stab=True
+[14:53:54.250][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:53:54.252][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:53:57.201][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:53:57.204][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:53:57.216][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:53:57.218][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:53:57.359][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:53:57.361][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:53:58.122][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:53:58.124][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:53:58.281][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:53:58.283][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
 
 ---- [心跳] ----
 dict 注册表条目数 = 0
@@ -147,137 +147,17 @@ dict 键 =
 新单位已注册 = False
 已处理黑矛兵 Agent 数 = 0
 ----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 0
-dict 键 = 
-新单位已注册 = False
-已处理黑矛兵 Agent 数 = 0
-----------------
-[13:43:59.527][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:43:59.531][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:43:59.578][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:43:59.581][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:43:59.657][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[13:43:59.660][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
-[13:43:59.678][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 22 个条目: Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass
-[13:43:59.686][INFO] [REGISTER] 已生成剥离模板: 删除Arsonist=False 删除Shield=False，子对象已按名称禁用
-[13:43:59.688][INFO] [REGISTER] 已新建并注册 Viking_BlackSpearman (type=SwordShield, bounty=8)
+[14:56:26.790][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:56:26.792][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:56:26.810][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:56:26.811][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:56:26.876][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[14:56:26.878][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[14:56:26.893][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 22 个条目: Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass
+[14:56:26.902][INFO] [REGISTER] 已生成剥离模板: 删除Arsonist=False 删除Shield=False，子对象已按名称禁用
+[14:56:26.904][INFO] [REGISTER] 已新建并注册 Viking_BlackSpearman (type=SwordShield, bounty=8)
 [REGISTER] 注册后 dict 键: Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
-[13:44:01.024][INFO] [ART] 美术图标已应用: sprite2=True
+[14:56:28.004][INFO] [ART] 美术图标已应用: sprite2=True
 
 [注册后·延迟检查] VikingReference 字段:
   ┌─ Voxels.TowerDefense.VikingReference
@@ -339,327 +219,328 @@ GameObject: Viking_BlackSpearman
           · UnityEngine.SpriteRenderer
           · Voxels.TowerDefense.SpriteMagic.BatchedSprite
 
-[13:44:06.581][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.585][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.588][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[14:56:33.317][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.321][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.325][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
-  - Viking_Sword (type=Sword, bounty=4)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.596][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.600][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.605][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.609][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+  - Viking_Sword (type=Sword, bounty=4)
+[14:56:33.331][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.335][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.342][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.346][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.614][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.351][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.620][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.625][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.359][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.362][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.631][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.634][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.638][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[14:56:33.367][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.373][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.376][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
-  - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.643][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+  - Viking_Archer (type=Archer, bounty=7)
+[14:56:33.391][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.650][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.653][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.396][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.399][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.659][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.407][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.663][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.423][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.669][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.676][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.428][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.430][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.682][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.684][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.438][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.441][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.690][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.694][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[14:56:33.449][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.452][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
-  - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.701][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+  - Viking_Archer (type=Archer, bounty=7)
+[14:56:33.456][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.707][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.461][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.713][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[14:56:33.468][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.718][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[14:56:33.477][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
-  - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.725][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+  - Viking_Archer (type=Archer, bounty=7)
+[14:56:33.483][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.732][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.487][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.738][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.493][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.747][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.501][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.752][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[14:56:33.506][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
-  - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.756][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+  - Viking_Tank (type=Tank, bounty=21)
+[14:56:33.511][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.762][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.515][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.777][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.780][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
+[14:56:33.521][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.526][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (7 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.786][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.532][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.793][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.537][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.809][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.544][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.814][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.817][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.820][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.550][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.554][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.557][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.829][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
+[14:56:33.563][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (7 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_TankArcher (type=TankArcher, bounty=25)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.838][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.568][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.844][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[14:56:33.575][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.849][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.580][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.856][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.586][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.864][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.592][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.871][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
+[14:56:33.607][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (7 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.880][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.614][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.887][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.619][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.893][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.896][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[14:56:33.629][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.633][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.904][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[14:56:33.640][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.912][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[14:56:33.646][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.919][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.928][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[14:56:33.654][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.658][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.946][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[13:44:06.950][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[14:56:33.664][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[14:56:33.667][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[13:44:06.960][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=8)
+[14:56:33.676][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=8)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (8 种):
+  - Viking_BlackSpearman (type=SwordShield, bounty=8)
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
@@ -667,7 +548,6 @@ GameObject: Viking_BlackSpearman
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_TankArcher (type=TankArcher, bounty=25)
   - Viking_Twohanded (type=Twohanded, bounty=9)
-  - Viking_BlackSpearman (type=SwordShield, bounty=8)
 
 ---- [心跳] ----
 dict 注册表条目数 = 23
@@ -684,84 +564,293 @@ dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Vi
 新单位 vikingClone=True, agent=True
 已处理黑矛兵 Agent 数 = 0
 ----------------
+[14:56:48.357][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.360][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.362][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.363][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.370][INFO] [WEAPON] 找到我方长矛模板(aim骨): English_Spear(Clone) (spearSprite=False)
+[14:56:48.374][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.378][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.379][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.383][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.385][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.388][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.391][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.394][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.395][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.396][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.397][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.398][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.399][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.401][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.402][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.403][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.404][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.405][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.408][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.409][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.410][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.411][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.412][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.413][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.414][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.416][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.417][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 3）
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
+[14:56:48.432][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.434][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.436][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.437][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.442][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.443][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.444][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.446][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.447][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.448][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.449][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.450][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.451][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.452][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.454][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.457][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.458][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.459][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.460][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.461][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.462][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.463][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.464][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.465][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.467][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.468][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.469][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.472][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.474][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.475][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.476][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 6）
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
+[14:56:48.484][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.490][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.492][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.493][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.495][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.496][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.497][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.498][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.499][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.502][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.504][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.505][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.506][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.507][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.509][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.510][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.511][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.512][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.513][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.514][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.515][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.518][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.519][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.520][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.521][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.523][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.524][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.525][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.526][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.527][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.528][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 9）
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 0
-----------------
-[13:45:24.378][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
-[13:45:24.384][INFO] [WEAPON] 找到我方长矛模板(aim骨): English_Spear(Clone) (spearSprite=False)
-[13:45:24.386][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[13:45:24.387][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
-[13:45:24.393][INFO] [Charge] Setup OK. speed=2.0 spear=True
-[13:45:24.396][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
-[13:45:24.398][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[13:45:24.400][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
-[13:45:24.401][INFO] [Charge] Setup OK. speed=2.0 spear=True
-[13:45:24.402][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
-[13:45:24.404][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[13:45:24.407][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
-[13:45:24.408][INFO] [Charge] Setup OK. speed=2.0 spear=True
-[13:45:24.409][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 3）
+[14:56:48.538][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.540][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.542][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.543][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.545][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.546][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.549][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.550][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.551][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.552][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.553][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.555][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.556][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.558][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.559][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.560][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.561][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.562][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.565][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.566][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.567][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:56:48.568][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:56:48.569][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:56:48.570][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:56:48.571][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:56:48.573][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:56:48.574][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:56:48.575][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:56:48.576][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:56:48.577][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:56:48.578][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 12）
 
 [SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
 GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
@@ -822,7 +911,63 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
+已处理黑矛兵 Agent 数 = 12
+----------------
+[14:56:59.550][INFO] [VISUAL] 染色帧#1: 3 个 BatchedSprite
+[14:56:59.553][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.555][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.556][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,1.00,1.00)
+[14:56:59.558][INFO] [VISUAL] 染色帧#1: 3 个 BatchedSprite
+[14:56:59.559][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.560][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.561][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,1.00,1.00)
+[14:56:59.562][INFO] [VISUAL] 染色帧#1: 3 个 BatchedSprite
+[14:56:59.563][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.564][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.565][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,1.00,1.00)
+[14:56:59.590][INFO] [VISUAL] 染色帧#2: 3 个 BatchedSprite
+[14:56:59.592][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.593][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.594][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.595][INFO] [VISUAL] 染色帧#2: 3 个 BatchedSprite
+[14:56:59.596][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.597][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.602][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.603][INFO] [VISUAL] 染色帧#2: 3 个 BatchedSprite
+[14:56:59.606][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.608][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.609][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.615][INFO] [VISUAL] 染色帧#3: 3 个 BatchedSprite
+[14:56:59.617][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.619][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.620][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.621][INFO] [VISUAL] 染色帧#3: 3 个 BatchedSprite
+[14:56:59.623][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.624][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.625][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.626][INFO] [VISUAL] 染色帧#3: 3 个 BatchedSprite
+[14:56:59.628][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.629][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.631][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.637][INFO] [VISUAL] 染色帧#4: 3 个 BatchedSprite
+[14:56:59.639][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.00,0.00)
+[14:56:59.640][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.642][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.643][INFO] [VISUAL] 染色帧#4: 3 个 BatchedSprite
+[14:56:59.644][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.645][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.647][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:56:59.649][INFO] [VISUAL] 染色帧#4: 3 个 BatchedSprite
+[14:56:59.650][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:56:59.651][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:56:59.653][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 12
 ----------------
 
 ---- [心跳] ----
@@ -830,7 +975,7 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
+已处理黑矛兵 Agent 数 = 12
 ----------------
 
 ---- [心跳] ----
@@ -838,164 +983,326 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
+已处理黑矛兵 Agent 数 = 12
 ----------------
+[14:57:30.271][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 262.3, 0.4) dir=(-0.99, 0.00, -0.13)
+[14:57:30.278][INFO] [Charge] WIND-UP
+[14:57:30.437][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 265.8, 0.1) dir=(-1.00, 0.00, -0.07)
+[14:57:30.440][INFO] [Charge] WIND-UP
+[14:57:30.522][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 264.1, 0.0) dir=(-0.99, 0.00, -0.10)
+[14:57:30.524][INFO] [Charge] WIND-UP
+[14:57:30.743][INFO] [Charge] 冲锋起点 pos=(2.87, -0.01, 3.17) dir=(-0.99, 0.00, -0.13) onMain=True 目标距离=3.21m 时长=0.80s
+[14:57:30.773][INFO] [Charge] 冲刺中 pos=(2.87, -0.01, 3.18) navPos=(2.76, -0.01, 3.16) 余距=3.21 body=step moveAnim=True animSpeed=0.11 lag=0.12 spearWorldRot=(0.0, 262.3, 0.4) spearLocalRot=(0.8, 1.3, 0.1) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:30.912][INFO] [Charge] 冲锋起点 pos=(3.20, -0.04, 3.14) dir=(-1.00, 0.00, -0.07) onMain=True 目标距离=3.55m 时长=0.89s
+[14:57:30.939][INFO] [Charge] 冲刺中 pos=(3.20, -0.04, 3.14) navPos=(3.09, -0.02, 3.13) 余距=3.55 body=step moveAnim=True animSpeed=0.41 lag=0.11 spearWorldRot=(0.0, 265.8, 0.1) spearLocalRot=(0.2, 1.0, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:30.995][INFO] [Charge] 冲锋起点 pos=(2.78, -0.06, 3.39) dir=(-0.99, 0.00, -0.10) onMain=True 目标距离=3.13m 时长=0.78s
+[14:57:31.024][INFO] [Charge] 冲刺中 pos=(2.78, -0.06, 3.39) navPos=(2.66, -0.06, 3.38) 余距=3.13 body=step moveAnim=True animSpeed=0.09 lag=0.12 spearWorldRot=(0.0, 264.1, 0.0) spearLocalRot=(0.0, 359.6, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:31.080][INFO] [Charge] 冲刺中 pos=(2.76, -0.01, 3.16) navPos=(1.54, 0.05, 2.99) 余距=3.21 body=step moveAnim=True animSpeed=0.68 lag=1.23 spearWorldRot=(358.2, 266.4, 0.1) spearLocalRot=(359.0, 5.5, 359.9) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:31.167][INFO] [Charge] 冲锋结束 位移=1.68 命中=2 终点=(1.21, 0.07, 2.95)
+[14:57:31.246][INFO] [Charge] 冲刺中 pos=(3.00, 0.00, 3.12) navPos=(1.87, 0.05, 3.04) 余距=3.55 body=step moveAnim=True animSpeed=0.68 lag=1.14 spearWorldRot=(359.4, 272.5, 0.1) spearLocalRot=(359.6, 7.7, 359.9) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:31.330][INFO] [Charge] 冲刺中 pos=(2.58, -0.05, 3.37) navPos=(1.45, -0.01, 3.25) 余距=3.13 body=step moveAnim=True animSpeed=0.65 lag=1.14 spearWorldRot=(358.1, 266.8, 359.9) spearLocalRot=(358.2, 2.3, 359.9) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:31.385][INFO] [Charge] 冲锋结束 位移=1.56 命中=1 终点=(1.23, -0.01, 3.23)
+[14:57:31.442][INFO] [Charge] HIT English_Standard(Clone) dmg=3 kb=5 stun=10 hp=1.5
+[14:57:31.444][INFO] [Charge] 冲锋结束 位移=2.12 命中=1 终点=(1.09, 0.05, 2.98)
 
 ---- [心跳] ----
 dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
+已处理黑矛兵 Agent 数 = 12
 ----------------
+[14:57:33.751][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 284.5, 0.0) dir=(-0.96, 0.00, 0.25)
+[14:57:33.755][INFO] [Charge] WIND-UP
+[14:57:34.231][INFO] [Charge] 冲锋起点 pos=(1.25, 0.08, 2.88) dir=(-0.96, 0.00, 0.25) onMain=True 目标距离=1.65m 时长=0.41s
+[14:57:34.260][INFO] [Charge] 冲刺中 pos=(1.07, 0.07, 2.91) navPos=(1.13, 0.07, 2.91) 余距=1.64 body=slide moveAnim=False animSpeed=2.47 lag=0.06 spearWorldRot=(359.9, 284.4, 360.0) spearLocalRot=(359.9, 1.8, 360.0) spearLocalPos=(0.000, 0.168, 0.072)
+[14:57:34.262][INFO] [Charge] 冲锋结束 位移=0.11 命中=2 终点=(1.13, 0.07, 2.91)
+[14:57:39.647][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.651][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.653][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.655][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.656][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.658][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.659][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.660][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.661][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.664][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.665][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.667][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.668][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.670][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.672][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.673][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.675][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.676][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.679][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.680][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.681][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.682][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.683][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.684][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.685][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.687][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.689][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.690][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.692][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.695][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.696][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 15）
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
+[14:57:39.714][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.715][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.717][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.718][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.720][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.721][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.723][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.725][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.726][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.727][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.729][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.730][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.732][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.733][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.735][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.736][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.738][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.741][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.742][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.744][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.745][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.746][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.747][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.749][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.751][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.752][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.753][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.754][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.757][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.758][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.759][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 18）
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
+[14:57:39.767][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.770][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.775][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.778][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.779][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.780][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.781][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.782][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.784][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.785][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.789][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.791][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.793][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.794][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.795][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.796][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.797][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.798][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.799][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.800][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.803][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.806][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.807][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.809][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.810][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.811][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.813][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.815][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.816][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.819][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.821][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 21）
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-[13:47:42.003][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 26.1, 0.3) dir=(0.44, 0.00, 0.90)
-[13:47:42.008][INFO] [Charge] WIND-UP
-[13:47:42.487][INFO] [Charge] 冲锋起点 pos=(-3.41, -0.05, -1.77) dir=(0.44, 0.00, 0.90) onMain=True
-[13:47:42.517][INFO] [Charge] 冲刺中 pos=(-3.36, -0.04, -1.67) navPos=(-3.36, -0.04, -1.67) spearWorldRot=(0.0, 26.1, 0.3) spearLocalRot=(360.0, 350.6, 0.2) spearLocalPos=(0.000, 0.168, 0.072)
-[13:47:42.816][INFO] [Charge] 冲刺中 pos=(-2.83, 0.07, -0.59) navPos=(-2.83, 0.07, -0.59) spearWorldRot=(0.0, 26.1, 0.3) spearLocalRot=(360.0, 350.7, 0.2) spearLocalPos=(0.000, 0.168, 0.072)
-[13:47:43.006][INFO] [Charge] HIT English_SwordShield(Clone)(Clone) dmg=3 kb=5 stun=10 hp=0.1
-[13:47:43.011][INFO] [Charge] 冲锋结束 位移=2.00 终点=(-2.53, 0.03, 0.02)
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-[13:48:26.375][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
-[13:48:26.379][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[13:48:26.380][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
-[13:48:26.382][INFO] [Charge] Setup OK. speed=2.0 spear=True
-[13:48:26.383][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
-[13:48:26.385][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[13:48:26.387][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
-[13:48:26.390][INFO] [Charge] Setup OK. speed=2.0 spear=True
-[13:48:26.391][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
-[13:48:26.392][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[13:48:26.393][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
-[13:48:26.395][INFO] [Charge] Setup OK. speed=2.0 spear=True
-[13:48:26.396][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 6）
+[14:57:39.830][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.836][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.838][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.840][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.841][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.843][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.844][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.845][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.847][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.850][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.852][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.853][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.855][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.856][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.857][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.858][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.860][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.861][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.862][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.863][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.866][INFO] [VISUAL] 染色帧#0: 2 个 BatchedSprite
+[14:57:39.867][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.61,0.00)
+[14:57:39.868][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,1.00,0.00)
+[14:57:39.869][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[14:57:39.871][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[14:57:39.872][INFO] [VISUAL] 找到 SpriteAnimator x1 首个=BodySprite
+[14:57:39.873][INFO] [VISUAL] 源 sprite2: texture=PartTex_Median_BlurAlpha 512x256 rect=(x:192.00, y:0.00, width:64.00, height:126.00) pivot=(32.0, 63.0) 设置前color=(0.000,0.376,0.010,0.000)
+[14:57:39.874][INFO] [VISUAL] SetSprite2 后 color=(0.000,0.376,0.008,0.000) R/G保持一致=True 新sprite2.texture=512x256
+[14:57:39.875][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[14:57:39.876][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[14:57:39.877][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 24）
 
 [SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
 GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
@@ -1056,7 +1363,63 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
+已处理黑矛兵 Agent 数 = 24
+----------------
+[14:57:47.787][INFO] [VISUAL] 染色帧#1: 3 个 BatchedSprite
+[14:57:47.792][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.794][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.795][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,1.00,1.00)
+[14:57:47.796][INFO] [VISUAL] 染色帧#1: 3 个 BatchedSprite
+[14:57:47.797][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.799][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.801][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,1.00,1.00)
+[14:57:47.803][INFO] [VISUAL] 染色帧#1: 3 个 BatchedSprite
+[14:57:47.804][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.805][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.806][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,1.00,1.00)
+[14:57:47.834][INFO] [VISUAL] 染色帧#2: 3 个 BatchedSprite
+[14:57:47.837][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.838][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.840][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.841][INFO] [VISUAL] 染色帧#2: 3 个 BatchedSprite
+[14:57:47.843][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.845][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.846][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.851][INFO] [VISUAL] 染色帧#2: 3 个 BatchedSprite
+[14:57:47.853][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.855][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.857][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.862][INFO] [VISUAL] 染色帧#3: 3 个 BatchedSprite
+[14:57:47.869][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.871][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.872][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.874][INFO] [VISUAL] 染色帧#3: 3 个 BatchedSprite
+[14:57:47.875][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.876][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.877][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.882][INFO] [VISUAL] 染色帧#3: 3 个 BatchedSprite
+[14:57:47.883][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.884][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.885][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.891][INFO] [VISUAL] 染色帧#4: 3 个 BatchedSprite
+[14:57:47.892][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.00,0.00)
+[14:57:47.893][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.896][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.897][INFO] [VISUAL] 染色帧#4: 3 个 BatchedSprite
+[14:57:47.898][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.900][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.901][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+[14:57:47.902][INFO] [VISUAL] 染色帧#4: 3 个 BatchedSprite
+[14:57:47.903][INFO] [VISUAL]   · BodySprite: color=(0.00,0.38,0.01,0.00)
+[14:57:47.904][INFO] [VISUAL]   · Shadow: color=(1.00,1.00,0.01,0.00)
+[14:57:47.905][INFO] [VISUAL]   · Spear_0: color=(1.00,1.00,0.01,1.00)
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 24
 ----------------
 
 ---- [心跳] ----
@@ -1064,7 +1427,7 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
+已处理黑矛兵 Agent 数 = 24
 ----------------
 
 ---- [心跳] ----
@@ -1072,7 +1435,30 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
+已处理黑矛兵 Agent 数 = 24
+----------------
+[14:58:13.386][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 260.1, 0.0) dir=(-0.98, 0.00, -0.17)
+[14:58:13.390][INFO] [Charge] WIND-UP
+[14:58:13.393][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 270.0, 0.0) dir=(-1.00, 0.00, 0.00)
+[14:58:13.394][INFO] [Charge] WIND-UP
+[14:58:13.396][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 270.4, 0.1) dir=(-1.00, 0.00, 0.01)
+[14:58:13.397][INFO] [Charge] WIND-UP
+[14:58:13.863][INFO] [Charge] 冲锋起点 pos=(1.40, -0.06, 3.46) dir=(-0.98, 0.00, -0.17) onMain=True 目标距离=1.77m 时长=0.44s
+[14:58:13.865][INFO] [Charge] 冲锋起点 pos=(1.43, 0.05, 3.00) dir=(-1.00, 0.00, 0.00) onMain=True 目标距离=1.79m 时长=0.45s
+[14:58:13.867][INFO] [Charge] 冲锋起点 pos=(1.33, 0.00, 3.23) dir=(-1.00, 0.00, 0.01) onMain=True 目标距离=1.69m 时长=0.42s
+[14:58:13.893][INFO] [Charge] 冲刺中 pos=(1.40, -0.06, 3.46) navPos=(1.28, -0.06, 3.44) 余距=1.77 body=step moveAnim=True animSpeed=0.36 lag=0.12 spearWorldRot=(0.0, 260.1, 0.0) spearLocalRot=(0.0, 0.0, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
+[14:58:13.895][INFO] [Charge] 冲刺中 pos=(1.43, 0.05, 3.00) navPos=(1.31, 0.05, 3.00) 余距=1.79 body=step moveAnim=True animSpeed=0.06 lag=0.12 spearWorldRot=(0.0, 270.0, 0.0) spearLocalRot=(0.0, 356.0, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
+[14:58:13.896][INFO] [Charge] 冲刺中 pos=(1.34, 0.00, 3.23) navPos=(1.21, -0.01, 3.23) 余距=1.69 body=step moveAnim=True animSpeed=0.10 lag=0.12 spearWorldRot=(0.0, 270.4, 0.1) spearLocalRot=(0.0, 2.2, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
+[14:58:13.901][INFO] [Charge] 冲锋结束 位移=0.12 命中=1 终点=(1.21, -0.01, 3.23)
+[14:58:13.922][INFO] [Charge] 冲锋结束 位移=0.24 命中=1 终点=(1.20, 0.05, 3.00)
+[14:58:13.979][INFO] [Charge] 冲锋结束 位移=0.47 命中=1 终点=(0.94, -0.05, 3.38)
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 24
 ----------------
 
 ---- [心跳] ----
@@ -1080,7 +1466,7 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
+已处理黑矛兵 Agent 数 = 24
 ----------------
 
 ---- [心跳] ----
@@ -1088,7 +1474,7 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
+已处理黑矛兵 Agent 数 = 24
 ----------------
 
 ---- [心跳] ----
@@ -1096,89 +1482,5 @@ dict 注册表条目数 = 23
 dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
 新单位已注册 = True
 新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-[13:50:22.883][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 355.1, 180.0) dir=(-0.08, 0.00, 1.00)
-[13:50:22.887][INFO] [Charge] WIND-UP
-[13:50:22.890][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 354.9, 180.0) dir=(-0.09, 0.00, 1.00)
-[13:50:22.892][INFO] [Charge] WIND-UP
-[13:50:23.368][INFO] [Charge] 冲锋起点 pos=(-1.25, 0.02, -3.08) dir=(-0.08, 0.00, 1.00) onMain=True
-[13:50:23.371][INFO] [Charge] 冲锋起点 pos=(-1.38, 0.17, -2.52) dir=(-0.09, 0.00, 1.00) onMain=True
-[13:50:23.399][INFO] [Charge] 冲刺中 pos=(-1.26, 0.05, -2.96) navPos=(-1.26, 0.05, -2.96) spearWorldRot=(0.0, 354.9, 179.9) spearLocalRot=(0.0, 359.8, 179.9) spearLocalPos=(0.000, 0.168, 0.072)
-[13:50:23.402][INFO] [Charge] 冲刺中 pos=(-1.39, 0.21, -2.39) navPos=(-1.39, 0.21, -2.39) spearWorldRot=(0.0, 354.7, 180.1) spearLocalRot=(0.0, 352.1, 180.1) spearLocalPos=(0.000, 0.168, 0.072)
-[13:50:23.715][INFO] [Charge] 冲刺中 pos=(-1.37, 0.25, -1.70) navPos=(-1.37, 0.25, -1.70) spearWorldRot=(0.0, 355.1, 180.0) spearLocalRot=(0.0, 0.0, 180.0) spearLocalPos=(0.000, 0.168, 0.072)
-[13:50:23.717][INFO] [Charge] 冲刺中 pos=(-1.39, 0.23, -1.48) navPos=(-1.39, 0.23, -1.48) spearWorldRot=(0.0, 354.9, 180.0) spearLocalRot=(0.0, 352.3, 180.0) spearLocalPos=(0.000, 0.168, 0.072)
-[13:50:23.886][INFO] [Charge] 冲锋结束 位移=1.64 终点=(-1.31, 0.24, -1.46)
-[13:50:23.889][INFO] [Charge] 冲锋结束 位移=2.21 终点=(-1.55, 0.15, -0.31)
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
-----------------
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 6
+已处理黑矛兵 Agent 数 = 24
 ----------------
