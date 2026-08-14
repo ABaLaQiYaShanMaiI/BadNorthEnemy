@@ -13,10 +13,10 @@ namespace BadNorthBlackSpearman1_3
     {
         const float StabRange = 3.5f;
         const float StabCooldown = 1.4f;
-        const float StabDamage = 2.0f;
-        const float StabKnockback = 3.0f;
+        const float StabDamage = 2.0f;      // 刺击伤害（回退：4.0→2.0）
+        const float StabKnockback = 3.0f;   // 击退（回退：4.0→3.0）
         const float StabAngle = 35f;
-        const float StabStun = 8f;
+        const float StabStun = 8f;          // 眩晕（回退：10→8）
 
         Agent _agent;
         Swordsman _swordsman;
