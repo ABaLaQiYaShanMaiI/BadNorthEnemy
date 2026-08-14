@@ -83,6 +83,7 @@ namespace BadNorthBlackSpearman1_3
                 kbDir.y = 0f;
 
                 var attack = new Attack(settings, kbDir, target.transform.position, this, _squad, "Sfx/English/Spear");
+                PointSpearAt(target);   // 视觉：长矛刺向目标（盖过挥剑动画）
                 target.DealDamage(attack);
 
                 BSLog.Info("[Stab] Hit " + target.name + " | dmg=" + StabDamage +
@@ -92,6 +93,22 @@ namespace BadNorthBlackSpearman1_3
             {
                 BSLog.Error("[Stab] Error: " + ex);
             }
+        }
+
+        /// <summary>刺击时让长矛 Spear_BlackSpearman 指向目标（矛刺视觉）。</summary>
+        void PointSpearAt(Agent target)
+        {
+            try
+            {
+                if (_agent == null || target == null) return;
+                var spear = _agent.transform.Find("Spear_BlackSpearman");
+                if (spear == null) return;
+                Vector3 tipDir = (target.chestPos - spear.position).normalized;
+                tipDir.y = 0f;
+                if (tipDir.sqrMagnitude < 0.001f) return;
+                spear.rotation = Quaternion.LookRotation(tipDir);
+            }
+            catch { }
         }
     }
 }

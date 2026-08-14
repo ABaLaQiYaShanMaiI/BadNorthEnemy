@@ -10,6 +10,7 @@ using HarmonyLib;
 using UnityEngine;
 using Voxels.TowerDefense;
 using Voxels.TowerDefense.RaidGeneration;
+using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman1_3
 {
@@ -45,6 +46,7 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<float> ScaleMult;
         public static ConfigEntry<bool> EnableRecolor;
         public static ConfigEntry<bool> EnableWeaponSwap;
+        public static ConfigEntry<bool> HideSwordVisual;
         public static ConfigEntry<bool> EnableCharge;
         public static ConfigEntry<bool> EnableStab;
 
@@ -113,6 +115,9 @@ namespace BadNorthBlackSpearman1_3
 
             EnableRecolor = Config.Bind("Visual", "EnableRecolor", true, "是否把新单位染成黑色。");
             EnableWeaponSwap = Config.Bind("Visual", "EnableWeaponSwap", true, "是否移除剑盾并复用我方长矛（混搭武器）。");
+            HideSwordVisual = Config.Bind("Visual", "HideSwordVisual", false,
+                "用透明部件纹理隐藏身体上的剑。注意：SpriteAnimator.SetSprite2 会把 color 的 R/G 编码为 0，" +
+                "身体会随之变黑（对\"黑色长矛手\"可能正好合适）。默认关闭，开启测试效果。");
             EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲刺技能。");
             EnableStab = Config.Bind("Skills", "EnableStab", true, "是否注入刺击技能。");
         }
@@ -173,15 +178,20 @@ namespace BadNorthBlackSpearman1_3
             vr.approachAudioId = src.approachAudioId;
             vr.arriveAudioId = src.arriveAudioId;
 
+            // ★ 预制体层面剥离（层次 A）：不直接借用源预制体，而是克隆一份"干净模板"，
+            //    提前销毁逻辑残留组件（实测 Viking_Sword 基底也带 Arsonist！它会抢占
+            //    brain.actions，导致黑矛兵去烧房子、冲锋永不触发），再交给
+            //    VikingReference.Start() 实例化。这样 Agent.Setup()/Brain.Setup() 收集
+            //    IBrainAction/IAttackResponder/IAgentOrder 时根本不会有残留组件。
+            var stripped = BuildStrippedTemplate(_sourceViking);
             if (!ReferenceEquals(vikingField, null))
-                vikingField.SetValue(vr, _sourceViking);
+            {
+                // 优先用剥离模板；剥离失败则退回源预制体（至少保证能生成）
+                vikingField.SetValue(vr, stripped != null ? stripped.GetComponent<VikingAgent>() : _sourceViking);
+            }
 
-            // ★ 手动实例化 vikingClone（vikingClone 是 public），确保 agent 在 Start() 之前即可用。
-            //    原版 Start() 是 private，Unity 会在下一帧调用并重复实例化（覆盖此手动副本，无害）。
-            var container = new GameObject("Container");
-            container.transform.SetParent(go.transform, false);
-            container.SetActive(false);
-            vr.vikingClone = UnityEngine.Object.Instantiate<VikingAgent>(_sourceViking, container.transform);
+            // 不手动实例化 vikingClone —— 原版 VikingReference.Start() 会在下一帧创建唯一副本。
+            //（此前手动 Instantiate 导致"双 Container + 孤儿克隆"：手动副本永远无人引用。）
 
             LevelStateObjectReferences.dict[NewVikingName.Value] = vr;
             _blackSpearman = vr;
@@ -189,6 +199,60 @@ namespace BadNorthBlackSpearman1_3
             BSLog.Info($"[REGISTER] 已新建并注册 {NewVikingName.Value} (type={vr.type}, bounty={vr.bounty})");
             BSLog.Raw($"[REGISTER] 注册后 dict 键: {BSLog.Join(LevelStateObjectReferences.dict.Keys)}");
             StartCoroutine(ApplyArtDelayed(vr));
+        }
+
+        /// <summary>
+        /// 克隆源 VikingAgent 预制体并剥离逻辑残留组件，得到"干净模板"。
+        /// 只删除会抢占/干扰行为的组件；Pirate（下船）/KillAllEnemies（寻敌）/Swordsman（近战大脑）必须保留。
+        /// </summary>
+        static VikingAgent BuildStrippedTemplate(VikingAgent src)
+        {
+            if (src == null) return null;
+            try
+            {
+                GameObject stripped = UnityEngine.Object.Instantiate(src.gameObject);
+                stripped.name = "BlackSpearman_StrippedTemplate";
+                // ★ 自身保持 activeSelf=true（Unity Instantiate 会保留原对象 active 状态，
+                //    Start() 从它克隆出的 vikingClone 才会是 active，否则敌人不可见），
+                //    挂在 inactive 的 holder 下避免它作为运行时对象出现在场景里。
+                var holder = new GameObject("BlackSpearman_StrippedHolder");
+                holder.SetActive(false);
+                stripped.transform.SetParent(holder.transform, false);
+
+                // ① 逻辑残留组件：DestroyImmediate 立即销毁！
+                //    ⚠️ 不能用 Destroy()（延迟到帧末）——AddComponent<VikingReference> 后
+                //    Unity 在同帧的 Start 阶段就会执行 VR.Start() 克隆本模板，届时 Destroy 还没生效，
+                //    Arsonist 会被复制进 vikingClone（实测组件树再次出现 Arsonist）。
+                var arsonist = stripped.GetComponent<Arsonist>();
+                if (arsonist != null) UnityEngine.Object.DestroyImmediate(arsonist);
+                var shield = stripped.GetComponent<Shield>();
+                if (shield != null) UnityEngine.Object.DestroyImmediate(shield);
+
+                // ② 视觉残留子对象（盾/剑/aimer/weapon）
+                string[] keys = { "shield", "sword", "weapon", "aimer", "盾", "剑" };
+                foreach (Transform t in stripped.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t == null || t.gameObject == stripped) continue;
+                    string n = t.name.ToLowerInvariant();
+                    for (int i = 0; i < keys.Length; i++)
+                    {
+                        if (n.Contains(keys[i].ToLowerInvariant()))
+                        {
+                            t.gameObject.SetActive(false);
+                            break;
+                        }
+                    }
+                }
+
+                BSLog.Info("[REGISTER] 已生成剥离模板: 删除Arsonist=" + (arsonist != null) +
+                    " 删除Shield=" + (shield != null) + "，子对象已按名称禁用");
+                return stripped.GetComponent<VikingAgent>();
+            }
+            catch (Exception e)
+            {
+                BSLog.Error("[REGISTER] 剥离模板失败: " + e);
+                return null;
+            }
         }
 
         IEnumerator ApplyArtDelayed(VikingReference vr)
@@ -294,6 +358,7 @@ namespace BadNorthBlackSpearman1_3
                 };
                 __result = new Attack(settings, dir, (target.wChestPos + __instance.agent.wChestPos) / 2f,
                     __instance, __instance.agent.squad, "Sfx/English/Spear");
+                PointSpearAtTarget(__instance, target);   // 视觉：长矛刺向目标（盖过挥剑动画）
                 return false; // 跳过原版剑击
             }
             catch (Exception e)
@@ -301,6 +366,26 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Warn("[PATCH] 长矛攻击改写异常: " + e);
                 return true;
             }
+        }
+
+        /// <summary>
+        /// 近战攻击时让长矛指向目标（"用矛的逻辑盖过剑的视觉"）：
+        /// Swordsman.GetAttack 已被改写为长矛攻击，这里同步把 Spear_BlackSpearman 转向目标，
+        /// 使"矛刺"成为视觉焦点，弱化身体纹理里残留的挥剑姿势。
+        /// </summary>
+        static void PointSpearAtTarget(Swordsman sw, Agent target)
+        {
+            try
+            {
+                if (sw == null || sw.agent == null || target == null) return;
+                var spear = sw.agent.transform.Find("Spear_BlackSpearman");
+                if (spear == null) return;
+                Vector3 tipDir = (target.chestPos - spear.position).normalized;
+                tipDir.y = 0f;
+                if (tipDir.sqrMagnitude < 0.001f) return;
+                spear.rotation = Quaternion.LookRotation(tipDir);
+            }
+            catch { }
         }
 
         static void LevelNodeSetupPostfix(LevelNode __instance)
@@ -363,6 +448,8 @@ namespace BadNorthBlackSpearman1_3
             }
             if (EnableWeaponSwap.Value)
                 BlackSpearmanWeapon.Apply(a);
+            if (HideSwordVisual.Value)
+                HideSwordPart(a);
             if (Mathf.Abs(ScaleMult.Value - 1f) > 0.0001f)
                 a.scale *= ScaleMult.Value;
 
@@ -399,6 +486,43 @@ namespace BadNorthBlackSpearman1_3
         {
             if (arr == null || Mathf.Abs(m - 1f) < 0.0001f) return;
             for (int i = 0; i < arr.Length; i++) arr[i] *= m;
+        }
+
+        // ============ 可选：隐藏身体上的剑（视觉增强） ============
+
+        static Sprite _noWeaponPartTex;
+
+        static Sprite GetNoWeaponPartTex()
+        {
+            if (_noWeaponPartTex != null) return _noWeaponPartTex;
+            try
+            {
+                // ⚠️ 必须 ≥256×256：SpriteAnimator.SetSprite2 里 sprite2.texture.width/256 会整数除法，
+                //    太小会除零崩溃。256 时 num=1 → color.r/g = 0（顶点色 → 身体变黑）。
+                var tex = new Texture2D(256, 256, TextureFormat.RGBA32, false);
+                var px = new Color32[256 * 256];
+                for (int i = 0; i < px.Length; i++) px[i] = new Color32(0, 0, 0, 0);
+                tex.SetPixels32(px);
+                tex.Apply();
+                tex.filterMode = FilterMode.Bilinear;
+                _noWeaponPartTex = Sprite.Create(tex, new Rect(0, 0, 256, 256), new Vector2(0.5f, 0.5f));
+            }
+            catch (Exception e) { BSLog.Warn("[VISUAL] 透明部件创建失败: " + e); }
+            return _noWeaponPartTex;
+        }
+
+        static void HideSwordPart(Agent a)
+        {
+            try
+            {
+                var sp = GetNoWeaponPartTex();
+                if (sp == null) return;
+                var sa = a.GetComponentInChildren<SpriteAnimator>(true);
+                if (sa == null) return;
+                sa.SetSprite2(sp);   // 部件纹理 → 透明：手里的剑不再绘制（身体随之变黑，符合黑矛兵设定）
+                BSLog.Info("[VISUAL] 已用透明部件纹理隐藏手里剑（身体变黑属于预期效果）");
+            }
+            catch (Exception e) { BSLog.Warn("[VISUAL] 隐藏剑失败: " + e); }
         }
     }
 }

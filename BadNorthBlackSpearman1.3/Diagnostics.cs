@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
-using Voxels.TowerDefense.RaidGeneration;
 using Voxels.TowerDefense.Upgrades;
 
 namespace BadNorthBlackSpearman1_3
@@ -13,16 +12,9 @@ namespace BadNorthBlackSpearman1_3
     /// </summary>
     public class DiagnosticsComponent : MonoBehaviour
     {
-        public static DiagnosticsComponent Instance { get; private set; }
-
         const float HeartbeatInterval = 8f;
         float _lastHeartbeat;
         float _autoTimer = 0.1f;
-
-        void Awake()
-        {
-            Instance = this;
-        }
 
         void Update()
         {
@@ -54,7 +46,7 @@ namespace BadNorthBlackSpearman1_3
         {
             _autoTimer -= Time.deltaTime;
             if (_autoTimer > 0f) return;
-            _autoTimer = 0.1f;
+            _autoTimer = 1f; // 降频：0.1s→1s，避免 FindObjectsOfTypeAll 刷屏
 
             var pccs = Resources.FindObjectsOfTypeAll<PikeChargeComponent>();
             bool any = false;
@@ -191,24 +183,6 @@ namespace BadNorthBlackSpearman1_3
                         BSLog.Raw($"  - {(e != null ? e.name : "null")} (type={(e != null ? e.type.ToString() : "?")}, bounty={(e != null ? e.bounty : 0)})");
             }
             catch (Exception ex) { BSLog.Error("DumpEnemies 异常: " + ex); }
-        }
-
-        public static void DumpShip(Longship ship)
-        {
-            try
-            {
-                if (ship == null || ship.agents == null) { BSLog.Raw("\n[敌舰] ship 或 agents 为空"); return; }
-                BSLog.Raw($"\n[敌舰] agents 数量={ship.agents.Count}");
-                foreach (var a in ship.agents)
-                {
-                    if (a == null) { BSLog.Raw("  - <null>"); continue; }
-                    var va = a.GetComponent<VikingAgent>();
-                    string vref = va != null && va.vikingReference != null ? va.vikingReference.name : "null";
-                    string brain = a.brain != null ? a.brain.GetType().Name : "null";
-                    BSLog.Raw($"  - {a.name} vikingRef={vref} brain={brain}");
-                }
-            }
-            catch (Exception e) { BSLog.Error("DumpShip 异常: " + e); }
         }
 
         /// <summary>

@@ -1,26 +1,26 @@
 
 
 ================================================================================
- Black Spearman v1.3 诊断日志  2026-08-14 08:41:08
+ Black Spearman v1.3 诊断日志  2026-08-14 13:39:13
 ================================================================================
-[08:41:08.945][INFO] 日志系统已初始化: D:\Steam\steamapps\common\BadNorth\BepInEx\plugins\BadNorthBlackSpearman1.3.log
-[08:41:09.018][INFO] [PATCH] 已 Patch LevelNode.Setup（用于把新单位注入敌人生成池）
-[08:41:09.026][INFO] [PATCH] 已 Patch Swordsman.range（长矛攻击距离）
-[08:41:09.033][INFO] [PATCH] 已 Patch Swordsman.GetAttack（长矛攻击）
-[08:41:09.035][INFO] [BS v1.3] Ready. 新单位: Viking_BlackSpearman
-[08:41:09.036][INFO] [配置] Source=Viking_SwordShield New=Viking_BlackSpearman Bounty=8 SpawnChance=0.7 ForceFirstWave=False DMG=1.6 KB=2.5 Stun=1.2 Scale=1.05 Recolor=True WeaponSwap=True Charge=True Stab=True
-[08:41:09.704][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:09.705][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:13.573][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:13.575][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:13.588][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:13.589][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:13.728][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:13.729][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:15.397][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:15.399][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:15.600][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:15.603][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
+[13:39:13.642][INFO] 日志系统已初始化: D:\Steam\steamapps\common\BadNorth\BepInEx\plugins\BadNorthBlackSpearman1.3.log
+[13:39:13.674][INFO] [PATCH] 已 Patch LevelNode.Setup（用于把新单位注入敌人生成池）
+[13:39:13.682][INFO] [PATCH] 已 Patch Swordsman.range（长矛攻击距离）
+[13:39:13.688][INFO] [PATCH] 已 Patch Swordsman.GetAttack（长矛攻击）
+[13:39:13.689][INFO] [BS v1.3] Ready. 新单位: Viking_BlackSpearman
+[13:39:13.691][INFO] [配置] Source=Viking_Sword New=Viking_BlackSpearman Bounty=8 SpawnChance=0.7 ForceFirstWave=False DMG=1.6 KB=2.5 Stun=1.2 Scale=1.05 Recolor=True WeaponSwap=True Charge=True Stab=True
+[13:39:14.312][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:39:14.314][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:39:17.635][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:39:17.638][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:39:17.649][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:39:17.651][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:39:17.789][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:39:17.791][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:39:18.722][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:39:18.724][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:39:18.863][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:39:18.865][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
 
 ---- [心跳] ----
 dict 注册表条目数 = 0
@@ -35,33 +35,266 @@ dict 键 =
 新单位已注册 = False
 已处理黑矛兵 Agent 数 = 0
 ----------------
-[08:41:34.022][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:34.024][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:34.043][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:34.045][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:34.100][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
-[08:41:34.102][INFO] [REGISTER] 等待源单位 Viking_SwordShield 注册（当前 dict 条目 0），稍后重试
-[08:41:34.128][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 22 个条目: Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass
-[08:41:34.131][INFO] [REGISTER] 已新建并注册 Viking_BlackSpearman (type=SwordShield, bounty=8)
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 0
+dict 键 = 
+新单位已注册 = False
+已处理黑矛兵 Agent 数 = 0
+----------------
+[13:43:59.527][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:43:59.531][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:43:59.578][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:43:59.581][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:43:59.657][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 0 个条目: 
+[13:43:59.660][INFO] [REGISTER] 等待源单位 Viking_Sword 注册（当前 dict 条目 0），稍后重试
+[13:43:59.678][INFO] [BOOT] GameSetup.Awake 完成，dict 现有 22 个条目: Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass
+[13:43:59.686][INFO] [REGISTER] 已生成剥离模板: 删除Arsonist=False 删除Shield=False，子对象已按名称禁用
+[13:43:59.688][INFO] [REGISTER] 已新建并注册 Viking_BlackSpearman (type=SwordShield, bounty=8)
 [REGISTER] 注册后 dict 键: Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-[08:41:35.223][INFO] [ART] 美术图标已应用: sprite2=True
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+[13:44:01.024][INFO] [ART] 美术图标已应用: sprite2=True
 
 [注册后·延迟检查] VikingReference 字段:
   ┌─ Voxels.TowerDefense.VikingReference
-  │  VikingAgent viking = VikingAgent(Viking_SwordShield)
-  │  VikingAgent vikingClone = VikingAgent(Viking_SwordShield(Clone))
+  │  VikingAgent viking = VikingAgent(BlackSpearman_StrippedTemplate)
+  │  VikingAgent vikingClone = VikingAgent(BlackSpearman_StrippedTemplate(Clone))
   │  Type type = SwordShield
   │  Int32 bounty = 8
   │  Sprite sprite2 = Sprite()
-  │  FabricEventReference approachAudioId = Mus/VikingShieldWave (-2100253584)
-  │  FabricEventReference arriveAudioId = Mus/VikingShieldSting (-686491830)
+  │  FabricEventReference approachAudioId = Mus/VikingSwordWave (1560522344)
+  │  FabricEventReference arriveAudioId = Mus/VikingSwordSting (1128412242)
   │  Boolean initialized = False
   │  Single bottom = 0.2
   │  Single top = 0.3
   │  Vector3 offset = (0.0, 0.0, 0.0)
   │  Material material = null
   │  Key key = Misc
-  │  [prop] Agent agent = Agent(Viking_SwordShield(Clone))
+  │  [prop] Agent agent = Agent(BlackSpearman_StrippedTemplate(Clone))
   │  [prop] Boolean seen = True
   │  [prop] Boolean useGUILayout = True
   │  [prop] Boolean enabled = True
@@ -80,7 +313,7 @@ GameObject: Viking_BlackSpearman
   · Voxels.TowerDefense.VikingReference
   GameObject: Container [inactive]
     · UnityEngine.Transform
-    GameObject: Viking_SwordShield(Clone)
+    GameObject: BlackSpearman_StrippedTemplate(Clone)
       · UnityEngine.Transform
       · UnityEngine.Animator
       · UnityEngine.SphereCollider
@@ -89,8 +322,6 @@ GameObject: Viking_BlackSpearman
       · Voxels.TowerDefense.Pirate
       · Voxels.TowerDefense.VikingAgent
       · Voxels.TowerDefense.Swordsman
-      · Voxels.TowerDefense.Arsonist
-      · Voxels.TowerDefense.Shield
       · Voxels.TowerDefense.Ragdoller
       · Voxels.TowerDefense.Body
       · Voxels.TowerDefense.KillAllEnemies
@@ -107,118 +338,81 @@ GameObject: Viking_BlackSpearman
           · UnityEngine.Transform
           · UnityEngine.SpriteRenderer
           · Voxels.TowerDefense.SpriteMagic.BatchedSprite
-      GameObject: BounceAnim
-        · UnityEngine.Transform
-        GameObject: ShieldAimer
-          · UnityEngine.Transform
-  GameObject: Container [inactive]
-    · UnityEngine.Transform
-    GameObject: Viking_SwordShield(Clone)
-      · UnityEngine.Transform
-      · UnityEngine.Animator
-      · UnityEngine.SphereCollider
-      · Voxels.TowerDefense.Agent
-      · Voxels.TowerDefense.Death
-      · Voxels.TowerDefense.Pirate
-      · Voxels.TowerDefense.VikingAgent
-      · Voxels.TowerDefense.Swordsman
-      · Voxels.TowerDefense.Arsonist
-      · Voxels.TowerDefense.Shield
-      · Voxels.TowerDefense.Ragdoller
-      · Voxels.TowerDefense.Body
-      · Voxels.TowerDefense.KillAllEnemies
-      · Voxels.TowerDefense.Stun
-      GameObject: DebrisLauncher
-        · UnityEngine.Transform
-      GameObject: BodyAnim
-        · UnityEngine.Transform
-        GameObject: BodySprite
-          · UnityEngine.Transform
-      GameObject: ShadowAnim
-        · UnityEngine.Transform
-        GameObject: Shadow
-          · UnityEngine.Transform
-          · UnityEngine.SpriteRenderer
-          · Voxels.TowerDefense.SpriteMagic.BatchedSprite
-      GameObject: BounceAnim
-        · UnityEngine.Transform
-        GameObject: ShieldAimer
-          · UnityEngine.Transform
 
-[08:41:40.638][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.642][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.647][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[13:44:06.581][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.585][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.588][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.653][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.663][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.667][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.669][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.596][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.600][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.605][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.609][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.674][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.614][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.679][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.684][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.620][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.625][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.689][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.693][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.697][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[13:44:06.631][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.634][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.638][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.700][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.643][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.713][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.716][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.650][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.653][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.721][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.659][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.727][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.663][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.731][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.745][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.669][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.676][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.749][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.752][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.682][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.684][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -226,26 +420,26 @@ GameObject: Viking_BlackSpearman
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.760][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.763][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[13:44:06.690][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.694][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.775][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.701][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.782][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.707][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.787][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[13:44:06.713][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -254,18 +448,18 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.794][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[13:44:06.718][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.800][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.725][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.806][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.732][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -273,7 +467,7 @@ GameObject: Viking_BlackSpearman
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.813][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.738][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -281,24 +475,24 @@ GameObject: Viking_BlackSpearman
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.818][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.747][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.825][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
+[13:44:06.752][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=2)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (2 种):
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.830][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.756][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.835][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.762][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -306,8 +500,8 @@ GameObject: Viking_BlackSpearman
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.841][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.847][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
+[13:44:06.777][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.780][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (7 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -317,14 +511,14 @@ GameObject: Viking_BlackSpearman
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.854][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.786][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_SwordShield (type=SwordShield, bounty=7)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.859][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.793][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -332,15 +526,15 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.865][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.809][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.875][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.879][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.882][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.814][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.817][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.820][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -348,7 +542,7 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.888][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
+[13:44:06.829][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (7 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -358,19 +552,19 @@ GameObject: Viking_BlackSpearman
   - Viking_TankArcher (type=TankArcher, bounty=25)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.897][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.838][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.901][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
+[13:44:06.844][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=3)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (3 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.905][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.849][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -378,14 +572,14 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.912][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.856][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.919][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.864][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -393,7 +587,7 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.925][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
+[13:44:06.871][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=7)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (7 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -403,14 +597,14 @@ GameObject: Viking_BlackSpearman
   - Viking_Tank (type=Tank, bounty=21)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.934][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.880][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.941][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.887][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -418,8 +612,8 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.949][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.951][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[13:44:06.893][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.896][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -428,7 +622,7 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.956][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[13:44:06.904][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -437,15 +631,15 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.965][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
+[13:44:06.912][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=4)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (4 种):
   - Viking_Sword (type=Sword, bounty=4)
   - Viking_Archer (type=Archer, bounty=7)
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.970][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.973][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
+[13:44:06.919][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.928][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=6)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (6 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -454,8 +648,8 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:40.982][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
-[08:41:40.984][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
+[13:44:06.946][INFO] [CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）
+[13:44:06.950][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=5)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (5 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -463,7 +657,7 @@ GameObject: Viking_BlackSpearman
   - Viking_AxeThrower (type=AxeThrower, bounty=12)
   - Viking_Twohanded (type=Twohanded, bounty=9)
   - Viking_BlackSpearman (type=SwordShield, bounty=8)
-[08:41:41.002][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=8)
+[13:44:06.960][INFO] [CAMPAIGN] 已将 Viking_BlackSpearman 加入本关敌人生成池 (count=8)
 
 [CAMPAIGN·注入后] 本关敌人生成池 (8 种):
   - Viking_Sword (type=Sword, bounty=4)
@@ -506,23 +700,71 @@ dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Vi
 新单位 vikingClone=True, agent=True
 已处理黑矛兵 Agent 数 = 0
 ----------------
-[08:42:09.038][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 4 个
-[08:42:09.073][INFO] [WEAPON] 找到我方长矛模板(aim骨): English_Spear(Clone) (spearSprite=False)
-[08:42:09.077][INFO] [WEAPON] 已挂载长矛到 Viking_SwordShield(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[08:42:09.080][INFO] [AGENT] 黑矛兵 Viking_SwordShield(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=2.1 kb=4.3
-[08:42:09.082][INFO] [Charge] Setup OK. speed=1.7 spear=True
-[08:42:09.084][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 4 个
-[08:42:09.086][INFO] [WEAPON] 已挂载长矛到 Viking_SwordShield(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[08:42:09.089][INFO] [AGENT] 黑矛兵 Viking_SwordShield(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=2.1 kb=4.3
-[08:42:09.090][INFO] [Charge] Setup OK. speed=1.7 spear=True
-[08:42:09.091][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 4 个
-[08:42:09.094][INFO] [WEAPON] 已挂载长矛到 Viking_SwordShield(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
-[08:42:09.096][INFO] [AGENT] 黑矛兵 Viking_SwordShield(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=2.1 kb=4.3
-[08:42:09.097][INFO] [Charge] Setup OK. speed=1.7 spear=True
-[08:42:09.098][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 3）
 
-[SPAWN·黑矛兵首例] Agent name=Viking_SwordShield(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
-GameObject: Viking_SwordShield(Clone)(Clone)
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 0
+----------------
+[13:45:24.378][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[13:45:24.384][INFO] [WEAPON] 找到我方长矛模板(aim骨): English_Spear(Clone) (spearSprite=False)
+[13:45:24.386][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[13:45:24.387][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[13:45:24.393][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[13:45:24.396][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[13:45:24.398][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[13:45:24.400][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[13:45:24.401][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[13:45:24.402][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[13:45:24.404][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[13:45:24.407][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[13:45:24.408][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[13:45:24.409][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 3）
+
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
   · UnityEngine.Transform
   · UnityEngine.Animator
   · UnityEngine.SphereCollider
@@ -531,8 +773,6 @@ GameObject: Viking_SwordShield(Clone)(Clone)
   · Voxels.TowerDefense.Pirate
   · Voxels.TowerDefense.VikingAgent
   · Voxels.TowerDefense.Swordsman
-  · Voxels.TowerDefense.Arsonist
-  · Voxels.TowerDefense.Shield
   · Voxels.TowerDefense.Ragdoller
   · Voxels.TowerDefense.Body
   · Voxels.TowerDefense.KillAllEnemies
@@ -562,12 +802,10 @@ GameObject: Viking_SwordShield(Clone)(Clone)
         · UnityEngine.Transform
         · UnityEngine.MeshRenderer
         · UnityEngine.MeshFilter
-  GameObject: BounceAnim
-    · UnityEngine.Transform
-    GameObject: ShieldAimer [inactive]
-      · UnityEngine.Transform
-      GameObject: ShieldAnim [inactive]
+      GameObject: Shadow
         · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
   GameObject: Spear_BlackSpearman
     · UnityEngine.Transform
     GameObject: SpearAnim
@@ -666,118 +904,6 @@ dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Vi
 新单位 vikingClone=True, agent=True
 已处理黑矛兵 Agent 数 = 3
 ----------------
-[08:44:28.194][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 68.3, 0.2) dir=(0.93, 0.00, 0.37)
-[08:44:28.196][INFO] [Charge] WIND-UP
-[08:44:28.683][INFO] [Charge] 冲锋起点 pos=(-7.74, -0.05, -2.08) dir=(0.93, 0.00, 0.37)
-[08:44:28.713][INFO] [Charge] 冲刺中 pos=(-7.72, -0.04, -2.08) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.2, 68.2, 0.5) spearLocalRot=(0.2, 353.1, 0.5) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:28.978][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 68.2, 359.6) dir=(0.93, 0.00, 0.37)
-[08:44:28.980][INFO] [Charge] WIND-UP
-[08:44:29.030][INFO] [Charge] 冲刺中 pos=(-7.79, -0.07, -2.05) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.9, 68.2, 0.6) spearLocalRot=(359.9, 353.5, 0.6) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:29.207][INFO] [Charge] 冲锋结束 位移=0.25 终点=(-7.98, -0.08, -2.04)
-[08:44:29.371][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 67.9, 0.3) dir=(0.93, 0.00, 0.38)
-[08:44:29.373][INFO] [Charge] WIND-UP
-[08:44:29.459][INFO] [Charge] 冲锋起点 pos=(-7.61, -0.07, -2.05) dir=(0.93, 0.00, 0.37)
-[08:44:29.489][INFO] [Charge] 冲刺中 pos=(-7.59, -0.07, -2.04) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.7, 68.2, 359.4) spearLocalRot=(359.7, 352.8, 359.4) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:29.807][INFO] [Charge] 冲刺中 pos=(-7.82, -0.06, -2.02) navPos=(-0.04, 0.03, -0.29) spearWorldRot=(359.9, 68.2, 359.1) spearLocalRot=(359.9, 352.8, 359.1) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:29.866][INFO] [Charge] 冲锋起点 pos=(-7.64, -0.07, -2.11) dir=(0.93, 0.00, 0.38)
-[08:44:29.902][INFO] [Charge] 冲刺中 pos=(-7.62, -0.07, -2.11) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(360.0, 67.9, 359.8) spearLocalRot=(360.0, 351.3, 359.8) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:29.982][INFO] [Charge] 冲锋结束 位移=0.26 终点=(-7.86, -0.07, -2.04)
-[08:44:30.211][INFO] [Charge] 冲刺中 pos=(-7.73, -0.08, -2.01) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.2, 67.9, 0.0) spearLocalRot=(0.2, 351.3, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:30.384][INFO] [Charge] 冲锋结束 位移=0.15 终点=(-7.76, -0.09, -2.03)
-[08:44:30.819][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 66.4, 359.7) dir=(0.92, 0.00, 0.40)
-[08:44:30.822][INFO] [Charge] WIND-UP
-[08:44:31.297][INFO] [Charge] 冲锋起点 pos=(-7.29, -0.08, -2.08) dir=(0.92, 0.00, 0.40)
-[08:44:31.326][INFO] [Charge] 冲刺中 pos=(-7.18, -0.08, -2.03) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.7, 66.4, 359.8) spearLocalRot=(359.7, 354.3, 359.8) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:31.615][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 64.2, 0.4) dir=(0.90, 0.00, 0.44)
-[08:44:31.618][INFO] [Charge] WIND-UP
-[08:44:31.639][INFO] [Charge] 冲刺中 pos=(-7.31, -0.06, -1.95) navPos=(0.03, 0.03, -0.27) spearWorldRot=(359.7, 66.4, 359.3) spearLocalRot=(359.7, 354.3, 359.3) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:31.814][INFO] [Charge] 冲锋结束 位移=0.11 终点=(-7.35, -0.06, -1.98)
-[08:44:31.983][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 61.6, 0.4) dir=(0.88, 0.00, 0.48)
-[08:44:31.985][INFO] [Charge] WIND-UP
-[08:44:32.100][INFO] [Charge] 冲锋起点 pos=(-6.86, -0.07, -1.91) dir=(0.90, 0.00, 0.44)
-[08:44:32.130][INFO] [Charge] 冲刺中 pos=(-6.75, -0.07, -1.86) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.1, 64.2, 0.0) spearLocalRot=(0.1, 0.1, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:32.444][INFO] [Charge] 冲刺中 pos=(-7.05, -0.09, -1.91) navPos=(-0.04, 0.03, -0.28) spearWorldRot=(0.3, 64.2, 0.5) spearLocalRot=(0.3, 0.1, 0.5) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:32.475][INFO] [Charge] 冲锋起点 pos=(-7.18, -0.09, -2.02) dir=(0.88, 0.00, 0.48)
-[08:44:32.503][INFO] [Charge] 冲刺中 pos=(-7.06, -0.10, -1.96) navPos=(0.03, 0.03, -0.31) spearWorldRot=(0.3, 61.6, 0.6) spearLocalRot=(0.3, 0.1, 0.6) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:32.617][INFO] [Charge] 冲锋结束 位移=0.25 终点=(-7.11, -0.10, -1.94)
-[08:44:32.819][INFO] [Charge] 冲刺中 pos=(-7.00, -0.10, -1.91) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.1, 61.6, 0.8) spearLocalRot=(0.1, 0.4, 0.8) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:33.001][INFO] [Charge] 冲锋结束 位移=0.17 终点=(-7.03, -0.10, -1.94)
-[08:44:33.455][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 60.6, 0.3) dir=(0.87, 0.00, 0.49)
-[08:44:33.459][INFO] [Charge] WIND-UP
-[08:44:33.937][INFO] [Charge] 冲锋起点 pos=(-6.30, -0.07, -1.93) dir=(0.87, 0.00, 0.49)
-[08:44:33.965][INFO] [Charge] 冲刺中 pos=(-6.30, -0.07, -1.93) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.9, 60.6, 359.9) spearLocalRot=(359.9, 350.3, 359.9) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:34.228][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 61.8, 0.2) dir=(0.88, 0.00, 0.47)
-[08:44:34.279][INFO] [Charge] WIND-UP
-[08:44:34.293][INFO] [Charge] 冲刺中 pos=(-6.62, -0.09, -1.89) navPos=(-0.04, 0.03, -0.29) spearWorldRot=(0.2, 60.6, 0.1) spearLocalRot=(0.2, 350.3, 0.1) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:34.462][INFO] [Charge] 冲锋结束 位移=0.29 终点=(-6.59, -0.10, -1.87)
-[08:44:34.639][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 61.1, 359.6) dir=(0.88, 0.00, 0.48)
-[08:44:34.643][INFO] [Charge] WIND-UP
-[08:44:34.720][INFO] [Charge] 冲锋起点 pos=(-6.28, -0.08, -1.84) dir=(0.88, 0.00, 0.47)
-[08:44:34.756][INFO] [Charge] 冲刺中 pos=(-6.26, -0.08, -1.84) navPos=(-0.04, 0.03, -0.30) spearWorldRot=(0.2, 61.7, 0.5) spearLocalRot=(0.2, 359.1, 0.5) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:35.063][INFO] [Charge] 冲刺中 pos=(-6.43, -0.09, -1.86) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.9, 61.7, 0.6) spearLocalRot=(359.9, 359.5, 0.6) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:35.122][INFO] [Charge] 冲锋起点 pos=(-6.36, -0.09, -1.95) dir=(0.88, 0.00, 0.48)
-[08:44:35.150][INFO] [Charge] 冲刺中 pos=(-6.34, -0.09, -1.94) navPos=(-0.03, 0.03, -0.31) spearWorldRot=(359.8, 61.0, 0.0) spearLocalRot=(359.8, 0.5, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:35.237][INFO] [Charge] 冲锋结束 位移=0.08 终点=(-6.35, -0.08, -1.84)
-[08:44:35.464][INFO] [Charge] 冲刺中 pos=(-6.22, -0.07, -1.81) navPos=(0.04, 0.03, -0.28) spearWorldRot=(359.7, 61.1, 359.5) spearLocalRot=(359.7, 0.6, 359.5) spearLocalPos=(0.000, 0.168, 0.072)
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-[08:44:35.634][INFO] [Charge] 冲锋结束 位移=0.16 终点=(-6.25, -0.06, -1.83)
-[08:44:36.091][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 57.7, 0.3) dir=(0.84, 0.00, 0.53)
-[08:44:36.094][INFO] [Charge] WIND-UP
-[08:44:36.583][INFO] [Charge] 冲锋起点 pos=(-5.60, -0.07, -1.75) dir=(0.84, 0.00, 0.53)
-[08:44:36.606][INFO] [Charge] 冲刺中 pos=(-5.59, -0.06, -1.75) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.3, 57.6, 0.6) spearLocalRot=(0.3, 0.2, 0.6) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:36.862][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 58.0, 359.6) dir=(0.85, 0.00, 0.53)
-[08:44:36.865][INFO] [Charge] WIND-UP
-[08:44:36.930][INFO] [Charge] 冲刺中 pos=(-5.83, -0.09, -1.78) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.1, 57.6, 0.7) spearLocalRot=(0.1, 0.6, 0.7) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:37.092][INFO] [Charge] 冲锋结束 位移=0.20 终点=(-5.80, -0.09, -1.76)
-[08:44:37.235][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 48.0, 359.8) dir=(0.74, 0.00, 0.67)
-[08:44:37.238][INFO] [Charge] WIND-UP
-[08:44:37.354][INFO] [Charge] 冲锋起点 pos=(-5.69, -0.08, -1.86) dir=(0.85, 0.00, 0.53)
-[08:44:37.389][INFO] [Charge] 冲刺中 pos=(-5.67, -0.08, -1.86) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.6, 58.0, 359.6) spearLocalRot=(359.6, 0.2, 359.6) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:37.694][INFO] [Charge] 冲刺中 pos=(-5.64, -0.07, -1.77) navPos=(0.03, 0.03, -0.26) spearWorldRot=(359.7, 58.0, 359.3) spearLocalRot=(359.7, 0.2, 359.3) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:37.731][INFO] [Charge] 冲锋起点 pos=(-5.26, -0.08, -1.80) dir=(0.74, 0.00, 0.67)
-[08:44:37.754][INFO] [Charge] 冲刺中 pos=(-5.17, -0.08, -1.72) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.6, 48.0, 359.5) spearLocalRot=(359.6, 360.0, 359.5) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:37.868][INFO] [Charge] 冲锋结束 位移=0.18 终点=(-5.58, -0.07, -1.73)
-[08:44:38.076][INFO] [Charge] 冲刺中 pos=(-5.47, -0.08, -1.68) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(360.0, 48.0, 359.4) spearLocalRot=(360.0, 0.1, 359.4) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:38.239][INFO] [Charge] 冲锋结束 位移=0.25 终点=(-5.51, -0.09, -1.73)
-[08:44:38.692][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 44.8, 359.4) dir=(0.70, 0.00, 0.71)
-[08:44:38.694][INFO] [Charge] WIND-UP
-[08:44:39.176][INFO] [Charge] 冲锋起点 pos=(-5.05, -0.09, -1.78) dir=(0.70, 0.00, 0.71)
-[08:44:39.211][INFO] [Charge] 冲刺中 pos=(-5.04, -0.09, -1.78) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(359.9, 44.7, 359.8) spearLocalRot=(359.9, 352.7, 359.8) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:39.517][INFO] [Charge] 冲刺中 pos=(-5.14, -0.07, -1.70) navPos=(0.02, 0.03, -0.26) spearWorldRot=(359.6, 44.8, 359.3) spearLocalRot=(359.6, 352.7, 359.3) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:39.689][INFO] [Charge] 冲锋结束 位移=0.13 终点=(-5.07, -0.07, -1.66)
-[08:44:39.860][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 47.2, 0.5) dir=(0.73, 0.00, 0.68)
-[08:44:39.863][INFO] [Charge] WIND-UP
-[08:44:40.359][INFO] [Charge] 冲锋起点 pos=(-4.93, -0.09, -1.67) dir=(0.73, 0.00, 0.68)
-[08:44:40.382][INFO] [Charge] 冲刺中 pos=(-4.83, -0.09, -1.58) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.3, 47.1, 0.4) spearLocalRot=(0.3, 360.0, 0.4) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:40.704][INFO] [Charge] 冲刺中 pos=(-4.74, -0.10, -1.57) navPos=(-0.04, 0.03, -0.31) spearWorldRot=(0.3, 47.1, 0.7) spearLocalRot=(0.3, 0.3, 0.7) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:40.870][INFO] [Charge] 冲锋结束 位移=0.18 终点=(-4.76, -0.10, -1.63)
-
----- [心跳] ----
-dict 注册表条目数 = 23
-dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
-新单位已注册 = True
-新单位 vikingClone=True, agent=True
-已处理黑矛兵 Agent 数 = 3
-----------------
-[08:44:44.517][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 50.7, 0.0) dir=(0.77, 0.00, 0.63)
-[08:44:44.522][INFO] [Charge] WIND-UP
-[08:44:44.755][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 21.5, 360.0) dir=(0.37, 0.00, 0.93)
-[08:44:44.758][INFO] [Charge] WIND-UP
-[08:44:44.994][INFO] [Charge] 冲锋起点 pos=(-3.38, -0.06, -0.12) dir=(0.77, 0.00, 0.63)
-[08:44:45.036][INFO] [Charge] 冲刺中 pos=(-3.27, -0.06, -0.03) navPos=(-3.27, -0.04, -0.03) spearWorldRot=(360.0, 50.7, 0.0) spearLocalRot=(360.0, 354.1, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:45.242][INFO] [Charge] 冲锋起点 pos=(-3.46, -0.06, -1.49) dir=(0.37, 0.00, 0.93)
-[08:44:45.270][INFO] [Charge] 冲刺中 pos=(-3.41, -0.06, -1.37) navPos=(-3.41, -0.05, -1.37) spearWorldRot=(360.0, 21.5, 0.0) spearLocalRot=(360.0, 0.0, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:45.348][INFO] [Charge] 冲刺中 pos=(-3.17, -0.04, 0.05) navPos=(-3.06, -0.02, 0.15) spearWorldRot=(0.0, 50.7, 0.0) spearLocalRot=(0.0, 354.1, 0.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:45.509][INFO] [Charge] 冲锋结束 位移=0.42 终点=(-3.06, -0.02, 0.15)
-[08:44:45.578][INFO] [Charge] 冲刺中 pos=(-3.31, -0.04, -1.15) navPos=(-3.26, -0.02, -1.01) spearWorldRot=(0.0, 21.5, 360.0) spearLocalRot=(0.0, 0.0, 360.0) spearLocalPos=(0.000, 0.168, 0.072)
-[08:44:45.762][INFO] [Charge] 冲锋结束 位移=0.37 终点=(-3.31, -0.03, -1.15)
 
 ---- [心跳] ----
 dict 注册表条目数 = 23
@@ -787,614 +913,272 @@ dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Vi
 已处理黑矛兵 Agent 数 = 3
 ----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(8.0, 167.6, 359.7) localPos=(-0.003, 0.020, 0.029)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(8.0, 167.6, 359.7) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.1, 156.9, 0.1) localPos=(-0.002, 0.012, 0.018)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.1, 156.9, 0.1) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(7.8, 163.7, 357.6) localPos=(-0.003, 0.020, 0.028)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(7.8, 163.7, 357.6) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(4.9, 156.7, 359.5) localPos=(-0.002, 0.012, 0.017)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.9, 156.7, 359.5) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(4.7, 169.2, 358.7) localPos=(-0.002, 0.011, 0.015)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.7, 169.2, 358.7) localPos=(0.000, -0.033, -0.062)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(6.4, 165.7, 357.8) localPos=(-0.003, 0.016, 0.023)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(6.4, 165.7, 357.8) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.1, 161.2, 359.4) localPos=(-0.002, 0.013, 0.018)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.1, 161.2, 359.4) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(6.5, 161.8, 357.8) localPos=(-0.003, 0.016, 0.024)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(6.5, 161.8, 357.8) localPos=(0.000, -0.033, -0.067)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(7.7, 166.1, 359.6) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(7.7, 166.1, 359.6) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.8, 155.3, 359.9) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.8, 155.3, 359.9) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(6.0, 162.4, 358.0) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(6.0, 162.4, 358.0) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.6, 155.4, 359.3) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.6, 155.4, 359.3) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(7.4, 167.6, 357.8) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(7.4, 167.6, 357.8) localPos=(0.000, -0.033, -0.021)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.9, 164.0, 357.8) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.9, 164.0, 357.8) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(3.3, 159.6, 359.5) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(3.3, 159.6, 359.5) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(6.0, 160.4, 357.8) localPos=(0.031, -0.060, 0.003)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(6.0, 160.4, 357.8) localPos=(0.000, -0.033, -0.023)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(6.5, 161.8, 359.1) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(6.5, 161.8, 359.1) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.2, 150.5, 359.5) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.2, 150.5, 359.5) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(4.0, 157.7, 358.3) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.0, 157.7, 358.3) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(5.0, 150.7, 358.9) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(5.0, 150.7, 358.9) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(8.1, 163.4, 356.9) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(8.1, 163.4, 356.9) localPos=(0.000, -0.033, 0.021)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(4.5, 159.5, 357.9) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.5, 159.5, 357.9) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(1.3, 154.7, 359.7) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.3, 154.7, 359.7) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(4.7, 155.8, 357.9) localPos=(0.009, -0.017, 0.001)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.7, 155.8, 357.9) localPos=(0.000, -0.033, 0.020)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
+[13:47:42.003][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 26.1, 0.3) dir=(0.44, 0.00, 0.90)
+[13:47:42.008][INFO] [Charge] WIND-UP
+[13:47:42.487][INFO] [Charge] 冲锋起点 pos=(-3.41, -0.05, -1.77) dir=(0.44, 0.00, 0.90) onMain=True
+[13:47:42.517][INFO] [Charge] 冲刺中 pos=(-3.36, -0.04, -1.67) navPos=(-3.36, -0.04, -1.67) spearWorldRot=(0.0, 26.1, 0.3) spearLocalRot=(360.0, 350.6, 0.2) spearLocalPos=(0.000, 0.168, 0.072)
+[13:47:42.816][INFO] [Charge] 冲刺中 pos=(-2.83, 0.07, -0.59) navPos=(-2.83, 0.07, -0.59) spearWorldRot=(0.0, 26.1, 0.3) spearLocalRot=(360.0, 350.7, 0.2) spearLocalPos=(0.000, 0.168, 0.072)
+[13:47:43.006][INFO] [Charge] HIT English_SwordShield(Clone)(Clone) dmg=3 kb=5 stun=10 hp=0.1
+[13:47:43.011][INFO] [Charge] 冲锋结束 位移=2.00 终点=(-2.53, 0.03, 0.02)
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(4.1, 148.3, 358.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.1, 148.3, 358.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(3.2, 136.3, 358.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(3.2, 136.3, 358.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(1.5, 142.9, 358.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.5, 142.9, 358.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(2.9, 136.3, 358.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.9, 136.3, 358.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(6.9, 150.7, 355.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(6.9, 150.7, 355.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(2.1, 145.7, 358.3) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.1, 145.7, 358.3) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(359.2, 139.8, 0.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.2, 139.8, 0.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(2.2, 141.4, 358.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.2, 141.4, 358.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(1.1, 123.8, 358.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.1, 123.8, 358.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(0.6, 112.7, 359.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.6, 112.7, 359.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(359.7, 118.4, 0.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.7, 118.4, 0.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(0.4, 112.5, 359.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.4, 112.5, 359.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(3.8, 126.7, 354.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(3.8, 126.7, 354.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(359.7, 121.5, 0.6) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.7, 121.5, 0.6) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(358.3, 115.8, 2.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.3, 115.8, 2.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-    spearAim.worldRot(euler)=(359.8, 116.9, 0.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.8, 116.9, 0.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=True charge=False travelling=False arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.2, 99.1, 0.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.2, 99.1, 0.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.1, 92.7, 0.3) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.1, 92.7, 0.3) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.1, 96.2, 0.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.1, 96.2, 0.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.1, 92.5, 0.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.1, 92.5, 0.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.3, 100.4, 359.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.3, 100.4, 359.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.8, 97.8, 1.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.8, 97.8, 1.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.8, 94.9, 0.6) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.8, 94.9, 0.6) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.8, 94.9, 1.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.8, 94.9, 1.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.9, 86.6, 0.3) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.9, 86.6, 0.3) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.9, 82.7, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.9, 82.7, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.3, 85.3, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.3, 85.3, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.2, 82.5, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.2, 82.5, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.9, 86.3, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.9, 86.3, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.0, 86.2, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.0, 86.2, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.5, 85.1, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.5, 85.1, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.1, 84.2, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.1, 84.2, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.3, 82.3, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.3, 82.3, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.3, 79.3, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.3, 79.3, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.7, 81.5, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.7, 81.5, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(360.0, 79.3, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(360.0, 79.3, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.0, 81.2, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.0, 81.2, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.7, 82.2, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.7, 82.2, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.3, 81.9, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.3, 81.9, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.8, 80.7, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.8, 80.7, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 3
+----------------
+[13:48:26.375][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[13:48:26.379][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[13:48:26.380][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[13:48:26.382][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[13:48:26.383][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[13:48:26.385][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[13:48:26.387][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[13:48:26.390][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[13:48:26.391][INFO] [WEAPON] 移除剑盾: shield=False, 禁用子对象 1 个
+[13:48:26.392][INFO] [WEAPON] 已挂载长矛到 BlackSpearman_StrippedTemplate(Clone)(Clone) (localPos=(0.0, 0.2, 0.1), children=1)
+[13:48:26.393][INFO] [AGENT] 黑矛兵 BlackSpearman_StrippedTemplate(Clone)(Clone) 攻击范围 range=0.11 radius=0.13 dmg=1.6 kb=2.5
+[13:48:26.395][INFO] [Charge] Setup OK. speed=2.0 spear=True
+[13:48:26.396][INFO] [SPAWN] 本艘敌舰生成黑矛兵 3 个（累计 6）
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.1, 81.7, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.1, 81.7, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.2, 79.8, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.2, 79.8, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.5, 81.4, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.5, 81.4, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.2, 80.1, 359.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.2, 80.1, 359.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.3, 80.6, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.3, 80.6, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.5, 81.9, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.5, 81.9, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.2, 82.2, 359.6) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.2, 82.2, 359.6) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.1, 81.0, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.1, 81.0, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+[SPAWN·黑矛兵首例] Agent name=BlackSpearman_StrippedTemplate(Clone)(Clone) vikingRef=Viking_BlackSpearman type=SwordShield brain=Swordsman
+GameObject: BlackSpearman_StrippedTemplate(Clone)(Clone)
+  · UnityEngine.Transform
+  · UnityEngine.Animator
+  · UnityEngine.SphereCollider
+  · Voxels.TowerDefense.Agent
+  · Voxels.TowerDefense.Death
+  · Voxels.TowerDefense.Pirate
+  · Voxels.TowerDefense.VikingAgent
+  · Voxels.TowerDefense.Swordsman
+  · Voxels.TowerDefense.Ragdoller
+  · Voxels.TowerDefense.Body
+  · Voxels.TowerDefense.KillAllEnemies
+  · Voxels.TowerDefense.Stun
+  · BadNorthBlackSpearman1_3.BlackSpearmanVisual
+  · BadNorthBlackSpearman1_3.SpearChargeComponent
+  · BadNorthBlackSpearman1_3.SpearStabAction
+  GameObject: DebrisLauncher
+    · UnityEngine.Transform
+  GameObject: BodyAnim
+    · UnityEngine.Transform
+    GameObject: BodySprite
+      · UnityEngine.Transform
+      GameObject: BodySprite
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.SpriteAnimator
+      GameObject: Weapon [inactive]
+        · UnityEngine.Transform
+  GameObject: ShadowAnim
+    · UnityEngine.Transform
+    GameObject: Shadow
+      · UnityEngine.Transform
+      · UnityEngine.SpriteRenderer
+      · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+      GameObject: Shadow
+        · UnityEngine.Transform
+        · UnityEngine.MeshRenderer
+        · UnityEngine.MeshFilter
+  GameObject: Spear_BlackSpearman
+    · UnityEngine.Transform
+    GameObject: SpearAnim
+      · UnityEngine.Transform
+      GameObject: Spear_0
+        · UnityEngine.Transform
+        · UnityEngine.SpriteRenderer
+        · Voxels.TowerDefense.SpriteMagic.BatchedSprite
+        · Voxels.TowerDefense.LevelSprite
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.9, 83.1, 359.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.9, 83.1, 359.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.1, 82.2, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.1, 82.2, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.2, 83.2, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.2, 83.2, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.1, 82.8, 359.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.1, 82.8, 359.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.7, 82.2, 359.6) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.7, 82.2, 359.6) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.2, 83.4, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.2, 83.4, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.8, 83.9, 359.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.8, 83.9, 359.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.4, 83.2, 359.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.4, 83.2, 359.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.9, 87.1, 359.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.9, 87.1, 359.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.1, 87.5, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.1, 87.5, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.1, 87.6, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.1, 87.6, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(3.1, 88.5, 359.6) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(3.1, 88.5, 359.6) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(3.3, 86.6, 359.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(3.3, 86.6, 359.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.9, 87.4, 359.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.9, 87.4, 359.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.3, 88.1, 359.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.3, 88.1, 359.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(4.1, 88.0, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.1, 88.0, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.1, 91.5, 359.6) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.1, 91.5, 359.6) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.2, 92.8, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.2, 92.8, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.2, 92.2, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.2, 92.2, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.9, 93.5, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.9, 93.5, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(3.6, 91.6, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(3.6, 91.6, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.0, 91.9, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.0, 91.9, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.0, 92.4, 359.7) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.0, 92.4, 359.7) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(4.2, 92.6, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(4.2, 92.6, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.3, 93.6, 359.8) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.3, 93.6, 359.8) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.5, 94.8, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.5, 94.8, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.5, 93.9, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.5, 93.9, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.8, 94.8, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.8, 94.8, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.1, 94.0, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.1, 94.0, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.2, 94.0, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.2, 94.0, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(1.1, 94.1, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(1.1, 94.1, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(2.6, 94.2, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(2.6, 94.2, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.0, 93.0, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.0, 93.0, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.4, 93.7, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.4, 93.7, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.3, 93.1, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.3, 93.1, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.4, 93.4, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.4, 93.4, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.4, 93.5, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.4, 93.5, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(0.0, 93.2, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(0.0, 93.2, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.9, 93.1, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.9, 93.1, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.6, 93.2, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.6, 93.2, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.0, 91.6, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.0, 91.6, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.6, 91.7, 360.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.6, 91.7, 360.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.2, 91.5, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.2, 91.5, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.4, 91.5, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.4, 91.5, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(356.9, 91.9, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(356.9, 91.9, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.1, 91.6, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.1, 91.6, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.2, 91.4, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.2, 91.4, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(357.1, 91.4, 359.9) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(357.1, 91.4, 359.9) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.1, 90.3, 0.4) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.1, 90.3, 0.4) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(359.0, 90.2, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(359.0, 90.2, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.4, 90.2, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.4, 90.2, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.5, 90.0, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.5, 90.0, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(355.2, 90.4, 0.3) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(355.2, 90.4, 0.3) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.7, 90.3, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.7, 90.3, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.8, 90.1, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.8, 90.1, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(355.3, 90.1, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(355.3, 90.1, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
 
-[自动测量] PikeCharge 进行中:
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(357.8, 89.6, 0.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(357.8, 89.6, 0.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.8, 89.4, 0.0) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.8, 89.4, 0.0) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.0, 89.5, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.0, 89.5, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.1, 89.3, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.1, 89.3, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(354.4, 89.6, 0.5) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(354.4, 89.6, 0.5) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.7, 89.6, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.7, 89.6, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(358.9, 89.5, 0.2) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(358.9, 89.5, 0.2) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Spear(Clone)(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-    spearAim.worldRot(euler)=(355.1, 89.5, 0.1) localPos=(0.000, 0.000, 0.000)
-    spearAnim.localRot(euler)=(0.0, 0.0, 0.0) worldRot(euler)=(355.1, 89.5, 0.1) localPos=(0.000, -0.033, 0.037)
-    spear: up=False down=False stabbing=False idealTip=(1.00, 0.00, 0.00)
-  PCC English_Standard(Clone): anticipation=False charge=True travelling=True arrived=False energy=0
-[自动测量结束]
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+[13:50:22.883][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 355.1, 180.0) dir=(-0.08, 0.00, 1.00)
+[13:50:22.887][INFO] [Charge] WIND-UP
+[13:50:22.890][INFO] [Charge] 举矛 targetRot(euler)=(0.0, 354.9, 180.0) dir=(-0.09, 0.00, 1.00)
+[13:50:22.892][INFO] [Charge] WIND-UP
+[13:50:23.368][INFO] [Charge] 冲锋起点 pos=(-1.25, 0.02, -3.08) dir=(-0.08, 0.00, 1.00) onMain=True
+[13:50:23.371][INFO] [Charge] 冲锋起点 pos=(-1.38, 0.17, -2.52) dir=(-0.09, 0.00, 1.00) onMain=True
+[13:50:23.399][INFO] [Charge] 冲刺中 pos=(-1.26, 0.05, -2.96) navPos=(-1.26, 0.05, -2.96) spearWorldRot=(0.0, 354.9, 179.9) spearLocalRot=(0.0, 359.8, 179.9) spearLocalPos=(0.000, 0.168, 0.072)
+[13:50:23.402][INFO] [Charge] 冲刺中 pos=(-1.39, 0.21, -2.39) navPos=(-1.39, 0.21, -2.39) spearWorldRot=(0.0, 354.7, 180.1) spearLocalRot=(0.0, 352.1, 180.1) spearLocalPos=(0.000, 0.168, 0.072)
+[13:50:23.715][INFO] [Charge] 冲刺中 pos=(-1.37, 0.25, -1.70) navPos=(-1.37, 0.25, -1.70) spearWorldRot=(0.0, 355.1, 180.0) spearLocalRot=(0.0, 0.0, 180.0) spearLocalPos=(0.000, 0.168, 0.072)
+[13:50:23.717][INFO] [Charge] 冲刺中 pos=(-1.39, 0.23, -1.48) navPos=(-1.39, 0.23, -1.48) spearWorldRot=(0.0, 354.9, 180.0) spearLocalRot=(0.0, 352.3, 180.0) spearLocalPos=(0.000, 0.168, 0.072)
+[13:50:23.886][INFO] [Charge] 冲锋结束 位移=1.64 终点=(-1.31, 0.24, -1.46)
+[13:50:23.889][INFO] [Charge] 冲锋结束 位移=2.21 终点=(-1.55, 0.15, -0.31)
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
+
+---- [心跳] ----
+dict 注册表条目数 = 23
+dict 键 = Viking_Sword, Viking_SwordShield, Viking_Archer, Viking_Berserker, Viking_AxeThrower, Viking_Tank, Viking_TankArcher, Viking_Twohanded, Forest_Grass, Forest_Flowers, Forest_Tombstones, Forest_Shrooms, Forest_Spruce, Forest_Balls, Forest_Trunks, OrangeFall, YellowFall, BluishTrees, Evergreen, NormalGrass, BluishGrass, YellowGrass, Viking_BlackSpearman
+新单位已注册 = True
+新单位 vikingClone=True, agent=True
+已处理黑矛兵 Agent 数 = 6
+----------------
