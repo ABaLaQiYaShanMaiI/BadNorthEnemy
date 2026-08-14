@@ -14,10 +14,10 @@ namespace BadNorthBlackSpearman1_3
         const float DetectionRadius = 5.0f;
         const float ReadyDist = 3.5f;
         const float StabDist = 1.5f;
-        const float ChargeSpeed = 3.0f;
+        const float ChargeSpeed = 4.0f;
         const float CooldownTime = 1.5f;
         const float WindUpDuration = 0.5f;
-        const float ChargingMaxTime = 1.0f;
+        const float ChargingMaxTime = 0.5f;
         const float StabDamage = 3.0f;
         const float StabKnockback = 5.0f;
         const float StabStun = 10f;
@@ -38,6 +38,10 @@ namespace BadNorthBlackSpearman1_3
         float _hitTimer;
         Transform _spearTransform;
         Quaternion _spearRestRotation;
+        bool _hasSpearTarget;
+        Quaternion _spearTargetRot;
+        Vector3 _chargeStartPos;
+        float _posLogTimer;
 
         public void Setup(Agent agent)
         {
@@ -60,6 +64,7 @@ namespace BadNorthBlackSpearman1_3
         {
             if (_phase != Phase.Idle) return false;
             if (_agent == null || _agent.aliveState == null || !_agent.aliveState.active || !_agent.dangerous) return false;
+            if (_agent.aliveAndGrounded != null && !_agent.aliveAndGrounded.active) return false; // 未下船/未落地不触发
             if (!FindNearestEnemy(out _chargeDirection, out _targetAgent)) return false;
             StartWindUp();
             return true;
@@ -97,10 +102,9 @@ namespace BadNorthBlackSpearman1_3
             {
                 _phase = Phase.Charging;
                 _phaseTimer = ChargingMaxTime;
-                _agent.movability = 1f;
-                _agent.maxSpeed = ChargeSpeed;
-                _agent.walkDir = _chargeDirection;
-                Log("CHARGING speed=" + ChargeSpeed);
+                _chargeStartPos = _agent.transform.position;
+                _posLogTimer = 0f;
+                BSLog.Info("[Charge] 冲锋起点 pos=" + _chargeStartPos.ToString("F2") + " dir=" + _chargeDirection.ToString("F2"));
             }
         }
 
@@ -108,12 +112,18 @@ namespace BadNorthBlackSpearman1_3
         {
             _phaseTimer -= Time.deltaTime;
 
-            // ★ 直线冲锋：方向固定（不再追踪目标），高速冲刺，像原版 Pike Charge 一样推着矛尖撞过去
-            _agent.maxSpeed = ChargeSpeed;
-            _agent.walkDir = _chargeDirection;
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
-            // 冲锋途中每 0.15s 对半径 1.5m 内敌人造成伤害+击退
+            // 每 0.3s 记录位置 + 长矛实际旋转（全自动，无需 F9）
+            _posLogTimer -= Time.deltaTime;
+            if (_posLogTimer <= 0f)
+            {
+                _posLogTimer = 0.3f;
+                string sr = _spearTransform != null ? _spearTransform.rotation.eulerAngles.ToString("F1") : "null";
+                BSLog.Info("[Charge] 冲刺中 pos=" + _agent.transform.position.ToString("F2") + " spearRot=" + sr);
+            }
+
+            // 冲锋途中每 0.15s 对半径 0.4m 内敌人造成伤害+击退
             _hitTimer -= Time.deltaTime;
             if (_hitTimer <= 0f)
             {
@@ -128,19 +138,37 @@ namespace BadNorthBlackSpearman1_3
         {
             if (_spearTransform == null) return;
             // 原版 Spear.LateUpdate 的举矛公式：LookRotation(矛尖方向, 角色right) * Euler(0,0,90)
-            _spearTransform.rotation = Quaternion.LookRotation(_chargeDirection, _agent.transform.right) * Quaternion.Euler(0f, 0f, 90f);
+            _spearTargetRot = Quaternion.LookRotation(_chargeDirection, _agent.transform.right) * Quaternion.Euler(0f, 0f, 90f);
+            _hasSpearTarget = true;
+            BSLog.Info("[Charge] 举矛 targetRot(euler)=" + _spearTargetRot.eulerAngles.ToString("F1") + " dir=" + _chargeDirection.ToString("F2"));
         }
 
         void LowerSpear()
         {
             if (_spearTransform == null) return;
             // 放矛：矛尖朝上（原版 spearDown 时 idealSpearTipDir = Vector3.up）
-            _spearTransform.rotation = Quaternion.LookRotation(Vector3.up, _agent.transform.right) * Quaternion.Euler(0f, 0f, 90f);
+            _spearTargetRot = Quaternion.LookRotation(Vector3.up, _agent.transform.right) * Quaternion.Euler(0f, 0f, 90f);
+            _hasSpearTarget = true;
+        }
+
+        void LateUpdate()
+        {
+            // 举矛/放矛旋转插值
+            if (_hasSpearTarget && _spearTransform != null)
+                _spearTransform.rotation = Quaternion.Slerp(_spearTransform.rotation, _spearTargetRot, Time.deltaTime * 12f);
+
+            // 冲锋位移：在 LateUpdate 做（所有 Update 之后），避免被 Agent.Update 同步回导航位置覆盖
+            if (_phase == Phase.Charging && _agent != null)
+            {
+                Vector3 newPos = _agent.transform.position + _chargeDirection * ChargeSpeed * Time.deltaTime;
+                _agent.transform.position = newPos;
+                try { _agent.navPos.pos = newPos; } catch { }
+            }
         }
 
         void DealChargeDamage()
         {
-            int hn = Physics.OverlapSphereNonAlloc(_agent.transform.position, 1.5f, _hitBuffer, ~0, QueryTriggerInteraction.Ignore);
+            int hn = Physics.OverlapSphereNonAlloc(_agent.transform.position, 0.4f, _hitBuffer, ~0, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < hn; i++)
             {
                 var c = _hitBuffer[i];
@@ -186,6 +214,8 @@ namespace BadNorthBlackSpearman1_3
 
         void EndCharge()
         {
+            float displacement = Vector3.Distance(_chargeStartPos, _agent.transform.position);
+            BSLog.Info("[Charge] 冲锋结束 位移=" + displacement.ToString("F2") + " 终点=" + _agent.transform.position.ToString("F2"));
             _phase = Phase.Cooldown;
             _phaseTimer = CooldownTime;
             if (_chargeState != null) _chargeState.SetActive(false);

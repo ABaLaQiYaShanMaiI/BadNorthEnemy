@@ -94,7 +94,7 @@ namespace BadNorthBlackSpearman1_3
 
         void BindConfig()
         {
-            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_Twohanded",
+            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_Sword",
                 "借用其 VikingAgent 预制体作为视觉/行为模板（仅借用引用，不克隆整个 VikingReference）。");
             NewVikingName = Config.Bind("General", "NewVikingName", "Viking_BlackSpearman",
                 "新单位在敌人生成池中的名字。");
@@ -269,7 +269,7 @@ namespace BadNorthBlackSpearman1_3
             {
                 if (__instance == null || __instance.agent == null) return;
                 if (!_done.Contains(__instance.agent)) return;
-                __result = __instance.agent.radius * 0.7f * 2.2f; // 长矛攻击距离约为剑的 2.2 倍
+                __result = __instance.agent.radius * 0.7f * 1.3f; // 长矛攻击距离（接近模型接触）
             }
             catch { }
         }

@@ -31,7 +31,7 @@ namespace BadNorthBlackSpearman1_3
                 if (shield != null) shield.enabled = false;
 
                 int removed = 0;
-                string[] keys = { "shield", "sword", "盾", "剑" };
+                string[] keys = { "shield", "sword", "weapon", "盾", "剑" };
                 foreach (var t in a.GetComponentsInChildren<Transform>(true))
                 {
                     if (t == null || t.gameObject == a.gameObject) continue;

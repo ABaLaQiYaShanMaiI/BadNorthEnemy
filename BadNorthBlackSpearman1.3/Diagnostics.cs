@@ -241,6 +241,25 @@ namespace BadNorthBlackSpearman1_3
             }
             catch (Exception e) { BSLog.Warn("[测量] 扫描 Spear 失败: " + e); }
 
+            // ---- 黑矛兵的长矛（我们克隆的 Spear_BlackSpearman） ----
+            try
+            {
+                var allTrans = Resources.FindObjectsOfTypeAll<Transform>();
+                int bn = 0;
+                foreach (var t in allTrans)
+                {
+                    if (t == null || t.name != "Spear_BlackSpearman") continue;
+                    if (bn++ >= 8) break;
+                    try
+                    {
+                        BSLog.Raw($"  黑矛兵长矛 {t.name}: worldRot(euler)={t.rotation.eulerAngles.ToString("F1")}  localRot(euler)={t.localRotation.eulerAngles.ToString("F1")}  localPos={t.localPosition.ToString("F3")}");
+                    }
+                    catch (Exception e2) { BSLog.Warn("[测量] 黑矛 " + e2); }
+                }
+                if (bn == 0) BSLog.Raw("  （未找到黑矛兵长矛，可能尚未生成）");
+            }
+            catch (Exception e) { BSLog.Warn("[测量] 扫描黑矛兵长矛失败: " + e); }
+
             // ---- PikeChargeComponent 阶段状态 ----
             try
             {
@@ -268,8 +287,12 @@ namespace BadNorthBlackSpearman1_3
                     if (pca == null) continue;
                     try
                     {
-                        BSLog.Raw($"  PCA {pca.name}: charging={pca.charging.active} dir={pca.dir.ToString("F2")}");
-                        BSLog.Raw($"    settings.range={pca.settings.range}  settings.speed={pca.settings.speed}");
+                        string chargingState = (pca.charging != null) ? pca.charging.active.ToString() : "null";
+                        BSLog.Raw($"  PCA {pca.name}: charging={chargingState} dir={pca.dir.ToString("F2")}");
+                        if (pca.settings != null)
+                            BSLog.Raw($"    settings.range={pca.settings.range}  settings.speed={pca.settings.speed}");
+                        else
+                            BSLog.Raw("    settings=null");
                         BSLog.Raw(BSLog.DumpFields(pca));
                     }
                     catch (Exception e2) { BSLog.Warn("[测量] PCA " + e2); }
