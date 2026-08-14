@@ -46,9 +46,9 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<float> ScaleMult;
         public static ConfigEntry<bool> EnableRecolor;
         public static ConfigEntry<bool> EnableWeaponSwap;
-        public static ConfigEntry<bool> HideSwordVisual;
         public static ConfigEntry<bool> EnableCharge;
         public static ConfigEntry<bool> EnableStab;
+        public static ConfigEntry<bool> RemoveSword;
 
         static VikingReference _blackSpearman;
         static VikingAgent _sourceViking;
@@ -118,12 +118,14 @@ namespace BadNorthBlackSpearman1_3
 
             EnableRecolor = Config.Bind("Visual", "EnableRecolor", true, "是否把新单位染成黑色。");
             EnableWeaponSwap = Config.Bind("Visual", "EnableWeaponSwap", true, "是否移除剑盾并复用我方长矛（混搭武器）。");
-            HideSwordVisual = Config.Bind("Visual", "HideSwordVisual", false,
-                "（已废弃）实测 SpriteAnimator.sprite2 = PartTex_Median_BlurAlpha 是身体贴图（身体轮廓遮罩），" +
-                "并非武器部件图——透明化任何区域都会让身体消失。此选项现为 no-op，身体保持完整。" +
-                "想换身体观感请改 SourceVikingName = Viking_Twohanded。");
+            // ★ 去剑（2026-08-14 研究修正）：剑是烘焙在 OnehandedXXXX 动画帧里的暗红像素
+            // （颜色签名 R>70,G<40,B<20，实测随挥剑动画绕身体移动），由 SwordRemover 运行时擦除帧像素。
+            // sprite2（PartTex_Median_BlurAlpha）是身体遮罩，不去动它。
             EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲刺技能。");
             EnableStab = Config.Bind("Skills", "EnableStab", true, "是否注入刺击技能。");
+            RemoveSword = Config.Bind("Visual", "RemoveSword", false,
+                "是否移除烘焙在身体动画帧（OnehandedXXXX）里的剑（默认关闭：颜色签名需先用日志诊断校准，" +
+                "直接开启会误擦身体暗红衣物导致身体透明）。");
         }
 
         void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
@@ -232,24 +234,11 @@ namespace BadNorthBlackSpearman1_3
                 var shield = stripped.GetComponent<Shield>();
                 if (shield != null) UnityEngine.Object.DestroyImmediate(shield);
 
-                // ② 视觉残留子对象（盾/剑/aimer/weapon）
-                string[] keys = { "shield", "sword", "weapon", "aimer", "盾", "剑" };
-                foreach (Transform t in stripped.GetComponentsInChildren<Transform>(true))
-                {
-                    if (t == null || t.gameObject == stripped) continue;
-                    string n = t.name.ToLowerInvariant();
-                    for (int i = 0; i < keys.Length; i++)
-                    {
-                        if (n.Contains(keys[i].ToLowerInvariant()))
-                        {
-                            t.gameObject.SetActive(false);
-                            break;
-                        }
-                    }
-                }
+                // ② 视觉残留子对象（盾/剑/aimer/weapon）—— 与 BlackSpearmanWeapon.RemoveSwordShield 共用同一工具
+                int removedVisuals = BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.VisualChildNameKeys);
 
                 BSLog.Info("[REGISTER] 已生成剥离模板: 删除Arsonist=" + (arsonist != null) +
-                    " 删除Shield=" + (shield != null) + "，子对象已按名称禁用");
+                    " 删除Shield=" + (shield != null) + "，子对象已按名称禁用 " + removedVisuals + " 个");
                 return stripped.GetComponent<VikingAgent>();
             }
             catch (Exception e)
@@ -362,7 +351,7 @@ namespace BadNorthBlackSpearman1_3
                 };
                 __result = new Attack(settings, dir, (target.wChestPos + __instance.agent.wChestPos) / 2f,
                     __instance, __instance.agent.squad, "Sfx/English/Spear");
-                PointSpearAtTarget(__instance, target);   // 视觉：长矛刺向目标（盖过挥剑动画）
+                SpearVisual.AimAt(__instance.agent, target.chestPos);   // 视觉：长矛刺向目标（盖过挥剑动画）
                 return false; // 跳过原版剑击
             }
             catch (Exception e)
@@ -370,26 +359,6 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Warn("[PATCH] 长矛攻击改写异常: " + e);
                 return true;
             }
-        }
-
-        /// <summary>
-        /// 近战攻击时让长矛指向目标（"用矛的逻辑盖过剑的视觉"）：
-        /// Swordsman.GetAttack 已被改写为长矛攻击，这里同步把 Spear_BlackSpearman 转向目标，
-        /// 使"矛刺"成为视觉焦点，弱化身体纹理里残留的挥剑姿势。
-        /// </summary>
-        static void PointSpearAtTarget(Swordsman sw, Agent target)
-        {
-            try
-            {
-                if (sw == null || sw.agent == null || target == null) return;
-                var spear = sw.agent.transform.Find("Spear_BlackSpearman");
-                if (spear == null) return;
-                Vector3 tipDir = (target.chestPos - spear.position).normalized;
-                tipDir.y = 0f;
-                if (tipDir.sqrMagnitude < 0.001f) return;
-                spear.rotation = Quaternion.LookRotation(tipDir);
-            }
-            catch { }
         }
 
         static void LevelNodeSetupPostfix(LevelNode __instance)
@@ -452,8 +421,6 @@ namespace BadNorthBlackSpearman1_3
             }
             if (EnableWeaponSwap.Value)
                 BlackSpearmanWeapon.Apply(a);
-            if (HideSwordVisual.Value)
-                HideSwordPart(a);
             if (Mathf.Abs(ScaleMult.Value - 1f) > 0.0001f)
                 a.scale *= ScaleMult.Value;
 
@@ -477,6 +444,9 @@ namespace BadNorthBlackSpearman1_3
                 var st = a.gameObject.AddComponent<SpearStabAction>();
                 RegisterBrainAction(a, st);
             }
+            // ★ 去剑组件：无论 RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
+            var remover = a.gameObject.AddComponent<SwordRemover>();
+            if (remover != null) remover.Setup(a, RemoveSword.Value);
         }
 
         static void RegisterBrainAction(Agent a, IBrainAction action)
@@ -490,21 +460,6 @@ namespace BadNorthBlackSpearman1_3
         {
             if (arr == null || Mathf.Abs(m - 1f) < 0.0001f) return;
             for (int i = 0; i < arr.Length; i++) arr[i] *= m;
-        }
-
-        // ============ 去剑：实测放弃（sprite2 = 身体贴图） ============
-
-        /// <summary>
-        /// ⚠️ 实测结论（多轮日志验证）：SpriteAnimator.sprite2 指向 PartTex_Median_BlurAlpha——
-        /// 这是带 alpha 的"身体贴图"（身体轮廓遮罩），不是武器部件图！
-        /// 把它的任何区域透明都会导致身体透明消失。
-        /// 因此去剑方案放弃：不再修改 sprite2，身体保持完整。
-        /// （"剑"的视觉来自身体动画帧 Swordsman0001~0098 的手持姿势像素 + 已禁用的 Weapon 子对象，
-        ///   前者是共享纹理像素无法运行时删除；想要不同身体观感可改 SourceVikingName = Viking_Twohanded。）
-        /// </summary>
-        static void HideSwordPart(Agent a)
-        {
-            BSLog.Info("[VISUAL] sprite2=身体贴图(PartTex_Median_BlurAlpha)——去剑会破坏身体，已放弃修改，身体保持完整");
         }
     }
 }

@@ -15,7 +15,6 @@ namespace BadNorthBlackSpearman1_3
     {
         const float HeartbeatInterval = 8f;
         float _lastHeartbeat;
-        float _autoTimer = 0.1f;
 
         void Update()
         {
@@ -40,8 +39,6 @@ namespace BadNorthBlackSpearman1_3
                 _lastHeartbeat = Time.time;
                 Heartbeat();
             }
-
-            AutoMeasurePikeCharge();
         }
 
         /// <summary>
@@ -109,40 +106,51 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[渲染诊断] 异常: " + e); }
         }
 
-        void AutoMeasurePikeCharge()
+        /// <summary>
+        /// 去剑诊断（黑矛兵生成时对前几只自动调用 + 供 F8 复用）：
+        /// 打印完整 Transform 层级 + 每个 SpriteRenderer / SpriteAnimator 的 sprite/sprite2 详情，
+        /// 用于确定"剑"的来源：(a) 独立子对象（名字未命中禁用关键字）(b) 动画帧 (c) sprite2 部件贴图。
+        /// </summary>
+        public static void DumpAgentSprites(Agent a)
         {
-            _autoTimer -= Time.deltaTime;
-            if (_autoTimer > 0f) return;
-            _autoTimer = 1f; // 降频：0.1s→1s，避免 FindObjectsOfTypeAll 刷屏
-
-            var pccs = Resources.FindObjectsOfTypeAll<PikeChargeComponent>();
-            bool any = false;
-            foreach (var pcc in pccs)
+            try
             {
-                if (pcc != null && pcc.pikeCharge.active) { any = true; break; }
-            }
-            if (!any) return;
-
-            BSLog.Raw("\n[自动测量] PikeCharge 进行中:");
-            foreach (var pcc in pccs)
-            {
-                if (pcc == null || !pcc.pikeCharge.active) continue;
-                try
+                if (a == null) return;
+                BSLog.Raw("\n==== 去剑诊断: " + a.name + " ====");
+                BSLog.Raw(BSLog.DumpHierarchy(a.gameObject, 8));
+                var srs = a.GetComponentsInChildren<SpriteRenderer>(true);
+                BSLog.Raw("  SpriteRenderer x" + srs.Length);
+                foreach (var sr in srs)
                 {
-                    BSLog.Raw($"  PCC {pcc.name}: anticipation={pcc.anticipation.active} charge={pcc.charge.active} travelling={pcc.travelling.active} arrived={pcc.arrived.active} energy={pcc.energy}");
-                    var spear = pcc.spear;
-                    if (spear != null)
+                    if (sr == null) continue;
+                    string spr = "null";
+                    string rect = "-";
+                    if (sr.sprite != null)
                     {
-                        if (spear.spearAim != null)
-                            BSLog.Raw($"    spearAim.worldRot(euler)={spear.spearAim.rotation.eulerAngles.ToString("F1")} localPos={spear.spearAim.localPosition.ToString("F3")}");
-                        if (spear.spearAnim != null)
-                            BSLog.Raw($"    spearAnim.localRot(euler)={spear.spearAnim.localRotation.eulerAngles.ToString("F1")} worldRot(euler)={spear.spearAnim.rotation.eulerAngles.ToString("F1")} localPos={spear.spearAnim.localPosition.ToString("F3")}");
-                        BSLog.Raw($"    spear: up={spear.spearUp.active} down={spear.spearDown.active} stabbing={spear.stabbing.active} idealTip={spear.idealSpearTipDir.ToString("F2")}");
+                        spr = sr.sprite.name + "/" + (sr.sprite.texture != null ? sr.sprite.texture.name : "null");
+                        rect = sr.sprite.textureRect.ToString();
                     }
+                    string s2 = "-";
+                    string col = "-";
+                    var sa = sr.GetComponent<SpriteAnimator>();
+                    if (sa != null)
+                    {
+                        if (sa.sprite2 != null)
+                            s2 = sa.sprite2.name + "/" + (sa.sprite2.texture != null ? sa.sprite2.texture.name : "null");
+                        Color c = sa.color;
+                        col = "(" + c.r.ToString("F2") + "," + c.g.ToString("F2") + "," + c.b.ToString("F2") + "," + c.a.ToString("F2") + ")";
+                    }
+                    BSLog.Raw("  · " + sr.gameObject.name + " active=" + sr.gameObject.activeSelf +
+                        " sprite=" + spr + " rect=" + rect +
+                        (sa != null ? " | SpriteAnimator.sprite2=" + s2 + " color=" + col : ""));
                 }
-                catch (Exception e) { BSLog.Warn("[自动测量] " + e); }
+                if (a.animator != null)
+                {
+                    try { BSLog.Raw("  Animator Speed=" + a.animator.GetFloat("Speed").ToString("F2")); } catch { }
+                }
+                BSLog.Raw("==== 去剑诊断结束 ====");
             }
-            BSLog.Raw("[自动测量结束]");
+            catch (Exception e) { BSLog.Warn("[诊断] DumpAgentSprites 异常: " + e); }
         }
 
         void Heartbeat()

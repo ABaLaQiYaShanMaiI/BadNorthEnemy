@@ -63,6 +63,14 @@ namespace BadNorthBlackSpearman1_3
         public static void Error(string msg) { Write("ERROR", msg); }
         public static void Raw(string msg) { Append(msg); }
 
+        /// <summary>诊断行：同时写入日志文件与 BepInEx 控制台（方便直接把诊断内容贴出来）。
+        /// 注意：BSLog.Raw 只写文件、控制台看不到；需要贴日志时请用 Diag。</summary>
+        public static void Diag(string msg)
+        {
+            Append(msg);
+            try { Plugin.Log?.LogInfo(msg); } catch { }
+        }
+
         static void Write(string level, string msg)
         {
             Append($"[{DateTime.Now:HH:mm:ss.fff}][{level}] {msg}");

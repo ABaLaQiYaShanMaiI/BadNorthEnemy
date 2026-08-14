@@ -15,11 +15,33 @@ namespace BadNorthBlackSpearman1_3
         static Transform _spearTemplate;
         static float _lastNoSpearLog = -999f;
 
+        /// <summary>按名称关键字禁用的共享表（盾/剑/武器/aimer 视觉残留），供运行时移除与预制体剥离共用。</summary>
+        public static readonly string[] VisualChildNameKeys = { "shield", "sword", "weapon", "aimer", "盾", "剑" };
+
         public static void Apply(Agent a)
         {
             if (a == null) return;
             RemoveSwordShield(a);
             MountSpear(a);
+        }
+
+        /// <summary>按名称关键字禁用 root 下的视觉残留子对象（Plugin.BuildStrippedTemplate 也复用）。返回禁用数量。</summary>
+        public static int DisableChildrenByNames(Transform root, string[] keys)
+        {
+            if (root == null || keys == null || keys.Length == 0) return 0;
+            int removed = 0;
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null || t.gameObject == root.gameObject) continue;
+                string n = t.name.ToLowerInvariant();
+                bool hit = false;
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    if (n.Contains(keys[i].ToLowerInvariant())) { hit = true; break; }
+                }
+                if (hit) { t.gameObject.SetActive(false); removed++; }
+            }
+            return removed;
         }
 
         static void RemoveSwordShield(Agent a)
@@ -30,17 +52,7 @@ namespace BadNorthBlackSpearman1_3
                 var shield = a.GetComponent<Shield>();
                 if (shield != null) shield.enabled = false;
 
-                int removed = 0;
-                string[] keys = { "shield", "sword", "weapon", "盾", "剑" };
-                foreach (var t in a.GetComponentsInChildren<Transform>(true))
-                {
-                    if (t == null || t.gameObject == a.gameObject) continue;
-                    string n = t.name.ToLowerInvariant();
-                    bool hit = false;
-                    foreach (var k in keys)
-                        if (n.Contains(k.ToLowerInvariant())) { hit = true; break; }
-                    if (hit) { t.gameObject.SetActive(false); removed++; }
-                }
+                int removed = DisableChildrenByNames(a.transform, VisualChildNameKeys);
                 BSLog.Info($"[WEAPON] 移除剑盾: shield={a.shield}, 禁用子对象 {removed} 个");
             }
             catch (Exception e) { BSLog.Warn("[WEAPON] 移除剑盾失败: " + e); }

@@ -6,6 +6,29 @@
 
 ---
 
+## ✅ 技能效果实现成功（2026-08-14 定稿）
+
+> **登岛触发 + 长矛突击表现 + 可躲高收益** —— 目标全部达成。
+
+**技能机制（Twohanded 触发 × 我方 Pike Charge 表现 的合体）：**
+
+| 维度 | 实现 |
+|---|---|
+| 触发逻辑 | 登岛（`navPos.onMain`）后**优先跟随 Swordsman 大脑锁定目标**（Twohanded 式），路径朝目标导航格；大脑无目标才退回 6m 扫描兜底 |
+| 技能表现 | 0.5s 举矛前摇 → **非追踪**直线冲锋（5m/s、穿透锁定格 1.5m）→ 后退 0.6m 迎击 → **4.25s 冷却** |
+| 攻击效果 | 沿途**单矛线宽 0.5m** 扫过一排（能量逐击递减 ×0.8）→ **终点爆发**（伤害×0.3、击退+2、撞飞）—— 沿途推散、终点撞飞 |
+| 可躲高收益 | 冲锋**非追踪 + 前摇可见 + 线宽 0.5m**：横向拉开即可躲过；躲过则黑矛兵冲空陷入长后摇 |
+| 战术价值 | 逼迫我方放弃优先占据的窄道/少接战面地形、转入可进可退的开阔地，或阻碍单位转场——与不同兵种同场可碰撞出火花 |
+
+**本轮关键修复（对照 `BadNorthDatabase-main` 原版源码逐条落地）：**
+1. 触发改由**大脑目标**驱动（修复"走路到阵前不冲锋"）；
+2. 命中改用 `AgentEnumerators` + **视觉长矛锚点**（修复冲锋时 transform 滞后 navPos 约 1m 导致的"隔空命中"）；
+3. **抵达爆发**对终点周围所有存活单位生效（还原原版"最后一撞"）；
+4. 协同防重**软降级**（大脑目标也参与防重，避免多个黑矛兵挤同一目标）；
+5. 参数定稿：`CooldownTime=4.25s`、`HitRadius=0.5m`、`ArrivalBurstRadius=1.2m`。
+
+---
+
 ## 与历史版本的差异
 
 | 版本 | 策略 | 问题 | 状态 |
@@ -13,7 +36,7 @@
 | v1.0 | 运行时新建 VikingReference + 反射 | 时序问题（dict 在 Awake 时为空） | 🔒 封存 |
 | v1.1 | BBB 风格劫持 `Viking_SwordShield` | SwordShield 消失 | 🔒 封存 |
 | v1.2 | `Instantiate(源VR)` 克隆 + Enum/Asset 外部工具链 | 克隆脏状态、外部工具链复杂 | 🔒 封存 |
-| **v1.3** | **新建 VikingReference（非克隆）+ 注入敌人生成池 + 特质式美术资源** | ✅ | 🚀 当前 |
+| **v1.3** | **新建 VikingReference（非克隆）+ 注入敌人生成池 + 特质式美术资源** | ✅ 定稿 | 🏆 当前 |
 
 ## 核心思路（源码验证）
 
@@ -189,7 +212,7 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 | 旋转层级 | 旋转发生在父骨 `spearAim`，`spearAnim` 局部旋转恒等（`spearAnim.localRot=(0,0,0)`） |
 | 我方长矛参考 | `spearAim.localPos=(0,0,0)`，`spearAnim.localPos=(0,-0.033,0.037)` |
 
-### 🤔 待验证 / 待解决的困惑
+### ✅ 待验证 / 待解决困惑 —— 逐项定稿（历史表格保留于下方）
 
 | # | 困惑 | 现状与原因 | 下一步 |
 |---|------|-----------|-------|
@@ -203,7 +226,41 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 
 ---
 
-## 文件结构
+**定稿结论（2026-08-14）：**
+1. 位移：✅ 实测 2.5~5m（含穿透余量），观感正常。
+2. 抬矛速率：🟡 保留 12/s；如需更缓可降到 4~6/s。
+3. 命中判定：✅ 改用 `AgentEnumerators` + 视觉长矛锚点 + 线宽 0.5m —— 命中=所见。
+4. 剑动画残留：✅ 接受剑影（身体动画帧像素，运行时无法去除），长矛主导视觉。
+5. `onMain` 拦截：✅ 实测登岛前反复拦截、登岛后立刻触发。
+6. 撞崖/出界：✅ 原版同款 `new NavPos(..., world:true)` 回退。
+7. 单体 vs 列阵：🟡 设计决定保持单体冲刺（敌方无 `EnglishFormationAgent`）；列阵冲锋留作后续可选。
+
+---
+
+## 🔬 去剑研究（2026-08-15，进行中）
+
+> 目标：移除黑矛兵身体动画帧里烘焙的剑（视觉残留）。攻击逻辑早已是长矛（GetAttack patch），剑只是观感。
+
+### 研究结论
+
+| 项 | 发现 |
+|---|---|
+| 剑在哪 | 烘焙在 **`OnehandedXXXX` 动画帧**的帧右侧 **x≈29~38**（暗红垂直带，宽阈值 70/40/20 = 201 像素）。之前误认为是 `Swordsman0001`（那是 SwordShield 的帧） |
+| 帧纹理 | **共享 2048x1024 精灵图集**（`SpriteAtlasTexture-Sprites`）→ 必须克隆后按帧 rect 擦除 |
+| 外观来源 | `sprite2 = PartTex_Sword`（`PartTex_Median_BlurAlpha` 图集 (192,0,64,126) 单元），`SetSprite2` 是安全机制 |
+| ⚠️ 真凶 | **`bSprite` 交换会破坏身体渲染（躯干透明）**——即使只擦剑区域、顶点色/UV 全部正常，换 Sprite 对象就坏 |
+
+### 当前方案（已实施，待验证）
+
+**不交换 bSprite，只替换材质块 `_MainTex`**：网格 UV 指向图集单元，克隆纹理与图集同尺寸 → `_MainTex` 直接采样克隆的同一单元渲染"去剑帧"，不触发批量渲染重建。
+
+实现：`SwordRemover.EnsureErasedTexture`（共享克隆 + 每帧 rect 擦一次 + 安全阀）+ `block.SetTexture("_MainTex", clone)`。
+
+**诊断**：`去剑·运行时诊断`（帧像素 ASCII 图 + sprite2 + 网格状态）+ `[去剑诊断]`（阈值命中/bbox）。
+
+**调参**：`SwordRMin/GMax/BMax=70/40/20`、`SwordLocalXMin=28`、`SafetyEraseRatio=0.2`。
+
+---
 
 ```
 BadNorthBlackSpearman1.3/
@@ -216,6 +273,8 @@ BadNorthBlackSpearman1.3/
 ├── BlackSpearmanWeapon.cs      # 武器混搭（移除剑盾 + 复用我方长矛）
 ├── SpearChargeComponent.cs     # 冲刺技能（IBrainAction）
 ├── SpearStabAction.cs          # 刺击技能（IBrainAction）
+├── SpearVisual.cs              # 长矛朝向统一工具（冲锋/刺击/普通攻击共用举矛公式）
+├── SwordRemover.cs             # 去剑组件（运行时擦除 Onehanded 动画帧里的剑像素）
 ├── Resources/
 │   └── black_spearman_icon.png # 美术图标（可选）
 └── README.md

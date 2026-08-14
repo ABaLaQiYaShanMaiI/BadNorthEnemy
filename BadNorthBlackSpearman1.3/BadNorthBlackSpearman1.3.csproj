@@ -13,15 +13,15 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="MMHOOK-Assembly-CSharp">
-      <HintPath>C:\Users\r1355\Desktop\BadNorthProgram\BadNorth旧灰复燃的战旗v2.0\BepInEx\plugins\MMHOOK-Assembly-CSharp.dll</HintPath>
+      <HintPath>D:\Steam\steamapps\common\BadNorth\BepInEx\plugins\MMHOOK-Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="BepInEx">
-      <HintPath>C:\Users\r1355\Desktop\BadNorthProgram\BadNorth旧灰复燃的战旗v2.0\BepInEx\core\BepInEx.dll</HintPath>
+      <HintPath>D:\Steam\steamapps\common\BadNorth\BepInEx\core\BepInEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="0Harmony">
-      <HintPath>C:\Users\r1355\Desktop\BadNorthProgram\BadNorth旧灰复燃的战旗v2.0\BepInEx\core\0Harmony.dll</HintPath>
+      <HintPath>D:\Steam\steamapps\common\BadNorth\BepInEx\core\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
