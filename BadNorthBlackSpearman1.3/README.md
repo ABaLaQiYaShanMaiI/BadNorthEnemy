@@ -38,7 +38,7 @@ GameSetup.Awake()                          ← MMHOOK ① 在这里新建并注�
 
 1. **新建 + 注册**（`GameSetup.Awake`，MMHOOK）：
    `new GameObject` + `AddComponent<VikingReference>`（**不 `Instantiate` 克隆**），
-   反射配置私有字段（`viking` 仅借用 `Viking_SwordShield` 的 `VikingAgent` 预制体引用），
+   反射配置私有字段（`viking` 仅借用 `Viking_Sword` 的 `VikingAgent` 预制体引用），
    注册进 `LevelStateObjectReferences.dict`。
 
 2. **加入敌人生成池**（`LevelNode.Setup`，Harmony postfix）：
@@ -94,7 +94,7 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 
 | 分组 | 键 | 默认 | 说明 |
 |------|----|------|------|
-| General | `SourceVikingName` | `Viking_SwordShield` | 借用 VikingAgent 预制体引用的源单位 |
+| General | `SourceVikingName` | `Viking_Sword` | 借用 VikingAgent 预制体引用的源单位（默认单手持剑兵基底） |
 | General | `NewVikingName` | `Viking_BlackSpearman` | 新单位在生成池中的名字 |
 | General | `Bounty` | 8 | 赏金 |
 | Spawn | `SpawnChance` | 0.7 | 每关加入生成池概率 |
@@ -143,6 +143,63 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 - 新单位 `VikingReference` 的**所有字段**（含私有 `[SerializeField]`，反射读取）
 - 新单位 `vikingClone` 的 GameObject 层级
 - 场景中所有 `VikingAgent` 概况（黑矛兵 vs 其他）
+
+---
+
+## 调试成果与待解决困惑（2026-08-14）
+
+> 本轮聚焦“举矛冲锋”的四项验证：① 下船后才触发；② 位移明显变大；③ 判定贴近模型；④ 剑的视觉去除。
+> 实测对照日志见插件目录 `BadNorthBlackSpearman1.3.log`。
+
+### ✅ 已定位并修复的根因
+
+**1. 冲锋位移无效（本轮核心修复）**
+
+- 实测：16 次冲锋位移全部仅 **0.08~0.42 m**，且 `[Charge] HIT` 全程 **0 次**（冲锋根本没冲出去）。
+- 根因（对照原版源码逐行确认）：
+  1. `NavPos` 是**结构体**（`NavPos.cs`），`_agent.navPos.pos = newPos` 是在**临时副本**上写值——静默无效；
+  2. Agent 的 `transform` **每帧都由 navPos 同步**：`Agent.FixedUpdateAgent` 里 `wPos = navPos.wPos`，
+     `Body` 的 standing/stepping/sliding 状态再据此驱动 `transform.position` —— 所以 `LateUpdate` 里直接写
+     `transform.position` 下一帧就被覆盖。
+- 修复：照搬原版 `PikeChargeComponent.charge.OnUpdate`（`agent.navPos = current;`）的做法 —— 把 `agent.navPos`
+  **整体赋值**为沿冲锋方向推进的新 `NavPos`（先 `MoveTo`，入参为 navmesh 本地坐标；失败则
+  `new NavPos(navMesh, worldPos, world:true)` 回退）。
+  参数 `ChargeSpeed=4 × ChargingMaxTime=0.5s` → 理论位移 ~2 m。
+
+**2. 敌舰上过早触发冲锋**
+
+- 实测：敌舰刚生成黑矛兵就立刻出现 `WIND-UP`/`冲锋起点`，此时 `navPos=(-0.04, 0.03, -0.31)` 与世界坐标
+  `pos=(-7.74, -2.08)` **对不上**；等登上主岛后 `navPos.pos` 才与 `pos` 一致（主岛 navmesh 的 transform 为单位矩阵）。
+  → 判据成立：黑矛兵在**敌舰导航网格**上时就已触发冲锋。
+- 根因：敌舰上同样有有效 navPos，`aliveAndGrounded` 在船上同样激活，仅靠它拦不住。
+- 修复：`MaybeAct` 追加 `navPos.onMain` 拦截（`onMain` = navPos 已在主岛导航网格上，即 `NavigationMesh.island != null`）。
+- 诊断配合：冲锋起点日志新增 `onMain=` 字段，回查即可确认是否真的“下船后才触发”。
+
+**3. 默认源单位改为 `Viking_Sword`**
+
+- 代码默认值早已改为 `Viking_Sword`，但旧 cfg 文件里的 `Viking_SwordShield` 会覆盖它。
+- 已更新 `BepInEx/config/badnorth.blackspearman.v1.3.cfg` → `SourceVikingName = Viking_Sword`（单手持剑兵基底）。
+
+### 📐 原版参考值（校准用）
+
+| 项 | 值 |
+|----|----|
+| 原版 Pike Charge | duration≈0.447s、radius=0.732、speed=5、range=20 |
+| 举矛公式 | `spearAim.rotation = LookRotation(矛尖方向, 角色right) * Euler(0,0,90)` |
+| 旋转层级 | 旋转发生在父骨 `spearAim`，`spearAnim` 局部旋转恒等（`spearAnim.localRot=(0,0,0)`） |
+| 我方长矛参考 | `spearAim.localPos=(0,0,0)`，`spearAnim.localPos=(0,-0.033,0.037)` |
+
+### 🤔 待验证 / 待解决的困惑
+
+| # | 困惑 | 现状与原因 | 下一步 |
+|---|------|-----------|-------|
+| 1 | 位移是否真的达到 ~1.5–2 m | navPos 每帧推进 2 m，但 `Body` 踏步动画是“追赶式”，且冲锋时 `maxSpeed=0` 使 stepTime 偏大，视觉位移可能低于 navPos 位移（橡皮筋延迟）。 | 实测新日志 `冲锋结束 位移=`；不足则 `ChargingMaxTime` 0.5→0.6s 或 `ChargeSpeed` 4→5。 |
+| 2 | 抬矛速率是否过快 | 黑矛兵 `Slerp` 速率 12/s，玩家方约 4/s；日志显示矛能快速贴到 targetRot，观感偏“瞬举”。 | 观感验证后把 `Time.deltaTime * 12f` 降到 4~6。 |
+| 3 | 命中判定是否贴近模型 | 位移修好前 0.4 m 命中半径 + 0.15 s tick 从未命中，无有效数据。 | 位移正常后观察 `[Charge] HIT` 是否近身触发、伤害/击退/眩晕是否符合预期。 |
+| 4 | 剑动画是否彻底去除 | 基底换为 `Viking_Sword` 后仍需确认；挥剑可能烘焙在身体动画/纹理中。 | 看 `[WEAPON] 禁用子对象 N 个` 与画面；仍残留则试 `Viking_Berserker`/`Viking_Tank` 基底。 |
+| 5 | `onMain` 拦截是否真正生效 | 逻辑成立（敌舰 navmesh 无 island 引用），但需实测确认生成点不再立刻 `WIND-UP`。 | 看新日志“冲锋起点”是否带 `onMain=True`、且敌舰到达后有一段等待。 |
+| 6 | 冲锋撞崖/出界行为 | `MoveTo` 失败回退重建 NavPos（贴最近三角形）；遇悬崖/水边时具体表现未实测。 | 挑一个冲锋路径跨崖/水边的关卡实测。 |
+| 7 | 单体 vs 整队列阵冲锋 | 当前受“独立单位非小队”限制，冲锋是**单体冲刺**；原版是整队列阵冲锋（含 `positionInFormation` 偏移）。 | 后续可选：升级为队列冲锋。 |
 
 ---
 

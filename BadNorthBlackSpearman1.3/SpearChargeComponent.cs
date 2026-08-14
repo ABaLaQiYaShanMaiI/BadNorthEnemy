@@ -65,6 +65,9 @@ namespace BadNorthBlackSpearman1_3
             if (_phase != Phase.Idle) return false;
             if (_agent == null || _agent.aliveState == null || !_agent.aliveState.active || !_agent.dangerous) return false;
             if (_agent.aliveAndGrounded != null && !_agent.aliveAndGrounded.active) return false; // 未下船/未落地不触发
+            // 还必须已登上主岛导航网格（navPos.onMain）。敌舰上也有有效的 navPos，aliveAndGrounded 在船上同样激活，
+            // 不加这一条会在敌舰上就触发冲锋（上一版日志中 navPos 与世界坐标对不上、且紧贴生成点冲锋即为船上触发）。
+            if (!_agent.navPos.valid || !_agent.navPos.onMain) return false;
             if (!FindNearestEnemy(out _chargeDirection, out _targetAgent)) return false;
             StartWindUp();
             return true;
@@ -104,7 +107,7 @@ namespace BadNorthBlackSpearman1_3
                 _phaseTimer = ChargingMaxTime;
                 _chargeStartPos = _agent.transform.position;
                 _posLogTimer = 0f;
-                BSLog.Info("[Charge] 冲锋起点 pos=" + _chargeStartPos.ToString("F2") + " dir=" + _chargeDirection.ToString("F2"));
+                BSLog.Info("[Charge] 冲锋起点 pos=" + _chargeStartPos.ToString("F2") + " dir=" + _chargeDirection.ToString("F2") + " onMain=" + _agent.navPos.onMain);
             }
         }
 
@@ -114,13 +117,17 @@ namespace BadNorthBlackSpearman1_3
 
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
 
-            // 每 0.3s 记录位置 + 长矛实际旋转（全自动，无需 F9）
+            // 每 0.3s 记录位置 + 长矛实际旋转 + navPos 同步（暴露"瞬移回位"的奥秘）
             _posLogTimer -= Time.deltaTime;
             if (_posLogTimer <= 0f)
             {
                 _posLogTimer = 0.3f;
                 string sr = _spearTransform != null ? _spearTransform.rotation.eulerAngles.ToString("F1") : "null";
-                BSLog.Info("[Charge] 冲刺中 pos=" + _agent.transform.position.ToString("F2") + " spearRot=" + sr);
+                string lr = _spearTransform != null ? _spearTransform.localRotation.eulerAngles.ToString("F1") : "null";
+                string lp = _spearTransform != null ? _spearTransform.localPosition.ToString("F3") : "null";
+                BSLog.Info("[Charge] 冲刺中 pos=" + _agent.transform.position.ToString("F2") +
+                    " navPos=" + _agent.navPos.pos.ToString("F2") +
+                    " spearWorldRot=" + sr + " spearLocalRot=" + lr + " spearLocalPos=" + lp);
             }
 
             // 冲锋途中每 0.15s 对半径 0.4m 内敌人造成伤害+击退
@@ -157,12 +164,26 @@ namespace BadNorthBlackSpearman1_3
             if (_hasSpearTarget && _spearTransform != null)
                 _spearTransform.rotation = Quaternion.Slerp(_spearTransform.rotation, _spearTargetRot, Time.deltaTime * 12f);
 
-            // 冲锋位移：在 LateUpdate 做（所有 Update 之后），避免被 Agent.Update 同步回导航位置覆盖
+            // 冲锋位移：Bad North 的 Agent 每帧都把 transform 从 navPos 同步（FixedUpdateAgent 里 wPos = navPos.wPos，
+            // Body 的踏步/滑动动画据此驱动 transform），所以直接写 transform.position、或对结构体副本写 navPos.pos 都无效。
+            // 照搬原版 PikeChargeComponent.charge.OnUpdate 的做法：把 agent.navPos 整体赋值为
+            // “沿冲锋方向推进的新 NavPos”，让 Agent 自身的导航/踏步系统去跟随。
             if (_phase == Phase.Charging && _agent != null)
             {
-                Vector3 newPos = _agent.transform.position + _chargeDirection * ChargeSpeed * Time.deltaTime;
-                _agent.transform.position = newPos;
-                try { _agent.navPos.pos = newPos; } catch { }
+                try
+                {
+                    Vector3 newPos = _agent.transform.position + _chargeDirection * ChargeSpeed * Time.deltaTime;
+                    NavPos np = _agent.navPos;
+                    if (np.valid)
+                    {
+                        // MoveTo 期望 navmesh 本地坐标；失败（如撞到悬崖边界）则回退为世界坐标重建 NavPos。
+                        Vector3 localTarget = np.transform.InverseTransformPoint(newPos);
+                        if (!np.MoveTo(localTarget))
+                            np = new NavPos(np.navigationMesh, newPos, true, 1f);
+                        _agent.navPos = np;
+                    }
+                }
+                catch { }
             }
         }
 
@@ -183,7 +204,7 @@ namespace BadNorthBlackSpearman1_3
                     d.y = 0f;
                     if (d.sqrMagnitude < 0.001f) d = _agent.transform.forward;
                     a.DealDamage(new Attack(s, d, a.transform.position, this, _squad, "Sfx/English/Spear"));
-                    Log("HIT " + a.name + " dmg=" + StabDamage);
+                    Log("HIT " + a.name + " dmg=" + StabDamage + " kb=" + StabKnockback + " stun=" + StabStun + " hp=" + a.health.ToString("F1"));
                 }
                 catch (Exception ex) { BSLog.Error("[Charge] " + ex); }
             }

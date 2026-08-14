@@ -372,6 +372,7 @@ namespace BadNorthBlackSpearman1_3
                 ScaleArr(sw.damageLevels, DamageMult.Value);
                 ScaleArr(sw.knockbackLevels, KnockbackMult.Value);
                 ScaleArr(sw.stunLevels, StunMult.Value);
+                BSLog.Info($"[AGENT] 黑矛兵 {a.name} 攻击范围 range={sw.range.ToString("F2")} radius={a.radius.ToString("F2")} dmg={sw.damage.ToString("F1")} kb={sw.knockback.ToString("F1")}");
             }
 
             if (EnableCharge.Value)

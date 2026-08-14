@@ -7,10 +7,6 @@ using UnityEngine;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 特质 Mod 式的美术资源配置：
-    /// - 从插件目录 Resources/ 读取 PNG 图标（对应 CustomSprites.AddCustomSprite）。
-    /// - 通过 I2 本地化注册敌人名称/描述（对应 CustomText.AddCustomTerm）。
-    /// 若无 PNG 则回退到程序化生成的深色图标，保证不崩溃。
     /// </summary>
     public static class BlackSpearmanArt
     {

@@ -17,7 +17,7 @@ namespace BadNorthBlackSpearman1_3
 
         const float HeartbeatInterval = 8f;
         float _lastHeartbeat;
-        float _autoTimer = 0.2f;
+        float _autoTimer = 0.1f;
 
         void Awake()
         {
@@ -54,7 +54,7 @@ namespace BadNorthBlackSpearman1_3
         {
             _autoTimer -= Time.deltaTime;
             if (_autoTimer > 0f) return;
-            _autoTimer = 0.2f;
+            _autoTimer = 0.1f;
 
             var pccs = Resources.FindObjectsOfTypeAll<PikeChargeComponent>();
             bool any = false;
@@ -75,7 +75,9 @@ namespace BadNorthBlackSpearman1_3
                     if (spear != null)
                     {
                         if (spear.spearAim != null)
-                            BSLog.Raw($"    spearAim.worldRot(euler)={spear.spearAim.rotation.eulerAngles.ToString("F1")}");
+                            BSLog.Raw($"    spearAim.worldRot(euler)={spear.spearAim.rotation.eulerAngles.ToString("F1")} localPos={spear.spearAim.localPosition.ToString("F3")}");
+                        if (spear.spearAnim != null)
+                            BSLog.Raw($"    spearAnim.localRot(euler)={spear.spearAnim.localRotation.eulerAngles.ToString("F1")} worldRot(euler)={spear.spearAnim.rotation.eulerAngles.ToString("F1")} localPos={spear.spearAnim.localPosition.ToString("F3")}");
                         BSLog.Raw($"    spear: up={spear.spearUp.active} down={spear.spearDown.active} stabbing={spear.stabbing.active} idealTip={spear.idealSpearTipDir.ToString("F2")}");
                     }
                 }
