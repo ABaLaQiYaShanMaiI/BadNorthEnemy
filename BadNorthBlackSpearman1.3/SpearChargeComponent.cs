@@ -30,6 +30,9 @@ namespace BadNorthBlackSpearman1_3
         const float ArrivalBurstRadius = 1.2f; // 抵达终点爆发半径（终点的范围波及，与沿途线宽独立，可单独调）
         const float EnergyDecayPerHit = 0.8f;  // 每命中一次能量衰减（原版 Pike Charge 同款：扫过一排递减）
         const float LevelDamageScale = 0.25f;  // 每级伤害增幅：dmg = StabDamage × (1 + 等级×系数)
+        const float ThrustDistance = 0.45f;   // 近战刺击：长矛沿自身前向突刺的距离（视觉"刺"而非"挥砍"）
+        const float ThrustRiseTime = 0.06f;   // 刺出速度（快）
+        const float ThrustFallTime = 0.28f;   // 收回速度（慢）
 
         enum Phase { Idle, WindUp, Charging, Retreat, Cooldown }
 
@@ -60,6 +63,9 @@ namespace BadNorthBlackSpearman1_3
         float _hitDiagTimer;           // 命中诊断节流（每 0.5s 打一次）
         float _energy = 1f;            // 冲锋能量（每命中 ×EnergyDecayPerHit，扫过一排递减）
         readonly HashSet<Agent> _hitAgents = new HashSet<Agent>();   // 本回合已命中（去重，同目标只结算一次）
+        Swordsman _swordsman;          // 近战刺击：读取 Swordsman.attack 状态
+        Vector3 _spearBaseLocalPos;    // 长矛挂载基点（突刺偏移在此之上叠加）
+        float _thrust;                 // 当前突刺量 0~1
 
         public void Setup(Agent agent)
         {
@@ -78,6 +84,8 @@ namespace BadNorthBlackSpearman1_3
                 _agent.attackResponders.Add(this);
             // 找到挂载的长矛（由 BlackSpearmanWeapon 挂载，命名 Spear_BlackSpearman）
             _spearTransform = _agent.transform.Find("Spear_BlackSpearman");
+            _swordsman = GetComponent<Swordsman>();
+            if (_spearTransform != null) _spearBaseLocalPos = _spearTransform.localPosition;
             // ★ 去剑诊断：对前 3 只黑矛兵自动 dump 完整层级 + 所有 sprite/sprite2 详情，
             //   用于确认"剑"到底来自独立子对象 / 动画帧 / sprite2 部件贴图。
             if (_spriteDiagCount < 3)
@@ -100,6 +108,8 @@ namespace BadNorthBlackSpearman1_3
         {
             if (_agent == null) { Destroy(this); return; }
 
+            UpdateMeleeThrust();   // ★ 近战刺击表现：Swordsman 攻击时长矛前刺（视觉"刺"）
+
             // ★ 独立触发检测（不依赖 Swordsman 状态机）：每 0.25s 自己扫描一次，
             //    Idle 状态下满足条件就启动冲锋（TryTriggerCharge 内部 _phase 守卫保证不重复）。
             _actScanTimer -= Time.deltaTime;
@@ -118,6 +128,35 @@ namespace BadNorthBlackSpearman1_3
                 case Phase.Charging: DoCharging(); break;
                 case Phase.Retreat: DoRetreat(); break;
                 case Phase.Cooldown: UpdateCooldown(); break;
+            }
+        }
+
+        /// <summary>
+        /// 近战刺击表现：Swordsman 进入 attack 状态时，长矛对准当前目标并沿矛身方向快速前刺
+        /// （ThrustDistance），攻击结束缓慢收回。身体动画仍是基底挥剑帧（剑已被擦除），
+        /// 但矛的前刺主导观感 → "刺"而非"挥砍长矛"。与冲锋共用 _spearTargetRot 插值，互不冲突。
+        /// </summary>
+        void UpdateMeleeThrust()
+        {
+            if (_spearTransform == null) return;
+            bool attacking = _swordsman != null && _swordsman.attack != null && _swordsman.attack.active;
+            if (attacking)
+            {
+                var t = _swordsman.target != null ? _swordsman.target : _agent.enemyAgent;
+                if (t != null && t.aliveState != null && t.aliveState.active)
+                {
+                    if (SpearVisual.TryGetAimRotation(_agent, t.chestPos, out _spearTargetRot)) _hasSpearTarget = true;
+                }
+                _thrust = Mathf.Min(1f, _thrust + Time.deltaTime / ThrustRiseTime);
+            }
+            else
+            {
+                _thrust = Mathf.Max(0f, _thrust - Time.deltaTime / ThrustFallTime);
+            }
+            if (_thrust > 0.001f || _spearTransform.localPosition != _spearBaseLocalPos)
+            {
+                Vector3 lp = _spearBaseLocalPos + _spearTransform.localRotation * (Vector3.forward * (ThrustDistance * _thrust));
+                _spearTransform.localPosition = lp;
             }
         }
 

@@ -7,12 +7,17 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 去剑组件：原版 Viking_Sword 的"剑"是烘焙在 OnehandedXXXX 动画帧里的暗红色像素
-    /// （颜色签名 R&gt;70, G&lt;40, B&lt;20，实测随挥剑动画绕身体移动，每帧 127~292 个像素）。
-    /// 原理：把身体 SpriteAnimator 当前帧替换为"擦除剑像素"的克隆版本（按源纹理/精灵缓存共享）。
-    /// ⚠️ 安全设计：帧纹理是 2048x1024 共享图集，只擦当前帧 rect + 安全阀（擦除占比 >20% 判定误擦并跳过），
-    ///   确保身体永不被误伤；配颜色直方图诊断用于校准剑的真实颜色签名。
-    /// 说明：攻击逻辑早已被 GetAttack patch 改写为长矛攻击，这里只解决视觉残留。
+    /// 去剑组件：原版 Viking_Sword 的"剑"（剑刃+剑柄）烘焙在 OnehandedXXXX 动画帧里。
+    /// 剑刃 = 暗红色像素（R&gt;70,G&lt;40,B&lt;20，随挥剑动画绕身体移动，每帧 58~292 个像素）；
+    /// 剑柄/护手 = 剑刃外侧紧贴的非红不透明像素（离线统计：剑刃 bbox 外侧 ±6px 纵向带内）。
+    /// 原理：把材质块 _MainTex 换成"擦除剑像素"的克隆纹理（与图集同尺寸，UV 不变，绝不动 bSprite/网格）。
+    /// 擦除规则（方向感知）：
+    ///   ① 整帧 rect 内的红暗像素（无论剑在身体左侧/右侧）——清除剑刃；
+    ///   ② 剑柄/护手 = 剑刃基部靠身体一侧的非红不透明像素（右偏剑擦基部左侧、左偏剑擦基部右侧，
+    ///      仅 bbox 上下 ±OuterBandPx 纵向带 + 基部向外 ±HiltBandPx 水平带）。
+    ///   ③ 预擦除：首次见到 Onehanded 帧时把图集里全部 Onehanded 帧一次性擦除，消除动画播放时"剑闪回"。
+    /// ⚠️ 安全阀：擦除占比 >20% 判定误擦并跳过该帧；帧纹理是共享图集，只擦当前帧 rect。
+    /// 说明：攻击逻辑已由 GetAttack patch 改写为长矛攻击，这里只解决视觉残留。
     /// </summary>
     public class SwordRemover : MonoBehaviour
     {
@@ -22,8 +27,11 @@ namespace BadNorthBlackSpearman1_3
         const int SwordRMin = 70;
         const int SwordGMax = 40;
         const int SwordBMax = 20;
-        const float SwordLocalXMin = 28f;   // sword region: frame-local x >= 28
-        const float SafetyEraseRatio = 0.2f;   // 单帧擦除占比上限（超过则视为误擦，放弃该帧）
+        const int OuterBandPx = 6;           // 剑柄/护手纵向带：剑刃 bbox 上下各扩展 6 像素（只擦剑的外侧，绝不碰身体）
+        const int OuterMarginPx = 2;         // 外侧水平回退：剑柄与剑刃右/左缘重叠 ≤2px 的部分也一并擦
+        const int HiltBandPx = 5;            // 剑柄/护手水平带：从剑刃基部向"身体侧"扩展 5 像素（剑柄/护手就在剑刃基部）
+        const float OuterMinOffsetPx = 5f;   // 剑心与帧心偏移 <5px（剑居中）→ 不擦外侧（避免误擦居中持剑的身体）
+        const float SafetyEraseRatio = 0.2f; // 单帧擦除占比上限（超过则视为误擦，放弃该帧）
 
         static readonly Dictionary<int, Texture2D> _textureCache = new Dictionary<int, Texture2D>();  // 源纹理 → 去剑克隆
         static readonly Dictionary<int, Sprite> _frameCache = new Dictionary<int, Sprite>();          // 源帧精灵 → 去剑精灵
@@ -31,6 +39,8 @@ namespace BadNorthBlackSpearman1_3
         static readonly HashSet<int> _skippedFrames = new HashSet<int>();                            // 因安全阀跳过的帧（不再重试）
         static readonly HashSet<int> _erasedRects = new HashSet<int>();                              // 已擦除的帧 rect（每 rect 只擦一次）
         static int _colorDiagDone;                                                                   // 帧颜色直方图诊断（限制次数）
+        static bool _sprite2DiagDone;                                                                // sprite2 单元 ASCII 诊断（全局仅一次）
+        static bool _preErased;                                                                      // 预擦除全部 Onehanded 帧已完成（消除动画播放时剑闪回）
 
         Agent _agent;
         SpriteAnimator _sa;
@@ -138,9 +148,58 @@ namespace BadNorthBlackSpearman1_3
                     }
                     BSLog.Diag("  " + sb.ToString());
                 }
+
+                // ★ 一次性输出 sprite2（PartTex_Sword 外观）单元 ASCII：验证剑柄/剑身是否也画在外观里，
+                //   为"若帧擦除后仍有残留 → 改 sprite2"的兜底方案提供坐标。
+                if (!_sprite2DiagDone && _sa.sprite2 != null && _sa.sprite2.texture != null)
+                {
+                    _sprite2DiagDone = true;
+                    DumpSprite2Cell(_sa.sprite2);
+                }
                 BSLog.Diag("===== 去剑·运行时诊断结束 =====");
             }
             catch (Exception e) { BSLog.Warn("[去剑] 运行时诊断异常: " + e); }
+        }
+
+        /// <summary>把 sprite2（身体外观/PartTex_Sword）单元画成 ASCII 图打进日志（全局仅一次）。
+        /// 用途：验证剑身/剑柄是否也烘焙在外观图里——若帧擦除后仍有残留，这里是兜底方案（改 sprite2）。</summary>
+        static void DumpSprite2Cell(Sprite s2)
+        {
+            try
+            {
+                var st = s2.texture as Texture2D;
+                if (st == null) return;
+                Texture2D clone = CloneTexture(st);
+                if (clone == null) return;
+                Rect r = s2.textureRect;
+                Color32[] px = clone.GetPixels32();
+                if (px == null) { UnityEngine.Object.Destroy(clone); return; }
+                int w = clone.width;
+                int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
+                int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
+                BSLog.Diag("— sprite2 单元像素图（" + s2.name + " rect=" + r + "，S=红窄 s=红宽 #=亮 .=不透明）—");
+                for (int y = y1 - 1; y >= y0; y -= 2)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    for (int x = x0; x < x1; x++)
+                    {
+                        Color32 c = px[y * w + x];
+                        char ch = ' ';
+                        if (c.a > 8)
+                        {
+                            if (c.r > 90 && c.g < 25 && c.b < 10) ch = 'S';
+                            else if (c.r > 70 && c.g < 40 && c.b < 20) ch = 's';
+                            else if (c.r > 150 && c.g > 150 && c.b > 150) ch = '#';
+                            else ch = '.';
+                        }
+                        sb.Append(ch);
+                    }
+                    BSLog.Diag("  " + sb.ToString());
+                }
+                BSLog.Diag("— sprite2 单元结束 —");
+                UnityEngine.Object.Destroy(clone);
+            }
+            catch (Exception e) { BSLog.Warn("[去剑] sprite2 单元诊断异常: " + e); }
         }
 
         /// <summary>用反射读取私有 mesh 的顶点色/UV（检测 bSprite 交换后渲染状态是否完好）。
@@ -267,14 +326,18 @@ namespace BadNorthBlackSpearman1_3
                 if (srcTex == null) return null;
                 Texture2D tex = GetSharedClone(srcTex);
                 if (tex == null) return null;
+                // ★ 首次：一次性预擦除图集里全部 Onehanded 帧 → 动画播放时无"首帧剑闪回"
+                if (!_preErased) { _preErased = true; PreEraseAllOnehanded(tex); }
                 int key = cur.GetInstanceID();
                 if (_erasedRects.Contains(key)) return tex;
                 _erasedRects.Add(key);
                 int opaque = CountOpaque(tex, cur.textureRect);
                 int matched = CountMatch(tex, cur.textureRect);
-                if (opaque > 0 && matched > opaque * SafetyEraseRatio)
+                int redMatched = CountRed(tex, cur.textureRect);
+                // ★ 安全阀只看"红暗"命中（身体暗红衣物的误擦信号）；剑柄带是剑刃基部窄条，不计入
+                if (opaque > 0 && redMatched > opaque * SafetyEraseRatio)
                 {
-                    BSLog.Warn("[去剑] 帧 " + cur.name + " 命中 " + matched + "/" + opaque + " 疑似误擦 → 跳过该帧");
+                    BSLog.Warn("[去剑] 帧 " + cur.name + " 红暗命中 " + redMatched + "/" + opaque + " 疑似误擦 → 跳过该帧");
                     return null;
                 }
                 if (matched > 0)
@@ -306,14 +369,84 @@ namespace BadNorthBlackSpearman1_3
             return n;
         }
 
-        static int CountMatch(Texture2D tex, Rect rect)
+        /// <summary>计算帧内"剑"的红暗 bbox 与外侧面方向（基于已取出的像素数组，避免重复 GetPixels32）。
+        /// 返回 false 表示本帧无红暗像素（无剑可擦）。
+        /// outerRight=true → 剑偏右（尖端在右）→ 剑柄/护手在剑刃基部左侧；false → 剑偏左 → 剑柄在基部右侧。</summary>
+        static bool GetSwordBounds(Color32[] px, int w, int h, Rect rect,
+            out int rx0, out int ry0, out int rx1, out int ry1, out bool outerRight)
         {
-            int n = 0;
-            Color32[] px = tex.GetPixels32();
-            int w = tex.width;
-            float localXMin = rect.xMin + SwordLocalXMin;
+            rx0 = 999; ry0 = 999; rx1 = -1; ry1 = -1; outerRight = true;
+            if (px == null) return false;
             int x0 = Mathf.FloorToInt(rect.xMin), y0 = Mathf.FloorToInt(rect.yMin);
             int x1 = Mathf.CeilToInt(rect.xMax), y1 = Mathf.CeilToInt(rect.yMax);
+            for (int y = y0; y < y1; y++)
+            {
+                if (y < 0 || y >= h) continue;
+                for (int x = x0; x < x1; x++)
+                {
+                    if (x < 0 || x >= w) continue;
+                    Color32 c = px[y * w + x];
+                    if (c.a > 8 && c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax)
+                    {
+                        if (x < rx0) rx0 = x;
+                        if (x > rx1) rx1 = x;
+                        if (y < ry0) ry0 = y;
+                        if (y > ry1) ry1 = y;
+                    }
+                }
+            }
+            if (rx1 < 0) return false;
+            float bladeCenter = (rx0 + rx1) * 0.5f;
+            float frameCenter = (rect.xMin + rect.xMax) * 0.5f;
+            outerRight = bladeCenter >= frameCenter;   // 剑偏右 → 尖端在右 → 剑柄在基部左侧
+            return true;
+        }
+
+        /// <summary>计算"剑刃 + 剑柄/护手"命中像素数（安全阀用）。方向感知：剑柄在剑刃基部靠身体一侧。</summary>
+        static int CountMatch(Texture2D tex, Rect rect)
+        {
+            if (tex == null) return 0;
+            Color32[] px = tex.GetPixels32();
+            if (px == null) return 0;
+            int w = tex.width, h = tex.height;
+            int rx0, ry0, rx1, ry1; bool outerRight;
+            if (!GetSwordBounds(px, w, h, rect, out rx0, out ry0, out rx1, out ry1, out outerRight)) return 0;
+            int x0 = Mathf.FloorToInt(rect.xMin), y0 = Mathf.FloorToInt(rect.yMin);
+            int x1 = Mathf.CeilToInt(rect.xMax), y1 = Mathf.CeilToInt(rect.yMax);
+            // 剑柄/护手纵向带（剑刃 bbox 上下扩展 OuterBandPx）与水平擦除范围（剑刃基部向外 HiltBandPx）
+            int v0 = ry0 - OuterBandPx, v1 = ry1 + OuterBandPx;
+            bool outerOk = Mathf.Abs((rx0 + rx1) * 0.5f - (rect.xMin + rect.xMax) * 0.5f) >= OuterMinOffsetPx;
+            int ex0, ex1;
+            if (outerRight) { ex0 = Mathf.Max(x0, rx0 - HiltBandPx); ex1 = rx0 + OuterMarginPx + 1; }
+            else { ex0 = rx1 - OuterMarginPx; ex1 = Mathf.Min(x1, rx1 + HiltBandPx + 1); }
+            int n = 0;
+            for (int y = y0; y < y1; y++)
+            {
+                if (y < 0 || y >= h) continue;
+                for (int x = x0; x < x1; x++)
+                {
+                    if (x < 0 || x >= w) continue;
+                    Color32 c = px[y * w + x];
+                    if (c.a <= 8) continue;
+                    // ① 红暗像素（剑刃）：整帧 rect 内都算，剑在身体左侧/右侧都能擦
+                    if (c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax) { n++; continue; }
+                    // ② 剑柄/护手：剑刃基部靠身体一侧的非红不透明像素（仅纵向带内）
+                    if (outerOk && y >= v0 && y <= v1 && x >= ex0 && x < ex1) n++;
+                }
+            }
+            return n;
+        }
+        /// <summary>只统计红暗（剑刃）命中像素数 —— 安全阀专用：红暗是"身体暗红衣物的误擦信号"，
+        /// 剑柄带是剑刃基部附近的窄条，几何有界、不可能成片误擦身体，故不计入安全阀。</summary>
+        static int CountRed(Texture2D tex, Rect rect)
+        {
+            if (tex == null) return 0;
+            Color32[] px = tex.GetPixels32();
+            if (px == null) return 0;
+            int w = tex.width;
+            int x0 = Mathf.FloorToInt(rect.xMin), y0 = Mathf.FloorToInt(rect.yMin);
+            int x1 = Mathf.CeilToInt(rect.xMax), y1 = Mathf.CeilToInt(rect.yMax);
+            int n = 0;
             for (int y = y0; y < y1; y++)
             {
                 if (y < 0 || y >= tex.height) continue;
@@ -321,12 +454,98 @@ namespace BadNorthBlackSpearman1_3
                 {
                     if (x < 0 || x >= w) continue;
                     Color32 c = px[y * w + x];
-                    if (x < localXMin) continue;
                     if (c.a > 8 && c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax) n++;
                 }
             }
             return n;
         }
+
+        /// <summary>预擦除：把图集里所有已加载的 OnehandedXXXX 帧一次性擦除，
+        /// 避免动画播放时每帧"首次显示后才擦"（晚一帧 → 慢放可见的剑闪回）。所有帧共享一个像素数组，只上传一次。</summary>
+        static void PreEraseAllOnehanded(Texture2D tex)
+        {
+            try
+            {
+                var all = Resources.FindObjectsOfTypeAll<Sprite>();
+                List<Sprite> frames = null;
+                for (int i = 0; i < all.Length; i++)
+                {
+                    var s = all[i];
+                    if (s == null || s.texture == null) continue;
+                    if (!ReferenceEquals(s.texture, tex)) continue;
+                    if (string.IsNullOrEmpty(s.name) || !s.name.StartsWith("Onehanded")) continue;
+                    if (_erasedRects.Contains(s.GetInstanceID())) continue;
+                    if (frames == null) frames = new List<Sprite>();
+                    frames.Add(s);
+                    _erasedRects.Add(s.GetInstanceID());   // 预擦后该帧不再逐帧处理
+                }
+                if (frames == null || frames.Count == 0) return;
+
+                Color32[] px = tex.GetPixels32();
+                if (px == null) return;
+                int w = tex.width, h = tex.height;
+                int erasedCount = 0;
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    Rect rect = frames[i].textureRect;
+                    int rx0, ry0, rx1, ry1; bool outerRight;
+                    if (!GetSwordBounds(px, w, h, rect, out rx0, out ry0, out rx1, out ry1, out outerRight)) continue;
+                    int x0 = Mathf.FloorToInt(rect.xMin), y0 = Mathf.FloorToInt(rect.yMin);
+                    int x1 = Mathf.CeilToInt(rect.xMax), y1 = Mathf.CeilToInt(rect.yMax);
+                    int v0 = ry0 - OuterBandPx, v1 = ry1 + OuterBandPx;
+                    bool outerOk = Mathf.Abs((rx0 + rx1) * 0.5f - (rect.xMin + rect.xMax) * 0.5f) >= OuterMinOffsetPx;
+                    int ex0, ex1;
+                    if (outerRight) { ex0 = Mathf.Max(x0, rx0 - HiltBandPx); ex1 = rx0 + OuterMarginPx + 1; }
+                    else { ex0 = rx1 - OuterMarginPx; ex1 = Mathf.Min(x1, rx1 + HiltBandPx + 1); }
+                    // 安全阀：只看"红暗"命中（身体暗红衣物的误擦信号）；剑柄带窄条不计入
+                    int opaque = 0, redMatched = 0;
+                    for (int y = y0; y < y1; y++)
+                    {
+                        if (y < 0 || y >= h) continue;
+                        for (int x = x0; x < x1; x++)
+                        {
+                            if (x < 0 || x >= w) continue;
+                            Color32 c = px[y * w + x];
+                            if (c.a <= 8) continue;
+                            opaque++;
+                            if (c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax) redMatched++;
+                        }
+                    }
+                    if (opaque > 0 && redMatched > opaque * SafetyEraseRatio)
+                    {
+                        BSLog.Warn("[去剑] 预擦除跳过(疑似误擦) 帧 " + frames[i].name + " 红暗命中 " + redMatched + "/" + opaque);
+                        continue;
+                    }
+                    // 擦除
+                    int erased = 0;
+                    for (int y = y0; y < y1; y++)
+                    {
+                        if (y < 0 || y >= h) continue;
+                        for (int x = x0; x < x1; x++)
+                        {
+                            if (x < 0 || x >= w) continue;
+                            int idx = y * w + x;
+                            Color32 c = px[idx];
+                            if (c.a <= 8) continue;
+                            if (c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax)
+                            {
+                                px[idx] = new Color32(0, 0, 0, 0); erased++; continue;
+                            }
+                            if (outerOk && y >= v0 && y <= v1 && x >= ex0 && x < ex1)
+                            {
+                                px[idx] = new Color32(0, 0, 0, 0); erased++;
+                            }
+                        }
+                    }
+                    if (erased > 0) erasedCount++;
+                }
+                if (erasedCount > 0) { tex.SetPixels32(px); tex.Apply(); }
+                BSLog.Info("[去剑] 预擦除 Onehanded 帧 " + erasedCount + " 张（消除动画播放时的剑闪回）");
+            }
+            catch (Exception e) { BSLog.Warn("[去剑] 预擦除异常: " + e); }
+        }
+
+
 
         /// <summary>帧颜色直方图诊断（每个源纹理限几次）：输出当前帧 rect 的运行时真实颜色分布，用于校准剑签名。</summary>
         static void DumpFrameColorStats(Sprite src, Texture2D tex, Rect rect)
@@ -398,16 +617,24 @@ namespace BadNorthBlackSpearman1_3
             return erased;
         }
 
-        /// <summary>Erase only the sword region (frame-local x >= SwordLocalXMin) - never touches body.</summary>
+        /// <summary>方向感知擦除：① 整帧 rect 内的红暗像素（剑刃，身体左/右侧都擦）；
+        /// ② 剑柄/护手 = 剑刃基部靠身体一侧的非红不透明像素（仅剑刃 bbox 上下 ±OuterBandPx 纵向带
+        ///    与基部向外 ±HiltBandPx 水平带）。身体永远在剑的内侧，不受影响。</summary>
         static int EraseSwordInFrame(Texture2D tex, Rect rect)
         {
             if (tex == null) return 0;
             Color32[] px = tex.GetPixels32();
             if (px == null) return 0;
             int w = tex.width, h = tex.height;
-            float localXMin = rect.xMin + SwordLocalXMin;
+            int rx0, ry0, rx1, ry1; bool outerRight;
+            if (!GetSwordBounds(px, w, h, rect, out rx0, out ry0, out rx1, out ry1, out outerRight)) return 0;
             int x0 = Mathf.FloorToInt(rect.xMin), y0 = Mathf.FloorToInt(rect.yMin);
             int x1 = Mathf.CeilToInt(rect.xMax), y1 = Mathf.CeilToInt(rect.yMax);
+            int v0 = ry0 - OuterBandPx, v1 = ry1 + OuterBandPx;
+            bool outerOk = Mathf.Abs((rx0 + rx1) * 0.5f - (rect.xMin + rect.xMax) * 0.5f) >= OuterMinOffsetPx;
+            int ex0, ex1;
+            if (outerRight) { ex0 = Mathf.Max(x0, rx0 - HiltBandPx); ex1 = rx0 + OuterMarginPx + 1; }
+            else { ex0 = rx1 - OuterMarginPx; ex1 = Mathf.Min(x1, rx1 + HiltBandPx + 1); }
             int erased = 0;
             for (int y = y0; y < y1; y++)
             {
@@ -415,10 +642,16 @@ namespace BadNorthBlackSpearman1_3
                 for (int x = x0; x < x1; x++)
                 {
                     if (x < 0 || x >= w) continue;
-                    if (x < localXMin) continue;
                     int i = y * w + x;
                     Color32 c = px[i];
-                    if (c.a > 8 && c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax)
+                    if (c.a <= 8) continue;
+                    if (c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax)
+                    {
+                        px[i] = new Color32(0, 0, 0, 0);
+                        erased++;
+                        continue;
+                    }
+                    if (outerOk && y >= v0 && y <= v1 && x >= ex0 && x < ex1)
                     {
                         px[i] = new Color32(0, 0, 0, 0);
                         erased++;

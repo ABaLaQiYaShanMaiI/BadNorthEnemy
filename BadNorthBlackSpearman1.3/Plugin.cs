@@ -326,7 +326,10 @@ namespace BadNorthBlackSpearman1_3
             {
                 if (__instance == null || __instance.agent == null) return;
                 if (!_done.Contains(__instance.agent)) return;
-                __result = __instance.agent.radius * 0.7f * 1.3f; // 长矛攻击距离（接近模型接触）
+                // ★ 长矛攻击距离：原"radius*0.7*1.3 ≈ 0.118m"仍是剑的贴脸距离——这就是"攻击逻辑还是剑"的根源
+                //   （黑矛兵必须站到剑的距离才出手）。改为"矛长 0.6m + 身体半程"≈0.69m，
+                //   让攻击在矛尖够得到的地方触发，才是长矛刺击手感。
+                __result = __instance.agent.radius * 0.7f + 0.6f;
             }
             catch { }
         }

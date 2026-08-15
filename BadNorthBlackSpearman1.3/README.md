@@ -237,7 +237,7 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 
 ---
 
-## 🔬 去剑研究（2026-08-15，进行中）
+## 🔬 去剑研究（2026-08-15，✅ 已验证 + 二次修复）
 
 > 目标：移除黑矛兵身体动画帧里烘焙的剑（视觉残留）。攻击逻辑早已是长矛（GetAttack patch），剑只是观感。
 
@@ -249,16 +249,26 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 | 帧纹理 | **共享 2048x1024 精灵图集**（`SpriteAtlasTexture-Sprites`）→ 必须克隆后按帧 rect 擦除 |
 | 外观来源 | `sprite2 = PartTex_Sword`（`PartTex_Median_BlurAlpha` 图集 (192,0,64,126) 单元），`SetSprite2` 是安全机制 |
 | ⚠️ 真凶 | **`bSprite` 交换会破坏身体渲染（躯干透明）**——即使只擦剑区域、顶点色/UV 全部正常，换 Sprite 对象就坏 |
+| ✅ 已验证 | **`_MainTex` 替换方案成功**：游戏内剑刃消失、躯干完好（不透明）。见下方"当前方案" |
+| 🔬 二次发现 | **剑柄 = 剑刃 bbox 外侧的非红不透明像素**（灰金属色，不在 70/40/20 阈值内），且**剑到身体左侧的帧（0030~0033、0058~0059）`x≥28` 区域会漏擦** → 需"方向感知擦除" |
 
-### 当前方案（已实施，待验证）
+### 当前方案（✅ 已验证 + 二次修复）
 
 **不交换 bSprite，只替换材质块 `_MainTex`**：网格 UV 指向图集单元，克隆纹理与图集同尺寸 → `_MainTex` 直接采样克隆的同一单元渲染"去剑帧"，不触发批量渲染重建。
 
 实现：`SwordRemover.EnsureErasedTexture`（共享克隆 + 每帧 rect 擦一次 + 安全阀）+ `block.SetTexture("_MainTex", clone)`。
 
-**诊断**：`去剑·运行时诊断`（帧像素 ASCII 图 + sprite2 + 网格状态）+ `[去剑诊断]`（阈值命中/bbox）。
+**擦除规则（方向感知，2026-08-15 二次修复）**：
+- ① 整帧 rect 内红暗像素（`R>70,G<40,B<20`）——清除剑刃，**身体左/右侧的剑都能擦**（原 `x≥28` 固定区域在剑到左侧时漏擦）；
+- ② 剑刃外侧的非红不透明像素（右偏剑擦 `x≥剑右缘-2`，左偏剑擦 `x≤剑左缘+2`，仅 bbox 上下 ±6px 纵向带）——清除**剑柄/护手**（灰金属色，原阈值漏网）；
+- ③ 居中剑（|剑心-帧心|<5px）不擦外侧，避免误擦身体；安全阀 20% 兜底。
+- **离线验证**：59 帧全量模拟 → 剑区残留=0、内侧误擦=0、擦除占比最高 15.7%（<20% 安全阀，无帧被跳过）。
 
-**调参**：`SwordRMin/GMax/BMax=70/40/20`、`SwordLocalXMin=28`、`SafetyEraseRatio=0.2`。
+**诊断**：`去剑·运行时诊断`（帧像素 ASCII 图 + sprite2 单元 ASCII 图 + 网格状态）+ `[去剑诊断]`（阈值命中/bbox）。
+
+**调参**：`SwordRMin/GMax/BMax=70/40/20`、`OuterBandPx=6`、`OuterMarginPx=2`、`OuterMinOffsetPx=5`、`SafetyEraseRatio=0.2`。
+
+**离线校准脚本**：`analyze_sword.py`（逐帧统计剑刃/剑柄坐标）、`validate_erase.py`（模拟新擦除算法全量验证）。
 
 ---
 
