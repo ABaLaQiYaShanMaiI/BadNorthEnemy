@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
+using Voxels.TowerDefense.SpriteMagic;
 
 namespace BadNorthBlackSpearman1_3
 {
@@ -32,6 +33,7 @@ namespace BadNorthBlackSpearman1_3
         const float LevelDamageScale = 0.25f;  // 每级伤害增幅：dmg = StabDamage × (1 + 等级×系数)
         const float ThrustDistance = 0.45f;   // 近战刺击：长矛沿自身前向突刺的距离（视觉"刺"而非"挥砍"）
         const float ThrustRiseTime = 0.06f;   // 刺出速度（快）
+        const float ThrustHoldTime = 0.12f;   // 刺出到位后短暂保持（命中窗口），再收回
         const float ThrustFallTime = 0.28f;   // 收回速度（慢）
 
         enum Phase { Idle, WindUp, Charging, Retreat, Cooldown }
@@ -41,6 +43,7 @@ namespace BadNorthBlackSpearman1_3
         Squad _squad;
         bool _setupDone;
         static int _spriteDiagCount;         // 去剑诊断已打印次数（限前 3 只，避免刷屏）
+        static bool _screenshotTaken;        // 每会话首次刺击截一张整屏（视觉取证）
         float _phaseTimer;
         Vector3 _chargeDirection;
         float _originalSpeed;
@@ -66,6 +69,38 @@ namespace BadNorthBlackSpearman1_3
         Swordsman _swordsman;          // 近战刺击：读取 Swordsman.attack 状态
         Vector3 _spearBaseLocalPos;    // 长矛挂载基点（突刺偏移在此之上叠加）
         float _thrust;                 // 当前突刺量 0~1
+        bool _prevAttackActive;        // 近战诊断：上一帧是否在攻击
+        bool _thrustHitDone;           // 本回合矛刺到位后是否已触发伤害（FirstHit）
+        float _meleeDiagTimer;         // 近战诊断节流（突刺中每 0.15s 打一次）
+        float _idleDiagTimer;          // 待机/移动帧诊断节流（每 2s 打一次）
+        float _thrustStartTime;        // ★ 本回合刺击开始时间（节奏曲线用）
+        Vector3 _thrustDirWorld;       // ★ 刺击开始时锁定的世界方向（整段刺击不再重算 → 消除鬼畜）
+        bool _thrustDirLocked;         // ★ 方向是否已锁定（目标存活才锁；目标消失退回 agent.forward）
+        bool _thrustRotLocked;         // ★ 刺击期间矛旋转是否已锁（不再每帧 Slerp 追目标）
+
+        // ★ 长矛穿刺节奏（与 Plugin.SwordsmanAttackPrefix / SwordsmanAttackUpdatePrefix 协同）：
+        //   攻击 = 站桩刺击：矛快速刺出(0.06s) + 收回(0.28s)，总时长 MeleeAttackDuration 后由
+        //   SwordsmanAttackUpdatePrefix 结束攻击（原版靠挥剑动画播完，穿刺不播动画故用此标记）。
+        static readonly Dictionary<Agent, float> _meleeAttackStart = new Dictionary<Agent, float>();
+        const float MeleeAttackDuration = 0.5f;   // 每次刺击总时长（量级 ≈ 原版挥剑 0.6s）
+
+        public static void NotifyMeleeAttackStart(Agent a)
+        {
+            if (a == null) return;
+            _meleeAttackStart[a] = Time.time;
+        }
+
+        public static void NotifyMeleeAttackEnd(Agent a)
+        {
+            if (a == null) return;
+            _meleeAttackStart.Remove(a);
+        }
+
+        public static bool MeleeAttackDone(Agent a)
+        {
+            float t;
+            return a != null && _meleeAttackStart.TryGetValue(a, out t) && Time.time - t >= MeleeAttackDuration;
+        }
 
         public void Setup(Agent agent)
         {
@@ -132,32 +167,183 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>
-        /// 近战刺击表现：Swordsman 进入 attack 状态时，长矛对准当前目标并沿矛身方向快速前刺
-        /// （ThrustDistance），攻击结束缓慢收回。身体动画仍是基底挥剑帧（剑已被擦除），
-        /// 但矛的前刺主导观感 → "刺"而非"挥砍长矛"。与冲锋共用 _spearTargetRot 插值，互不冲突。
+        /// 近战刺击表现 + 诊断：Swordsman 进入 attack 状态时，长矛沿"攻击开始瞬间锁定的方向"快速前刺
+        /// （ThrustDistance），刺出-保持-收回（不再一直顶在最前），攻击结束缓慢收回。
+        /// 身体动画仍是基底挥剑帧（剑已被擦除），但矛的前刺主导观感 → "刺"而非"挥砍长矛"。
+        /// ⚠️ 2026-08-15 修复：旧版"每帧按当前目标 chestPos 重算方向"导致 agent 移动/转身时
+        ///    矛世界位置与旋转每帧乱摆（鬼畜）；现改为攻击开始瞬间锁定 _thrustDirWorld 与
+        ///    _spearTargetRot，整段刺击不再重算 → 直线直刺；并让黑矛兵攻击时站桩（walkDir=0）。
         /// </summary>
         void UpdateMeleeThrust()
         {
             if (_spearTransform == null) return;
             bool attacking = _swordsman != null && _swordsman.attack != null && _swordsman.attack.active;
-            if (attacking)
+
+            // ★ 攻击上升沿：锁定突刺方向 + 矛朝向（只锁一次，整段刺击不再重算 → 消除鬼畜）
+            if (attacking && !_prevAttackActive)
             {
+                _thrustHitDone = false;      // 新回合刺击：重置命中标记
+                _thrustStartTime = Time.time;
+                _thrustDirLocked = false;
+                _thrustRotLocked = false;
                 var t = _swordsman.target != null ? _swordsman.target : _agent.enemyAgent;
                 if (t != null && t.aliveState != null && t.aliveState.active)
                 {
-                    if (SpearVisual.TryGetAimRotation(_agent, t.chestPos, out _spearTargetRot)) _hasSpearTarget = true;
+                    Vector3 toT = t.chestPos - _spearTransform.position;
+                    toT.y = 0f;
+                    if (toT.sqrMagnitude > 0.0001f)
+                    {
+                        _thrustDirWorld = toT.normalized;
+                        _thrustDirLocked = true;
+                    }
+                    if (SpearVisual.TryGetAimRotation(_agent, t.chestPos, out _spearTargetRot))
+                    {
+                        _hasSpearTarget = true;
+                        _thrustRotLocked = true;
+                    }
                 }
-                _thrust = Mathf.Min(1f, _thrust + Time.deltaTime / ThrustRiseTime);
+                if (!_thrustDirLocked) _thrustDirWorld = _agent.transform.forward;
+                // ★ 视觉取证：本会话首次刺击时截一张整屏（帧末落盘，直接看身体在播什么）
+                CaptureScreenshotOnce("attack");
+                BSLog.Info("[近战] 攻击开始 target=" + (t != null ? t.name : "null") +
+                    " dist=" + (t != null ? Vector3.Distance(_agent.transform.position, t.transform.position).ToString("F2") : "-") +
+                    " " + DescribeBody(_agent) + " " + DescribeAnimator(_agent) +
+                    " range=" + (_swordsman != null ? _swordsman.range.ToString("F2") : "-") +
+                    " done=" + _agent.animationDone + " 锁方向=" + _thrustDirWorld.ToString("F2"));
+            }
+            else if (!attacking && _prevAttackActive)
+            {
+                _thrustDirLocked = false;
+                _thrustRotLocked = false;
+                BSLog.Info("[近战] 攻击结束 thrust=" + _thrust.ToString("F2") +
+                    " spearLocalPos=" + _spearTransform.localPosition.ToString("F3"));
+            }
+            _prevAttackActive = attacking;
+
+            if (attacking)
+            {
+                // ★ 刺出-收回节奏：快速刺出(0.06s) → 短暂保持命中(0.12s) → 收回(0.28s)。
+                //   旧版"攻击中只升不降"→ 矛一直顶在最前（thrust=1.00 多帧），观感"伸着"而非"刺"。
+                float el = Time.time - _thrustStartTime;
+                float thrust;
+                if (el < ThrustRiseTime) thrust = Mathf.Clamp01(el / ThrustRiseTime);
+                else if (el < ThrustRiseTime + ThrustHoldTime) thrust = 1f;
+                else thrust = Mathf.Clamp01(1f - (el - ThrustRiseTime - ThrustHoldTime) / ThrustFallTime);
+                _thrust = thrust;
+
+                // ★ 命中：矛刺到位（thrust 首次达 1）时手动触发伤害。
+                //   原版由挥剑动画事件 FirstHit/Hit 触发，穿刺不播挥剑动画 → 必须自己触发
+                //   （FirstHit 是 public，内部 DoHit→GetAttack→DealDamage）。
+                if (_thrust >= 1f && !_thrustHitDone)
+                {
+                    _thrustHitDone = true;
+                    if (_swordsman != null)
+                    {
+                        try { _swordsman.FirstHit(); }
+                        catch (Exception e) { BSLog.Warn("[近战] FirstHit 异常: " + e); }
+                    }
+                }
+
+                // ★ 矛沿"锁定世界方向"直线刺出：InverseTransformDirection 每帧把锁定的世界方向
+                //   转回本地，即使 agent 转身也能稳定直刺；不再每帧向目标重算 → 不鬼畜。
+                Vector3 dirLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld);
+                _spearTransform.localPosition = _spearBaseLocalPos + dirLocal * (ThrustDistance * _thrust);
+                // ★ 攻击期间黑矛兵站桩（不边跑边刺）：walkDir 归零让身体转 stand，矛稳定前刺
+                if (_agent != null) _agent.walkDir = Vector3.zero;
+
+                // ★ 近战诊断：突刺过程矛的位置/旋转（每 0.15s）
+                _meleeDiagTimer -= Time.deltaTime;
+                if (_meleeDiagTimer <= 0f)
+                {
+                    _meleeDiagTimer = 0.15f;
+                    BSLog.Info("[近战] 突刺中 thrust=" + _thrust.ToString("F2") +
+                        " spearPos=" + _spearTransform.position.ToString("F2") +
+                        " spearLocalPos=" + _spearTransform.localPosition.ToString("F3") +
+                        " spearWorldRot=" + _spearTransform.rotation.eulerAngles.ToString("F1") +
+                        " agentYaw=" + _agent.transform.rotation.eulerAngles.y.ToString("F1") +
+                        " 锁dir=" + _thrustDirWorld.ToString("F2"));
+                }
             }
             else
             {
                 _thrust = Mathf.Max(0f, _thrust - Time.deltaTime / ThrustFallTime);
+                // ★ 待机/移动帧诊断：非攻击时每 2s 记录当前动画状态与帧名，
+                //   用于确认"待机剑柄"来自哪个动画（Onehanded 还是别的帧）
+                _idleDiagTimer -= Time.deltaTime;
+                if (_idleDiagTimer <= 0f)
+                {
+                    _idleDiagTimer = 2f;
+                    try
+                    {
+                        string spName = "?";
+                        var sa = _agent != null ? _agent.GetComponentInChildren<SpriteAnimator>(true) : null;
+                        if (sa != null && sa.sprite != null) spName = sa.sprite.name;
+                        BSLog.Info("[近战·待机帧] " + DescribeAnimator(_agent) + " " + DescribeBody(_agent) + " sprite=" + spName);
+                    }
+                    catch { }
+                }
             }
-            if (_thrust > 0.001f || _spearTransform.localPosition != _spearBaseLocalPos)
+            // ★ 非刺出状态回到挂载基点（避免长矛卡在刺出位）
+            if (!attacking && _thrust <= 0.001f && _spearTransform.localPosition != _spearBaseLocalPos)
             {
-                Vector3 lp = _spearBaseLocalPos + _spearTransform.localRotation * (Vector3.forward * (ThrustDistance * _thrust));
-                _spearTransform.localPosition = lp;
+                _spearTransform.localPosition = _spearBaseLocalPos;
             }
+        }
+
+        /// <summary>Unity Animator 状态解析成可读信息：控制器名 + 当前 clip 名 + 状态哈希 + 进度。
+        /// ⚠️ 旧日志只打 fullPathHash（如 hash=81563449），根本看不出是 Idle/Run/Attack，等于没暴露。</summary>
+        static string DescribeAnimator(Agent a)
+        {
+            try
+            {
+                if (a == null || a.animator == null) return "anim=null";
+                string ctrl = a.animator.runtimeAnimatorController != null ? a.animator.runtimeAnimatorController.name : "?";
+                var si = a.animator.GetCurrentAnimatorStateInfo(0);
+                string clip = "?";
+                try
+                {
+                    var clips = a.animator.GetCurrentAnimatorClipInfo(0);
+                    if (clips != null && clips.Length > 0 && clips[0].clip != null) clip = clips[0].clip.name;
+                }
+                catch { }
+                return "animCtrl=" + ctrl + " clip=" + clip + " hash=" + si.fullPathHash + " norm=" + si.normalizedTime.ToString("F2");
+            }
+            catch (Exception e) { return "anim=err:" + e.Message; }
+        }
+
+        /// <summary>Body 状态解析：先看叶子状态（standing/stepping/sliding）。
+        /// ⚠️ hopping 只是容器状态（几乎恒 active），旧的"先判 hopping"写法会让日志永远显示 hop，
+        /// 误导成"跳扑一直存在"——这正是"日志没暴露问题"的一处典型。</summary>
+        static string DescribeBody(Agent a)
+        {
+            try
+            {
+                if (a == null || a.body == null) return "body=null";
+                var b = a.body;
+                return "body=stand:" + b.standing.active + " step:" + b.stepping.active +
+                    " slide:" + b.sliding.active + " hop:" + b.hopping.active;
+            }
+            catch { return "body=err"; }
+        }
+
+        /// <summary>整屏截图（帧末抓取），用于视觉取证：攻击瞬间身体到底在播什么动画帧。
+        /// ⚠️ 此 Unity 2018.4 构建没有 ScreenCapture 类型，用 Application.CaptureScreenshot（核心模块仍提供）。</summary>
+        static void CaptureScreenshotOnce(string tag)
+        {
+            if (_screenshotTaken) return;
+            _screenshotTaken = true;
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string p = System.IO.Path.Combine(dir, "BS_shot_" + tag + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
+                // ⚠️ Application.CaptureScreenshot 被标记 [Obsolete(..., true)]（error），编译期引用即报 CS0619；
+                //    此 Unity 2018.4 构建又没有 ScreenCapture 类型 → 用反射调用，运行期不受影响。
+                var mi = typeof(Application).GetMethod("CaptureScreenshot", new[] { typeof(string) });
+                if (!ReferenceEquals(mi, null)) mi.Invoke(null, new object[] { p });
+                else { BSLog.Warn("[截图] 反射未找到 Application.CaptureScreenshot，跳过"); return; }
+                BSLog.Info("[截图] 已触发整屏截图（帧末落盘）: " + p);
+            }
+            catch (Exception e) { BSLog.Warn("[截图] 失败: " + e); }
         }
 
         bool TryTriggerCharge(bool log)
@@ -431,8 +617,17 @@ namespace BadNorthBlackSpearman1_3
             // 冲锋位移推进见 Update → DoCharging（固定起点插值 + navPos 整体赋值），这里不再重复推进：
             // 旧版曾在此用 transform.position + dir*speed*dt 增量推进，与 DoCharging 的固定插值每帧互相覆盖
             // （LateUpdate 后执行会把正确的固定插值盖掉），已删除。
-            if (_hasSpearTarget && _spearTransform != null)
+            // ★ 刺击期间旋转已锁定（_thrustRotLocked）：直接 snap 到锁定朝向，不每帧 Slerp 追目标 →
+            //   矛保持直线直刺（鬼畜根因之一就是刺击时还向移动中的目标做 Slerp 插值）。
+            if (_spearTransform == null) return;
+            if (_thrustRotLocked && _hasSpearTarget)
+            {
+                _spearTransform.rotation = _spearTargetRot;
+            }
+            else if (_hasSpearTarget)
+            {
                 _spearTransform.rotation = Quaternion.Slerp(_spearTransform.rotation, _spearTargetRot, Time.deltaTime * 12f);
+            }
         }
 
         /// <summary>

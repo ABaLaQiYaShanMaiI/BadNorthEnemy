@@ -270,6 +270,16 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 
 **离线校准脚本**：`analyze_sword.py`（逐帧统计剑刃/剑柄坐标）、`validate_erase.py`（模拟新擦除算法全量验证）。
 
+**🔬 PartTex 探针结论 + sprite2 亮银擦除（2026-08-15 五次进展）**：
+- 运行时探针（4 组合 UV 解码采样 `PartTex_Median_BlurAlpha`）确认：**剑=亮银(159~189,144~186,137~189)、身体=暗(33,26,24)** → 剑柄残留走"克隆 sprite2 抹亮银"方案（`SetSprite2` 回写，rect 同尺寸同原点，顶点色编码不变，不伤身体）。
+- 已实现：`EraseSilverPixels`（中性亮银阈值）+ `GetErasedSprite2` 亮银擦除（`Sprite2SafetyRatio=35%`）+ 探针新增剑柄采样。构建 0 警告 0 错误，Debug 77824B 已部署。
+- 说明：旧 `EraseSwordPixels`（红暗阈值）对 PartTex 永远命中 0 → 之前 sprite2 去剑实际从未生效（日志无 `sprite2 已去剑`）。
+
+**🔬 长矛穿刺（2026-08-15 六次进展）——剑柄去不掉，就换"真·穿刺"攻击**：
+- 实测：sprite2 亮银擦除被安全阀拒绝（`2681/6571=40.8%`>35%）；剑柄在 PartTex 里是暗色 `(33,26,24)/(66,48,41)`，与身体同色 → **帧级/颜色级/部件级三路证明剑柄无法靠像素擦除解决**。
+- 转方向：**Patch `Swordsman.Attack()`** 让黑矛兵攻击不播挥剑动画（原版播 Onehanded 挥剑帧 = "用长矛执行剑的劈砍"），**Patch `AttackUpdate()`** 用矛刺周期（0.5s）结束攻击；矛刺到位瞬间手动 `FirstHit()` 触发长矛伤害（原版由挥剑动画事件触发）。观感从"跳扑挥砍"改为"站桩端矛戳刺"。
+- 副作用：攻击不再播挥剑动画 → 攻击时剑柄不再出现；待机剑柄是否残留待 `[近战·待机帧]` 日志确认。
+
 ---
 
 ```

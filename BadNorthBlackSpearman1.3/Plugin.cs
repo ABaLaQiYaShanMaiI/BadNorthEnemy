@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using BepInEx;
@@ -54,6 +55,13 @@ namespace BadNorthBlackSpearman1_3
         static VikingAgent _sourceViking;
         static readonly HashSet<Agent> _done = new HashSet<Agent>();
 
+        // ★ Patch 生效状态（供启动总览与运行期检查）：启动日志里每一行都必须看到 OK
+        static bool _patchLevelNode, _patchRange, _patchGetAttack, _patchAttack, _patchAttackUpdate, _patchPlayAnimation;
+        static readonly HashSet<Agent> _attackUpdateSeen = new HashSet<Agent>();
+        static readonly int AttackAnimHash = Animator.StringToHash("Attack");
+        static readonly int ClashAnimHash = Animator.StringToHash("Clash");
+        static float _lastAnimLogTime = -999f;
+
         /// <summary>诊断探针读取：当前已注册的新单位。</summary>
         public static VikingReference BlackSpearman => _blackSpearman;
         /// <summary>诊断探针读取：已处理的黑矛兵 Agent 数量。</summary>
@@ -70,6 +78,16 @@ namespace BadNorthBlackSpearman1_3
                 // 初始化日志系统（控制台 + 文件 + 全局异常捕获）+ 诊断探针
                 string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 BSLog.Init(dir);
+                // 装配身份：确认真正加载的 DLL 是刚构建/部署的那一份（防"改了源码却没部署/部署错位"）
+                try
+                {
+                    var asm = Assembly.GetExecutingAssembly();
+                    var fi = new FileInfo(asm.Location);
+                    BSLog.Info("[装配] " + asm.FullName);
+                    BSLog.Info("[装配] 路径=" + asm.Location);
+                    BSLog.Info("[装配] 大小=" + fi.Length + "B 修改时间=" + fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                }
+                catch { }
                 gameObject.AddComponent<DiagnosticsComponent>();
 
                 On.Voxels.TowerDefense.GameSetup.Awake += OnGameSetupAwake;
@@ -78,6 +96,16 @@ namespace BadNorthBlackSpearman1_3
                 var harmony = new Harmony(GUID);
                 PatchLevelNodeSetup(harmony);
                 PatchSwordsman(harmony);
+
+                // ★ 启动总览：每条 Patch 的生效状态一眼可见；任一 FAIL 都意味着原版逻辑仍残留
+                BSLog.Info("[PATCH·总览] " +
+                    "LevelNode=" + (_patchLevelNode ? "OK" : "FAIL") +
+                    " range=" + (_patchRange ? "OK" : "FAIL") +
+                    " GetAttack=" + (_patchGetAttack ? "OK" : "FAIL") +
+                    " Attack=" + (_patchAttack ? "OK" : "FAIL") +
+                    " AttackUpdate=" + (_patchAttackUpdate ? "OK" : "FAIL") +
+                    " PlayAnim=" + (_patchPlayAnimation ? "OK" : "FAIL") +
+                    " ← 全 OK 才代表长矛穿刺真正接管；Attack/AttackUpdate 任一 FAIL 则普通攻击仍是原版挥剑+跳扑");
 
                 BSLog.Info($"[BS v1.3] Ready. 新单位: {NewVikingName.Value}");
                 BSLog.Info($"[配置] Source={SourceVikingName.Value} New={NewVikingName.Value} Bounty={Bounty.Value} " +
@@ -274,50 +302,139 @@ namespace BadNorthBlackSpearman1_3
 
         void PatchLevelNodeSetup(Harmony harmony)
         {
-            var method = typeof(LevelNode).GetMethod("Setup",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null, new[] { typeof(LevelState) }, null);
-            if (ReferenceEquals(method, null))
+            TryPatch("LevelNode.Setup（把新单位注入敌人生成池）", () =>
             {
-                BSLog.Error("[PATCH] 未找到 LevelNode.Setup");
-                return;
-            }
-            harmony.Patch(method, postfix: new HarmonyMethod(
-                typeof(Plugin).GetMethod("LevelNodeSetupPostfix",
-                    BindingFlags.NonPublic | BindingFlags.Static)));
-            BSLog.Info("[PATCH] 已 Patch LevelNode.Setup（用于把新单位注入敌人生成池）");
+                var method = typeof(LevelNode).GetMethod("Setup",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { typeof(LevelState) }, null);
+                if (ReferenceEquals(method, null)) throw new Exception("LevelNode.Setup 不存在");
+                harmony.Patch(method, postfix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("LevelNodeSetupPostfix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+            }, ref _patchLevelNode);
         }
 
         void PatchSwordsman(Harmony harmony)
         {
             // 1) 长矛攻击距离：Patch Swordsman.range getter（默认 radius*0.7，长矛更长）
-            PropertyInfo rangeProp = typeof(Swordsman).GetProperty("range");
-            if (!ReferenceEquals(rangeProp, null))
+            TryPatch("Swordsman.range（长矛攻击距离）", () =>
             {
-                MethodInfo rangeGet = rangeProp.GetGetMethod();
-                if (!ReferenceEquals(rangeGet, null))
-                {
-                    harmony.Patch(rangeGet, postfix: new HarmonyMethod(
-                        typeof(Plugin).GetMethod("SwordsmanRangePostfix",
-                            BindingFlags.NonPublic | BindingFlags.Static)));
-                    BSLog.Info("[PATCH] 已 Patch Swordsman.range（长矛攻击距离）");
-                }
-                else BSLog.Error("[PATCH] Swordsman.range 无 getter");
-            }
-            else BSLog.Error("[PATCH] 未找到 Swordsman.range");
+                var prop = typeof(Swordsman).GetProperty("range");
+                var m = !ReferenceEquals(prop, null) ? prop.GetGetMethod() : null;
+                if (ReferenceEquals(m, null)) throw new Exception("range getter 不存在");
+                harmony.Patch(m, postfix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("SwordsmanRangePostfix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+            }, ref _patchRange);
 
             // 2) 长矛攻击表现：Patch Swordsman.GetAttack（换成长矛音效/方向）
-            MethodInfo getAttack = typeof(Swordsman).GetMethod("GetAttack",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null, new[] { typeof(Agent) }, null);
-            if (!ReferenceEquals(getAttack, null))
+            TryPatch("Swordsman.GetAttack（长矛攻击）", () =>
             {
-                harmony.Patch(getAttack, prefix: new HarmonyMethod(
+                var m = typeof(Swordsman).GetMethod("GetAttack",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { typeof(Agent) }, null);
+                if (ReferenceEquals(m, null)) throw new Exception("GetAttack 不存在");
+                harmony.Patch(m, prefix: new HarmonyMethod(
                     typeof(Plugin).GetMethod("SwordsmanGetAttackPrefix",
                         BindingFlags.NonPublic | BindingFlags.Static)));
-                BSLog.Info("[PATCH] 已 Patch Swordsman.GetAttack（长矛攻击）");
+            }, ref _patchGetAttack);
+
+            // ★★ 2026-08-15 根因修复：旧代码用 GetMethod(..., new[]{ typeof(Agent), typeof(Func<Agent,bool>) })
+            //    按参数类型定位 Attack。net472 编译产物对 System.Func`2 的引用携带 mscorlib 4.0.0.0，
+            //    而游戏运行在 Unity 2018.4 / Mono(CLR2.0, mscorlib 2.0) —— 该引用在 JIT 编译本方法体时
+            //    直接抛 TypeLoadException，整个方法死在入口，range/GetAttack/Attack/AttackUpdate
+            //    四条 Patch 全部静默失效（日志里只见一行 Awake 初始化异常: System.Func`2）。
+            //    修复：不再引用 Func<,>，仅按方法名查找（Swordsman 只有一个 public Attack，无歧义）。
+            TryPatch("Swordsman.Attack（长矛穿刺·不播挥剑）", () =>
+            {
+                var m = typeof(Swordsman).GetMethod("Attack", BindingFlags.Instance | BindingFlags.Public);
+                if (ReferenceEquals(m, null)) throw new Exception("Attack 不存在");
+                harmony.Patch(m, prefix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("SwordsmanAttackPrefix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+            }, ref _patchAttack);
+
+            // 3) 长矛穿刺节奏：Patch Swordsman.AttackUpdate（用矛刺周期结束攻击，而非等挥剑动画播完）
+            TryPatch("Swordsman.AttackUpdate（长矛穿刺节奏）", () =>
+            {
+                var m = typeof(Swordsman).GetMethod("AttackUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (ReferenceEquals(m, null)) throw new Exception("AttackUpdate 不存在");
+                harmony.Patch(m, prefix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("SwordsmanAttackUpdatePrefix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+            }, ref _patchAttackUpdate);
+
+            // 4) 挥剑动画溯源：Patch Agent.PlayAnimation(int)，黑矛兵播放 Attack/Clash 时打调用栈
+            TryPatch("Agent.PlayAnimation（挥剑动画溯源）", () =>
+            {
+                var m = typeof(Agent).GetMethod("PlayAnimation",
+                    BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(int) }, null);
+                if (ReferenceEquals(m, null)) throw new Exception("PlayAnimation(int) 不存在");
+                harmony.Patch(m, prefix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("AgentPlayAnimationPrefix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+            }, ref _patchPlayAnimation);
+        }
+
+        // ★ 自定义委托代替 System.Action：
+        //   ⚠️ 2026-08-15 实测——本机运行环境是 Unity Mono（mscorlib 4.0.0.0 的 Action/Func 是
+        //   type-forward 到 System.Core 的），net472 编译产物若引用 [mscorlib]System.Action，运行期
+        //   MonoMod 反射枚举 mod 方法时即抛 TypeLoadException（"Could not load type 'System.Action'
+        //   from assembly 'mscorlib, Version=4.0.0.0'"）。mod 自定义委托继承 MulticastDelegate，
+        //   不依赖 mscorlib 的 Action，彻底绕开该问题。⚠️ mod 内禁止再写 System.Action/System.Func。
+        //   ⚠️ 雷区③（2026-08-15 第三轮实测）：对 MethodInfo/PropertyInfo/Type 等反射对象用
+        //   == / != null，net472 编译产物会引用 System.Reflection.MethodInfo.op_Equality /
+        //   PropertyInfo.op_Inequality 等运算符（.NET 4.0 的 mscorlib 才声明），Unity 运行时
+        //   mscorlib 没有 → MissingMethodException（Method not found: op_Equality），TryPatch
+        //   逐条全 FAIL。反射对象判空一律用 ReferenceEquals（旧代码/ SwordRemover 注释同款铁律）。
+        delegate void PatchJob();
+
+        // ★ 每个 Patch 独立 try/catch：任何一个失败都只报它自己，不再出现
+        //   "整个 PatchSwordsman 被一处异常打崩、其余 Patch 静默未生效"的情况。
+        static void TryPatch(string label, PatchJob apply, ref bool ok)
+        {
+            try
+            {
+                apply();
+                ok = true;
+                BSLog.Info("[PATCH] ✅ " + label);
             }
-            else BSLog.Error("[PATCH] 未找到 Swordsman.GetAttack");
+            catch (Exception e)
+            {
+                ok = false;
+                BSLog.Error("[PATCH] ❌ " + label + " 失败: " + e);
+            }
+        }
+
+        // ★ 挥剑动画溯源：黑矛兵被要求播放 Attack/Clash 动画时立刻打调用栈，
+        //   直接回答"刺击期间到底还有没有原版挥剑路径在播动画"。
+        static void AgentPlayAnimationPrefix(Agent __instance, int anim)
+        {
+            try
+            {
+                if (__instance == null || !_done.Contains(__instance)) return;
+                if (anim != AttackAnimHash && anim != ClashAnimHash) return;
+                if (Time.time - _lastAnimLogTime < 0.5f) return;
+                _lastAnimLogTime = Time.time;
+                BSLog.Warn("[动画·溯源] ⚠️ 黑矛兵被要求播放 " +
+                    (anim == AttackAnimHash ? "Attack(挥剑)" : "Clash") + " 动画 hash=" + anim +
+                    " —— 刺击期间出现即说明还有原版挥剑路径，调用栈：");
+                try
+                {
+                    var st = new System.Diagnostics.StackTrace(1, false);
+                    var frames = st.GetFrames();
+                    int n = frames != null ? Math.Min(frames.Length, 6) : 0;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var m = frames[i].GetMethod();
+                        if (ReferenceEquals(m, null)) continue;
+                        string cls = !ReferenceEquals(m.DeclaringType, null) ? m.DeclaringType.Name : "?";
+                        BSLog.Info("    ← " + cls + "." + m.Name);
+                    }
+                }
+                catch { }
+            }
+            catch { }
         }
 
         static void SwordsmanRangePostfix(Swordsman __instance, ref float __result)
@@ -355,11 +472,109 @@ namespace BadNorthBlackSpearman1_3
                 __result = new Attack(settings, dir, (target.wChestPos + __instance.agent.wChestPos) / 2f,
                     __instance, __instance.agent.squad, "Sfx/English/Spear");
                 SpearVisual.AimAt(__instance.agent, target.chestPos);   // 视觉：长矛刺向目标（盖过挥剑动画）
+                BSLog.Info("[近战] GetAttack target=" + target.name + " dmg=" + settings.damage.ToString("F1") +
+                    " kb=" + settings.knockback.ToString("F1") + " stun=" + settings.stun.ToString("F1") +
+                    " sound=Spear dist=" + Vector3.Distance(__instance.agent.transform.position, target.transform.position).ToString("F2"));
                 return false; // 跳过原版剑击
             }
             catch (Exception e)
             {
                 BSLog.Warn("[PATCH] 长矛攻击改写异常: " + e);
+                return true;
+            }
+        }
+
+        // ★ 长矛穿刺：黑矛兵攻击 = 站桩刺击。原版 Swordsman.Attack() 会播放挥剑动画帧（Onehanded），
+        //   观感就是"用长矛执行剑的劈砍"。这里跳过原版（不播挥剑动画），矛的刺出/收回/命中由
+        //   SpearChargeComponent.UpdateMeleeThrust 驱动；攻击时长由 MeleeAttackDuration 控制。
+        static readonly FieldInfo StaminaField = AccessTools.Field(typeof(Swordsman), "stamina");
+        static readonly FieldInfo StaminaCostField = AccessTools.Field(typeof(Swordsman), "attackStaminaCost");
+
+        static bool SwordsmanAttackPrefix(Swordsman __instance, Agent targetAgent, ref bool __result)
+        {
+            try
+            {
+                if (__instance == null || __instance.agent == null || targetAgent == null) return true;
+                if (!_done.Contains(__instance.agent)) return true;
+
+                // 复制原版 Attack() 的存活/距离检查（去掉 body.hopping 前置——着地即可攻击）
+                if (!__instance.agent.aliveAndGrounded.active) { __result = false; return false; }
+                float num = __instance.agent.radius + targetAgent.radius + __instance.range;
+                if ((targetAgent.navPos.pos - __instance.agent.navPos.pos).sqrMagnitude > num * num)
+                { __result = false; return false; }
+
+                __instance.attack.SetActive(true);
+                __instance.target = targetAgent;
+                IslandGameplayManager.RequestCombatAudio(__instance.swingSound, __instance.gameObject);
+                // 保留原版：目标为剑盾兵时触发格挡
+                var enemySw = targetAgent.brain as Swordsman;
+                if (enemySw != null && enemySw.shield != null) enemySw.shield.MaybeParry(__instance);
+                SpearChargeComponent.NotifyMeleeAttackStart(__instance.agent);
+                // ★ 拦截证据：本行出现 = Attack 前缀确实在跑、原版挥剑确实被跳过
+                //   （range 应为 0.69 而非原版 0.09 —— 同时是 range Patch 的活体探针）
+                BSLog.Info("[近战·拦截] Attack() 已接管 target=" + targetAgent.name +
+                    " range=" + __instance.range.ToString("F2") + " → 跳过原版挥剑/跳扑");
+                __result = true;
+                return false;   // 跳过原版：不播挥剑动画
+            }
+            catch (Exception e)
+            {
+                BSLog.Warn("[PATCH] 长矛穿刺 Attack 改写异常: " + e);
+                return true;
+            }
+        }
+
+        static bool SwordsmanAttackUpdatePrefix(Swordsman __instance)
+        {
+            try
+            {
+                if (__instance == null || __instance.agent == null) return true;
+                if (!_done.Contains(__instance.agent)) return true;
+
+                // ★ 接管证据：每个黑矛兵第一次进入 AttackUpdate 时打一行（证明前缀在跑）
+                if (_attackUpdateSeen.Add(__instance.agent))
+                    BSLog.Info("[近战·接管] Swordsman.AttackUpdate 已接管（黑矛兵 #" + _attackUpdateSeen.Count + "）——攻击结束改由矛刺周期判定");
+
+                // 结束判定：动画播完（穿刺不播动画，恒 false）或 矛刺周期完成
+                bool animDone = __instance.agent.animationDone;
+                bool meleeDone = SpearChargeComponent.MeleeAttackDone(__instance.agent);
+                if (animDone || meleeDone)
+                {
+                    float stam = (float)StaminaField.GetValue(__instance);
+                    float cost = (float)StaminaCostField.GetValue(__instance);
+                    stam -= cost;
+                    StaminaField.SetValue(__instance, stam);
+                    __instance.attack.SetActive(false);
+                    SpearChargeComponent.NotifyMeleeAttackEnd(__instance.agent);
+                    if (stam > 0f && __instance.agent.enemyAgent != null)
+                    {
+                        // ★ 连刺：不调用原版 Attack()——其签名含 System.Func<,>，是 Unity Mono 的
+                        //   类型加载雷区（见 TryPatch 注释）。改为直接重启攻击状态 + 矛刺周期，
+                        //   与 Attack 前缀的效果一致（前缀本就不播挥剑动画）。
+                        __instance.target = __instance.agent.enemyAgent;
+                        __instance.attack.SetActive(true);
+                        SpearChargeComponent.NotifyMeleeAttackStart(__instance.agent);
+                    }
+                    return false;
+                }
+
+                // ★ 攻击中：站桩刺击（不再每帧"朝目标贴拢推进"——那是原版挥剑的逼近行为）。
+                //   只保留面向目标（SetDirection），walkDir 归零让身体转 stand，矛由
+                //   SpearChargeComponent.UpdateMeleeThrust 稳定直刺。观感从"边跑边挥"变"站定直刺"。
+                if (__instance.target != null && __instance.target.aliveAndGrounded.active)
+                {
+                    __instance.agent.walkDir = Vector3.zero;
+                    __instance.agent.SetDirection(__instance.target.transform.position - __instance.transform.position);
+                }
+                else
+                {
+                    __instance.agent.walkDir = Vector3.zero;
+                }
+                return false;
+            }
+            catch (Exception e)
+            {
+                BSLog.Warn("[PATCH] 长矛穿刺 AttackUpdate 改写异常: " + e);
                 return true;
             }
         }
@@ -433,6 +648,9 @@ namespace BadNorthBlackSpearman1_3
                 ScaleArr(sw.damageLevels, DamageMult.Value);
                 ScaleArr(sw.knockbackLevels, KnockbackMult.Value);
                 ScaleArr(sw.stunLevels, StunMult.Value);
+                // ★ 静默基底挥剑音效：Swordsman.Attack() 会播 swingSound("Sfx/English/Sword/Swing")，
+                //   这是"剑劈砍特效"的听觉部分。换成长矛挥击音效（复用已确认存在的 Spear 攻击音效）。
+                try { sw.swingSound = "Sfx/English/Spear"; } catch { }
                 BSLog.Info($"[AGENT] 黑矛兵 {a.name} 攻击范围 range={sw.range.ToString("F2")} radius={a.radius.ToString("F2")} dmg={sw.damage.ToString("F1")} kb={sw.knockback.ToString("F1")}");
             }
 
