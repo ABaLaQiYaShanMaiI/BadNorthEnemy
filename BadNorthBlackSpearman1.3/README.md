@@ -283,7 +283,7 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 **🎯 近战刺击收尾 + 盾牌格挡 + 冷却延长（2026-08-15 七次进展，✅ 定稿）**：
 - **刺击"小的抽动"修复**（攻击全程零重算、两处同帧锁死）：
   - 攻击开始瞬间 `SetDirection(_thrustDirWorld)` 先把身体 snap 对准突刺方向，再把突刺位移以**本地空间**锁定为 `_thrustOffsetLocal`（`InverseTransformDirection(dir) × ThrustDistance` 只算一次）——旧版每帧重算，身体 SetDirection 阶跃/转向时本地偏移逐帧跳变 = 肉眼可见的抽动；
-  - 刺击朝向改用 `LookRotation(dir, cross(dir, up))`（虚拟 right，恒 ⊥ dir）——旧版 `LookRotation(dir, agent.right)` 在目标位于角色侧向时 roll 翻转 180°（矛精灵上下颠倒）；agent 正对目标时两式完全等价 → 观感零变化；
+  - 刺击朝向改用 `LookRotation(dir, cross(up, dir))`（虚拟 right = cross(worldUp, dir)，恒 ⊥ dir、永不退化）——旧版 `LookRotation(dir, agent.right)` 在目标位于角色侧向时 roll 翻转 180°（矛精灵上下颠倒）；agent 正对目标时 `cross(up, dir) ≡ agent.right`，与旧式完全等价 → 观感零变化（⚠️ 首版误写 `cross(dir, up)` 符号反了 = −agent.right，验证日志 `spearWorldRot=(0,X,180)` 与冲锋举矛 `(0,X,0)` 不一致，已修正为 `cross(up, dir)`）；
   - `Plugin.SwordsmanAttackUpdatePrefix` 攻击期间面向改用**锁定突刺方向**（不再每帧追活动目标当前位置）→ 身体朝向恒定、突刺稳定。
 - **近战命中对齐我方长矛兵 Spear**（`DoSpearHit` / `TestHit` / `DealSpearDamage`）：矛本地空间球判定（矛尖指向才中）、主目标 ×1 / 副目标 ×0.33 贯穿、`PrefabManager.hitEffect` 命中特效。
 - **盾牌 = 剑盾兵真实格挡**（`BlackSpearmanShield.cs`，复刻 `Shield.ModifyAttack`）：近战正面格挡归零、箭矢 ×0.05 弹开/砸落、飞斧归零、长矛 ×0.2；`EnableShield` cfg 可关（false = 仅视觉）。

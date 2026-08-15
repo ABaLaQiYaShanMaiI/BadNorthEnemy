@@ -223,11 +223,13 @@ namespace BadNorthBlackSpearman1_3
                 try { _agent.SetDirection(_thrustDirWorld); } catch { }
                 _thrustOffsetLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld) * ThrustDistance;
 
-                // ★ 稳定刺击朝向（2026-08-15 修复"小的抽动"）：LookRotation(dir, 虚拟right=cross(dir,up))
-                //   恒 ⊥ dir —— 避免旧版 LookRotation(dir, agent.right) 在目标位于角色侧向时
+                // ★ 稳定刺击朝向（2026-08-15 修复"小的抽动"）：虚拟 right = cross(worldUp, dir) 恒 ⊥ dir、
+                //   永不退化 —— 避免旧版 LookRotation(dir, agent.right) 在目标位于角色侧向时
                 //   roll 翻转 180°（矛精灵上下颠倒，刺击瞬间最刺眼的一种抽动）。
-                //   agent 正对目标时 虚拟right ≡ agent.right → 观感与旧版零差异。
-                Vector3 stableRight = Vector3.Cross(_thrustDirWorld, Vector3.up);
+                //   agent 正对目标时 cross(up, dir) ≡ agent.right → 观感与旧版零差异。
+                //   ⚠️ 首版误写 cross(dir, up)（符号反了，= −agent.right）→ 刺击 roll 恒差 180°，
+                //   实测日志 spearWorldRot=(0,X,180)（冲锋/原版举矛是 (0,X,0)）暴露，已改为 cross(up, dir)。
+                Vector3 stableRight = Vector3.Cross(Vector3.up, _thrustDirWorld);
                 if (stableRight.sqrMagnitude > 0.001f)
                 {
                     _spearTargetRot = Quaternion.LookRotation(_thrustDirWorld, stableRight.normalized) * Quaternion.Euler(0f, 0f, 90f);
