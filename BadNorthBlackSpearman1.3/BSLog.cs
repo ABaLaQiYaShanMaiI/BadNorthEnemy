@@ -8,8 +8,7 @@ using UnityEngine;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 统一日志系统：BepInEx 控制台 + 独立诊断文件 + 全局异常捕获。
-    /// 目标：即使游戏崩溃，也能在文件中留下完整现场，供事后排查。
+    /// 统一日志系统：BepInEx 控制台 + 独立诊断文件 + 全局异常捕获，游戏崩溃也能留下现场。
     /// </summary>
     public static class BSLog
     {

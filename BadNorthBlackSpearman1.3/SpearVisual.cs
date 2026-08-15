@@ -4,9 +4,8 @@ using Voxels.TowerDefense;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 长矛朝向统一工具：冲锋、刺击、普通攻击共用同一套举矛公式，
-    /// 避免多处各写一份 LookRotation 导致矛的朝向观感不一致。
-    /// 公式（原版 Spear.LateUpdate）：LookRotation(矛尖方向, 角色right) * Euler(0,0,90)。
+    /// 长矛朝向统一工具：冲锋、刺击、普通攻击共用同一套举矛公式（原版 Spear.LateUpdate：
+    /// LookRotation(矛尖方向, up) * Euler(0,0,90)），避免各处写法不一导致矛的观感不一致。
     /// </summary>
     public static class SpearVisual
     {

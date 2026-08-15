@@ -6,14 +6,9 @@ using Voxels.TowerDefense.Ballistics;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 黑矛兵盾牌（剑盾兵格挡效果复刻，Shield.cs ModifyAttack）：
-    /// 不是摆设——盾牌正面朝向攻击方向时生效：
-    ///   · 近战（Swordsman/CloseCombatBrain）：正面格挡伤害归零 + 盾击特效/音效
-    ///   · 箭矢（Arrow/TankArcherArrow）：正面伤害 ×0.05（敌方盾牌）或 ×0（我方），随机弹开/钉住/砸落
-    ///   · 飞斧（ThrowingAxe）：正面伤害归零 + 弹开
-    ///   · 长矛（Spear）：正面伤害 ×0.2（spearShield 特殊格挡）
-    /// 由 BlackSpearmanWeapon.MountShieldCover 挂载盾牌视觉后，把本组件加入 agent.attackResponders。
-    /// cfg EnableShield=false 时 ModifyAttack 直接放行（盾牌仅剩视觉）。
+    /// 黑矛兵盾牌格挡（复刻 Shield.ModifyAttack）：盾牌正面朝向攻击来袭方向时生效——
+    /// 近战正面格挡归零、箭矢 ×0.05 弹开/砸落、飞斧归零、长矛 ×0.2。
+    /// 由 BlackSpearmanWeapon 在基底盾牌子对象上挂载；cfg EnableShield=false 时仅剩视觉。
     /// </summary>
     public class BlackSpearmanShield : MonoBehaviour, IAttackResponder
     {

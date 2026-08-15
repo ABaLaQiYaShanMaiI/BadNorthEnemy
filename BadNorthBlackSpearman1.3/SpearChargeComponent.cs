@@ -7,12 +7,9 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 黑矛兵冲刺技能（模仿玩家方 Pike Charge 的表现与攻击效果）。
-    /// 状态机：Idle → WindUp → Charging → Retreat(小段后退迎击) → Cooldown → Idle。
-    /// 触发逻辑借鉴原版 Twohanded(JumpAttack)：优先取 Swordsman 大脑已锁定目标（pursuing/hunting 的目标），
-    ///   路径判定朝目标 navPos（登岛后 onMain 才触发），大脑无目标时才退回 6m 扫描兜底。
-    /// 攻击效果借鉴原版 Pike Charge：AgentEnumerators 查矛中点周围命中 + 每命中能量衰减 + 抵达终点爆发。
-    /// 免疫：位移冲击（冲锋/后退）期间 attack.ignore。
+    /// 黑矛兵冲刺技能（借鉴原版 Twohanded 触发 + Pike Charge 表现）：
+    /// 状态机 Idle → WindUp → Charging → Retreat → Cooldown；优先取 Swordsman 大脑目标，
+    /// 矛中点周围命中 + 能量衰减 + 抵达爆发；位移冲击期间 attack.ignore 免疫。
     /// </summary>
     public class SpearChargeComponent : MonoBehaviour, IBrainAction, IAttackResponder
     {
@@ -43,7 +40,6 @@ namespace BadNorthBlackSpearman1_3
         Squad _squad;
         bool _setupDone;
         static int _spriteDiagCount;         // 去剑诊断已打印次数（限前 3 只，避免刷屏）
-        static bool _screenshotTaken;        // 每会话首次刺击截一张整屏（视觉取证）
         float _phaseTimer;
         Vector3 _chargeDirection;
         float _originalSpeed;
@@ -79,9 +75,8 @@ namespace BadNorthBlackSpearman1_3
         bool _thrustDirLocked;         // ★ 方向是否已锁定（目标存活才锁；目标消失退回 agent.forward）
         bool _thrustRotLocked;         // ★ 刺击期间矛旋转是否已锁（不再每帧 Slerp 追目标）
 
-        // ★ 长矛穿刺节奏（与 Plugin.SwordsmanAttackPrefix / SwordsmanAttackUpdatePrefix 协同）：
-        //   攻击 = 站桩刺击：矛快速刺出(0.06s) + 收回(0.28s)，总时长 MeleeAttackDuration 后由
-        //   SwordsmanAttackUpdatePrefix 结束攻击（原版靠挥剑动画播完，穿刺不播动画故用此标记）。
+        // 长矛穿刺节奏（与 Plugin 的攻击 Patch 协同）：刺出(0.06s)→保持(0.12s)→收回(0.28s)，
+        // 总时长 MeleeAttackDuration，攻击结束由 SwordsmanAttackUpdatePrefix 判定。
         static readonly Dictionary<Agent, float> _meleeAttackStart = new Dictionary<Agent, float>();
         const float MeleeAttackDuration = 0.5f;   // 每次刺击总时长（量级 ≈ 原版挥剑 0.6s）
 
@@ -111,11 +106,9 @@ namespace BadNorthBlackSpearman1_3
             if (_agent == null) { Destroy(this); return; }
             _squad = _agent.squad;
             _originalSpeed = _agent.maxSpeed;
-            // ★ 关键：把冲刺做成 exclusives 下的独占状态，激活时锁住 Swordsman 大脑，
-            //    避免大脑每帧覆盖 walkDir 导致的"瞬移回原位"。
+            // 冲刺做成 exclusives 下的独占状态（激活时锁住大脑，避免 walkDir 被覆盖）；
+            // 位移冲击期间 attack.ignore 免疫伤害打断。
             _chargeState = new AgentState("BlackSpearmanCharge", _agent.exclusives, false, true);
-            // 借鉴原版 JumpAttack：位移冲击（冲锋/后退）期间免疫攻击（attack.ignore=true），
-            // 技能一旦起手不会被伤害打断——只有击退/地形能影响。
             if (_agent.attackResponders != null && !_agent.attackResponders.Contains(this))
                 _agent.attackResponders.Add(this);
             // 找到挂载的长矛（由 BlackSpearmanWeapon 挂载，命名 Spear_BlackSpearman）
@@ -181,19 +174,15 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>
-        /// 近战刺击表现 + 诊断：Swordsman 进入 attack 状态时，长矛沿"攻击开始瞬间锁定的方向"快速前刺
-        /// （ThrustDistance），刺出-保持-收回（不再一直顶在最前），攻击结束缓慢收回。
-        /// 身体动画仍是基底挥剑帧（剑已被擦除），但矛的前刺主导观感 → "刺"而非"挥砍长矛"。
-        /// ⚠️ 2026-08-15 修复：旧版"每帧按当前目标 chestPos 重算方向"导致 agent 移动/转身时
-        ///    矛世界位置与旋转每帧乱摆（鬼畜）；现改为攻击开始瞬间锁定 _thrustDirWorld 与
-        ///    _spearTargetRot，整段刺击不再重算 → 直线直刺；并让黑矛兵攻击时站桩（walkDir=0）。
+        /// 近战刺击表现：攻击开始瞬间锁定 _thrustDirWorld 与 _spearTargetRot（整段不再重算 → 直线直刺），
+        /// 矛沿锁定方向刺出-保持-收回；攻击时站桩（walkDir=0），矛的前刺主导观感。
         /// </summary>
         void UpdateMeleeThrust()
         {
             if (_spearTransform == null) return;
             bool attacking = _swordsman != null && _swordsman.attack != null && _swordsman.attack.active;
 
-            // ★ 攻击上升沿：锁定突刺方向 + 矛朝向（只锁一次，整段刺击不再重算 → 消除鬼畜）
+            // ★ 攻击上升沿：锁定突刺方向 + 矛朝向（只锁一次，整段不再重算）
             if (attacking && !_prevAttackActive)
             {
                 _thrustHitDone = false;      // 新回合刺击：重置命中标记
@@ -236,8 +225,6 @@ namespace BadNorthBlackSpearman1_3
                     _hasSpearTarget = true;
                     _thrustRotLocked = true;
                 }
-                // ★ 视觉取证：本会话首次刺击时截一张整屏（帧末落盘，直接看身体在播什么）
-                CaptureScreenshotOnce("attack");
                 BSLog.Info("[近战] 攻击开始 target=" + (t != null ? t.name : "null") +
                     " dist=" + (t != null ? Vector3.Distance(_agent.transform.position, t.transform.position).ToString("F2") : "-") +
                     " " + DescribeBody(_agent) + " " + DescribeAnimator(_agent) +
@@ -264,12 +251,8 @@ namespace BadNorthBlackSpearman1_3
                 else thrust = Mathf.Clamp01(1f - (el - ThrustRiseTime - ThrustHoldTime) / ThrustFallTime);
                 _thrust = thrust;
 
-                // ★ 命中：矛刺到位（thrust 首次达 1）时手动触发伤害。
-                //   对齐我方长矛兵 Spear.Hit()（Spear.cs:330）：
-                //     · TestHit 矛本地空间球判定（矛尖指向才中，非纯距离）
-                //     · 主目标 ×1、副目标(敌兵) ×0.33 贯穿（一次刺击可伤 1~2 个）
-                //     · Attack 附 PrefabManager.hitEffect 命中特效
-                //   原版由挥剑动画事件 FirstHit/Hit 触发，穿刺不播挥剑动画 → 必须自己触发。
+                // 矛刺到位（thrust 首次达 1）手动触发伤害：对齐 Spear.Hit()（TestHit 矛本地球判定、
+                // 主×1 副×0.33 贯穿、附 hitEffect；原版由挥剑动画事件触发，穿刺不播动画需自触发）。
                 if (_thrust >= 1f && !_thrustHitDone)
                 {
                     _thrustHitDone = true;
@@ -280,15 +263,13 @@ namespace BadNorthBlackSpearman1_3
                     }
                 }
 
-                // ★ 矛沿锁定方向直线刺出：_thrustOffsetLocal 在攻击开始瞬间已按"对准后的身体朝向"
-                //   锁定（本地空间），整段刺击只放大位移、不再重算方向。
-                //   旧版每帧 InverseTransformDirection 重算 → 攻击期间身体 SetDirection 阶跃/转向，
-                //   本地偏移逐帧跳变 → 矛位置微小抖动（"小的抽动"）。锁定后完全静止。
+                // 矛沿锁定方向直线刺出：只放大锁定位移 _thrustOffsetLocal×_thrust，零重算
+                // （旧版逐帧 InverseTransformDirection → 本地偏移跳变 = "小的抽动"）。
                 _spearTransform.localPosition = _spearBaseLocalPos + _thrustOffsetLocal * _thrust;
-                // ★ 攻击期间黑矛兵站桩（不边跑边刺）：walkDir 归零让身体转 stand，矛稳定前刺
+                // 攻击期间站桩：walkDir 归零让身体转 stand，矛稳定前刺
                 if (_agent != null) _agent.walkDir = Vector3.zero;
 
-                // ★ 近战诊断：突刺过程矛的位置/旋转（每 0.15s）
+                // 近战诊断：突刺过程矛的位置/旋转（每 0.15s）
                 _meleeDiagTimer -= Time.deltaTime;
                 if (_meleeDiagTimer <= 0f)
                 {
@@ -304,8 +285,7 @@ namespace BadNorthBlackSpearman1_3
             else
             {
                 _thrust = Mathf.Max(0f, _thrust - Time.deltaTime / ThrustFallTime);
-                // ★ 待机/移动帧诊断：非攻击时每 2s 记录当前动画状态与帧名，
-                //   用于确认"待机剑柄"来自哪个动画（Onehanded 还是别的帧）
+                // 待机/移动帧诊断：非攻击时每 2s 记录当前动画状态与帧名（确认待机剑柄来自哪个动画）
                 _idleDiagTimer -= Time.deltaTime;
                 if (_idleDiagTimer <= 0f)
                 {
@@ -328,13 +308,7 @@ namespace BadNorthBlackSpearman1_3
         }
 
 
-        /// <summary>
-        /// 近战刺击命中（对齐我方长矛兵 Spear.Hit()，Spear.cs:330）：
-        /// 用"矛本地空间球"判定（TestHit），矛尖指向目标才结算——不再是剑兵的纯距离判定；
-        /// 主目标 ×1，若我方敌兵(enemyAgent)也在矛尖范围内则 ×0.33 贯穿（一次刺击可伤 1~2 个）；
-        /// 伤害用 Swordsman.damage/knockback/stun（本身已按 squad.level 等级化），
-        /// Attack 附 PrefabManager.hitEffect 命中特效。返回是否命中主目标。
-        /// </summary>
+        /// <summary>近战刺击命中（对齐 Spear.Hit()）：矛本地空间球判定，主目标 ×1、副目标 ×0.33 贯穿，附 hitEffect。</summary>
         bool DoSpearHit()
         {
             if (_swordsman == null || _agent == null || _spearTransform == null) return false;
@@ -358,10 +332,7 @@ namespace BadNorthBlackSpearman1_3
             return hitAny;
         }
 
-        /// <summary>
-        /// 对齐 Spear.TestHit（Spear.cs:363）：把敌人 chest 转成长矛本地坐标，矛长归一化，
-        /// z 前移 0.5·len（矛中点靠矛尖）、x/y 放宽 2 倍，落在单位球内即命中。
-        /// </summary>
+        /// <summary>对齐 Spear.TestHit：敌人 chest 转矛本地坐标并归一化，落单位球内即命中。</summary>
         bool TestHit(Vector3 enemyPos)
         {
             if (_spearTransform == null) return false;
@@ -398,8 +369,7 @@ namespace BadNorthBlackSpearman1_3
         }
 
 
-        /// <summary>Unity Animator 状态解析成可读信息：控制器名 + 当前 clip 名 + 状态哈希 + 进度。
-        /// ⚠️ 旧日志只打 fullPathHash（如 hash=81563449），根本看不出是 Idle/Run/Attack，等于没暴露。</summary>
+        /// <summary>Animator 状态解析：控制器名 + clip 名 + 状态哈希 + 进度（旧日志只打 hash 看不出播放什么）。</summary>
         static string DescribeAnimator(Agent a)
         {
             try
@@ -419,9 +389,7 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { return "anim=err:" + e.Message; }
         }
 
-        /// <summary>Body 状态解析：先看叶子状态（standing/stepping/sliding）。
-        /// ⚠️ hopping 只是容器状态（几乎恒 active），旧的"先判 hopping"写法会让日志永远显示 hop，
-        /// 误导成"跳扑一直存在"——这正是"日志没暴露问题"的一处典型。</summary>
+        /// <summary>Body 状态解析：看叶子状态 standing/stepping/sliding（hopping 是恒 active 容器，不判它）。</summary>
         static string DescribeBody(Agent a)
         {
             try
@@ -432,26 +400,6 @@ namespace BadNorthBlackSpearman1_3
                     " slide:" + b.sliding.active + " hop:" + b.hopping.active;
             }
             catch { return "body=err"; }
-        }
-
-        /// <summary>整屏截图（帧末抓取），用于视觉取证：攻击瞬间身体到底在播什么动画帧。
-        /// ⚠️ 此 Unity 2018.4 构建没有 ScreenCapture 类型，用 Application.CaptureScreenshot（核心模块仍提供）。</summary>
-        static void CaptureScreenshotOnce(string tag)
-        {
-            if (_screenshotTaken) return;
-            _screenshotTaken = true;
-            try
-            {
-                string dir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string p = System.IO.Path.Combine(dir, "BS_shot_" + tag + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png");
-                // ⚠️ Application.CaptureScreenshot 被标记 [Obsolete(..., true)]（error），编译期引用即报 CS0619；
-                //    此 Unity 2018.4 构建又没有 ScreenCapture 类型 → 用反射调用，运行期不受影响。
-                var mi = typeof(Application).GetMethod("CaptureScreenshot", new[] { typeof(string) });
-                if (!ReferenceEquals(mi, null)) mi.Invoke(null, new object[] { p });
-                else { BSLog.Warn("[截图] 反射未找到 Application.CaptureScreenshot，跳过"); return; }
-                BSLog.Info("[截图] 已触发整屏截图（帧末落盘）: " + p);
-            }
-            catch (Exception e) { BSLog.Warn("[截图] 失败: " + e); }
         }
 
         bool TryTriggerCharge(bool log)
@@ -738,17 +686,11 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
-        /// <summary>
-        /// 命中结算（借鉴原版 Pike ChargeAbility.charging.OnUpdate）：
-        /// 用 AgentEnumerators.GetStaticListRadiusSorted 查"矛中点"周围 HitRadius 内玩家方存活 Agent——
-        /// 直接查游戏 Agent 列表（chestPos 距离），比 Physics.OverlapSphere 精确得多，也不会误伤非 Agent 碰撞体。
-        /// 每 tick 命中预算内逐段结算，能量每命中 ×EnergyDecayPerHit（扫过一排伤害递减），撞飞/眩晕保持满值。
-        /// </summary>
+        /// <summary>冲锋命中结算（借鉴原版 Pike Charge）：AgentEnumerators 查矛中点周围玩家 Agent，
+        /// 每 tick 命中预算 2 个，能量每命中 ×0.8 递减。</summary>
         bool DealChargeDamage()
         {
-            // ★ 命中锚点改用"视觉长矛"（_spearTransform.position）而非 navPos：
-            //   冲锋时 transform 会滞后 navPos 约 1m（Body 追赶式动画），用 navPos 会让命中判定领先
-            //   可见矛尖 1m+（"没扫到却命中/扫到没命中"的体感问题根源）。用视觉长矛 = 所见即所得。
+            // 命中锚点用"视觉长矛"而非 navPos（transform 滞后 navPos 约 1m，用 navPos 会隔空命中）。
             Vector3 basePos;
             if (_spearTransform != null) basePos = _spearTransform.position;
             else basePos = _agent.transform.position;
@@ -804,11 +746,7 @@ namespace BadNorthBlackSpearman1_3
             return hitAny;
         }
 
-        /// <summary>
-        /// 抵达终点的爆发（借鉴原版 Pike Charge 的 arrival 段）：
-        /// 对终点周围 ArrivalBurstRadius 内未命中的玩家单位再结算一次，伤害减半、击退 +2，
-        /// 方向 = 从终点向外推 ×0.6 + 冲锋方向 → "冲进敌阵最后一撞，把周围撞散"。
-        /// </summary>
+        /// <summary>抵达终点爆发：对终点周围未命中单位再结算一次（伤害×0.3、击退+2，撞散阵型）。</summary>
         void ArrivalBurst()
         {
             try

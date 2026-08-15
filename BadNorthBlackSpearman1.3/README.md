@@ -61,7 +61,7 @@ GameSetup.Awake()                          ← MMHOOK ① 在这里新建并注�
 
 1. **新建 + 注册**（`GameSetup.Awake`，MMHOOK）：
    `new GameObject` + `AddComponent<VikingReference>`（**不 `Instantiate` 克隆**），
-   反射配置私有字段（`viking` 仅借用 `Viking_Sword` 的 `VikingAgent` 预制体引用），
+   反射配置私有字段（`viking` 仅借用 `Viking_SwordShield` 的 `VikingAgent` 预制体引用），
    注册进 `LevelStateObjectReferences.dict`。
 
 2. **加入敌人生成池**（`LevelNode.Setup`，Harmony postfix）：
@@ -69,16 +69,16 @@ GameSetup.Awake()                          ← MMHOOK ① 在这里新建并注�
 
 3. **生成时表现**（`Landing.Spawn`，MMHOOK）：
    对新单位施加黑色外观（`BatchedSprite` B 通道）、数值强化（伤害/击退/眩晕/体型）、
-   冲刺（`SpearChargeComponent`）与刺击（`SpearStabAction`）技能。
+   冲锋（`SpearChargeComponent`）技能；近战攻击由 `Swordsman.Attack` 穿刺补丁接管。
 
 4. **美术资源**（特质 Mod 风格）：
    从插件目录 `Resources/black_spearman_icon.png` 加载图标（无 PNG 时回退程序化图标），
    并注册 I2 本地化名称/描述。
 
 5. **武器混搭**（复用我方素材）：
-   移除敌方剑盾（`agent.shield=false` + 禁用 `Shield` 组件 + 按名称禁用剑/盾子对象），
-   并从我方 Pikeman（`Spear.spearAnim` 的 `BatchedSprite`）克隆长矛挂到黑矛兵身上——
-   "敌人的身子 + 我方的矛 + 染黑"。
+   移除基底剑视觉（`agent.shield=false` + 禁用 `Shield` 组件 + 按名称禁用剑/武器子对象），
+   **保留剑盾兵基底的盾牌美术**，并从我方 Pikeman（`Spear.spearAnim` 的 `BatchedSprite`）克隆长矛挂到黑矛兵身上——
+   "剑盾兵的身子 + 保留盾牌 + 我方的矛 + 染黑"。
 
 > ⚠️ **关于枚举**：运行时无法新增 `VikingAgent.Type` 枚举值。本版本**复用 `SwordShield` 枚举值**
 > （获得近战大脑行为），用 **VikingReference 的名字 + 引用**区分新单位，因此不需要 v1.2 的
@@ -117,15 +117,15 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 
 | 分组 | 键 | 默认 | 说明 |
 |------|----|------|------|
-| General | `SourceVikingName` | `Viking_Sword` | 借用 VikingAgent 预制体引用的源单位（默认单手持剑兵基底） |
+| General | `SourceVikingName` | `Viking_SwordShield` | 借用 VikingAgent 预制体引用的源单位（默认剑盾兵基底：保留其盾牌美术） |
 | General | `NewVikingName` | `Viking_BlackSpearman` | 新单位在生成池中的名字 |
 | General | `Bounty` | 8 | 赏金 |
 | Spawn | `SpawnChance` | 0.7 | 每关加入生成池概率 |
 | Spawn | `ForceFirstWave` | false | 强制第一波出现（便于测试） |
 | Combat | `DamageMult` / `KnockbackMult` / `StunMult` / `ScaleMult` | 1.6 / 2.5 / 1.2 / 1.05 | 数值倍率 |
 | Visual | `EnableRecolor` | true | 黑色外观 |
-| Visual | `EnableWeaponSwap` | true | 移除剑盾 + 复用我方长矛（混搭武器） |
-| Skills | `EnableCharge` / `EnableStab` | true / true | 冲锋 / 刺击 |
+| Visual | `EnableWeaponSwap` | true | 移除剑视觉 + 复用我方长矛（保留基底盾牌） |
+| Skills | `EnableCharge` | true | 冲锋 |
 | Skills | `EnableShield` | true | 盾牌 = 剑盾兵真实格挡（近战正面归零、箭矢×0.05 弹开、飞斧归零、长矛×0.2）；`false` = 仅视觉 |
 
 ---
@@ -199,10 +199,12 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 - 修复：`MaybeAct` 追加 `navPos.onMain` 拦截（`onMain` = navPos 已在主岛导航网格上，即 `NavigationMesh.island != null`）。
 - 诊断配合：冲锋起点日志新增 `onMain=` 字段，回查即可确认是否真的“下船后才触发”。
 
-**3. 默认源单位改为 `Viking_Sword`**
+**3. 默认源单位改为 `Viking_SwordShield`（保留真实盾牌美术）**
 
-- 代码默认值早已改为 `Viking_Sword`，但旧 cfg 文件里的 `Viking_SwordShield` 会覆盖它。
-- 已更新 `BepInEx/config/badnorth.blackspearman.v1.3.cfg` → `SourceVikingName = Viking_Sword`（单手持剑兵基底）。
+- 曾因"盾牌美术不出现"改用 `Viking_Sword`（无盾牌基底 + 运行时克隆盾牌遮挡，克隆体不进入渲染管线 → 看不到盾牌）。
+- 现按用户建议改回 `Viking_SwordShield` 基底：**不销毁盾牌**（剥离只删逻辑组件、禁用剑视觉），盾牌随基底正常渲染；
+  擦除剑刃的 `SwordRemover` 方案不变。
+- 已更新 `BepInEx/config/badnorth.blackspearman.v1.3.cfg` → `SourceVikingName = Viking_SwordShield`（旧 cfg 会覆盖默认值，需同步）。
 
 ### 📐 原版参考值（校准用）
 
@@ -290,9 +292,9 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 - **冲锋冷却 4.25s → 10s**（用户指定，冲锋更稀有更像技能；不改变已定稿的冲锋表现本身）。
 
 **📋 当前已知遗留问题（2026-08-15）**：
-1. 剑柄仍与持剑手像素重叠、PartTex 同色，像素擦除三路（帧/颜色/部件）均证明无解 → 用盾牌遮挡方案，观感可接受；
+1. 剑柄仍与持剑手像素重叠、PartTex 同色，像素擦除三路（帧/颜色/部件）均证明无解 → 由基底盾牌美术遮挡，观感可接受；
 2. 身体仍播放 Onehanded 基底动画帧（挥剑/走路基底），攻击以矛前刺主导观感，但待机时手部姿态仍是持剑；
-3. 盾牌为静态遮挡（不随动画摆动），且 `Shield.ModifyAttack` 的 `facing <= 0.5f` 正面判定若与视觉朝向不符，需放宽阈值或调 `localRotation/localPosition`；
+3. 盾牌为基底静态姿态（原 `Shield` 组件已剥离，不随动画举落），且 `facing <= 0.5f` 正面判定若与视觉朝向不符，需放宽阈值或调盾牌姿态；
 4. 冲锋为单体冲刺（敌方无 `EnglishFormationAgent`），列阵冲锋留作后续可选。
 
 
@@ -307,9 +309,8 @@ BadNorthBlackSpearman1.3/
 ├── Diagnostics.cs              # 运行时诊断探针（心跳 + F8 转储）
 ├── BlackSpearmanArt.cs         # 美术资源（PNG 图标）+ I2 本地化
 ├── BlackSpearmanVisual.cs      # 黑色外观（对抗纹理重烘焙）
-├── BlackSpearmanWeapon.cs      # 武器混搭（移除剑盾 + 复用我方长矛）
-├── SpearChargeComponent.cs     # 冲刺技能（IBrainAction）
-├── SpearStabAction.cs          # 刺击技能（IBrainAction）
+├── BlackSpearmanWeapon.cs      # 武器处理（移除剑视觉、保留基底盾牌、挂我方长矛）
+├── SpearChargeComponent.cs     # 冲锋技能（IBrainAction + 近战刺击表现）
 ├── SpearVisual.cs              # 长矛朝向统一工具（冲锋/刺击/普通攻击共用举矛公式）
 ├── BlackSpearmanShield.cs      # 盾牌格挡效果（复刻 Shield.ModifyAttack，EnableShield 可关）
 ├── SwordRemover.cs             # 去剑组件（运行时擦除 Onehanded 动画帧里的剑像素）

@@ -5,33 +5,36 @@ using Voxels.TowerDefense;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 黑矛兵"混搭"武器处理：
-    ///   1. 移除敌方剑盾（agent.shield=false + 禁用 Shield 组件 + 按名称禁用剑/盾子对象）；
-    ///   2. 复用我方 Pikeman 的长矛（Spear.spearAnim 骨骼上的 BatchedSprite），克隆一份挂到黑矛兵身上。
-    /// 全程记录诊断日志，便于排查渲染链问题。
+    /// 黑矛兵武器处理（基底 Viking_SwordShield）：
+    ///   1. 移除剑视觉（按名称禁用剑/武器/瞄准骨子对象），保留盾牌美术；
+    ///   2. 复用我方 Pikeman 的长矛（Spear.spearAim 骨上的 BatchedSprite），克隆挂到黑矛兵身上；
+    ///   3. 在保留的盾牌上挂 BlackSpearmanShield（剑盾兵格挡效果）。
     /// </summary>
     public static class BlackSpearmanWeapon
     {
         static Transform _spearTemplate;
         static float _lastNoSpearLog = -999f;
-        static float _lastNoShieldLog = -999f;
 
-        /// <summary>按名称关键字禁用的共享表（盾/剑/武器/aimer 视觉残留），供运行时移除与预制体剥离共用。</summary>
-        public static readonly string[] VisualChildNameKeys = { "shield", "sword", "weapon", "aimer", "盾", "剑" };
+        /// <summary>按名称关键字禁用的剑视觉子对象表（不含盾牌——盾牌要保留），供预制体剥离与运行时移除共用。</summary>
+        public static readonly string[] VisualChildNameKeys = { "sword", "weapon", "aimer", "剑" };
 
         public static void Apply(Agent a)
         {
             if (a == null) return;
-            RemoveSwordShield(a);
+            RemoveSword(a);
             MountSpear(a);
-            Transform shieldTf = MountShieldCover(a);
-            // ★ 盾牌真实效果（剑盾兵格挡）：挂载 BlackSpearmanShield（IAttackResponder）。
+            // ★ 盾牌真实格挡：使用基底自带的盾牌子对象挂载 BlackSpearmanShield（IAttackResponder）。
             //   EnableShield=false 时仅剩视觉、不参与格挡。
+            Transform shieldTf = FindShieldTransform(a);
             if (shieldTf != null)
             {
                 var comp = a.gameObject.GetComponent<BlackSpearmanShield>();
                 if (comp == null) comp = a.gameObject.AddComponent<BlackSpearmanShield>();
                 if (comp != null) comp.Setup(a, shieldTf, Plugin.EnableShield != null && Plugin.EnableShield.Value);
+            }
+            else
+            {
+                BSLog.Warn("[WEAPON] 未找到基底盾牌子对象，盾牌格挡不挂载");
             }
         }
 
@@ -54,87 +57,34 @@ namespace BadNorthBlackSpearman1_3
             return removed;
         }
 
-        static void RemoveSwordShield(Agent a)
+        static void RemoveSword(Agent a)
         {
             try
             {
                 a.shield = false;
                 var shield = a.GetComponent<Shield>();
-                if (shield != null) shield.enabled = false;
+                if (shield != null) shield.enabled = false;   // 兜底：剥离失败走源预制体时也禁用其盾牌逻辑（保留盾牌美术）
 
                 int removed = DisableChildrenByNames(a.transform, VisualChildNameKeys);
-                BSLog.Info($"[WEAPON] 移除剑盾: shield={a.shield}, 禁用子对象 {removed} 个");
+                BSLog.Info($"[WEAPON] 移除剑视觉: shield={a.shield}, 禁用剑/武器子对象 {removed} 个");
             }
-            catch (Exception e) { BSLog.Warn("[WEAPON] 移除剑盾失败: " + e); }
+            catch (Exception e) { BSLog.Warn("[WEAPON] 移除剑视觉失败: " + e); }
         }
 
-        static Transform _shieldTemplate;
-
-        /// <summary>
-        /// 剑柄遮挡（用户建议）：剑柄与持剑的手在帧内重叠、PartTex 同色 → 像素无法分离。
-        /// 方案：从场上 SwordShield 单位的盾牌（Shield.shield 是 public Transform）克隆一个盾牌，
-        /// 挂到黑矛兵身体右侧（剑柄区域），视觉遮挡剑柄。静态挂载（不随动画摆动），
-        /// 优先找已生成实例，找不到则下次再试。可被 cfg RemoveSword=false 一并禁用。
-        /// </summary>
-        static Transform MountShieldCover(Agent a)
+        /// <summary>在 agent 层级递归查找盾牌子对象（基底 Viking_SwordShield 自带，供 BlackSpearmanShield 判定正面朝向）。</summary>
+        static Transform FindShieldTransform(Agent a)
         {
-            try
+            if (a == null) return null;
+            foreach (var t in a.transform.GetComponentsInChildren<Transform>(true))
             {
-                if (_shieldTemplate == null) _shieldTemplate = FindShieldTemplate();
-                if (_shieldTemplate == null)
+                if (t == null || t.gameObject == a.gameObject) continue;
+                string n = t.name.ToLowerInvariant();
+                if (n.Contains("shield") || n.Contains("盾"))
                 {
-                    if (Time.time - _lastNoShieldLog > 8f)
-                    {
-                        _lastNoShieldLog = Time.time;
-                        BSLog.Info("[WEAPON] 暂无可复用的盾牌模板（场上无 SwordShield），跳过剑柄遮挡");
-                    }
-                    return null;
-                }
-
-                var clone = UnityEngine.Object.Instantiate(_shieldTemplate.gameObject);
-                clone.name = "Shield_Cover_BlackSpearman";
-                clone.transform.SetParent(a.transform, false);
-                // ★ 剑柄位于身体右侧（1P 视角即屏幕右侧、持剑手处）。盾牌挂到身侧偏右、
-                //   手部高度附近，遮挡剑柄残留；scale 取 SwordShield 盾牌原尺寸的 1.15 倍，
-                //   确保盖住剑柄而不显得过大。位置可后续按观感微调。
-                float s = a.radius * 1.15f;
-                clone.transform.localPosition = new Vector3(a.radius * 0.8f, a.radius * 1.2f, a.radius * 0.3f);
-                clone.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-                clone.transform.localScale = new Vector3(s, s, s);
-                clone.SetActive(true);
-                BSLog.Info("[WEAPON] 已挂载盾牌遮挡剑柄: " + clone.name +
-                    " (localPos=" + clone.transform.localPosition.ToString("F3") +
-                    ", localScale=" + clone.transform.localScale.ToString("F3") +
-                    ", children=" + clone.transform.childCount + ")");
-                return clone.transform;
-            }
-            catch (Exception e) { BSLog.Warn("[WEAPON] 挂载盾牌失败: " + e); }
-            return null;
-        }
-
-        static Transform FindShieldTemplate()
-        {
-            try
-            {
-                // 找场上 SwordShield 单位的盾牌（Shield.shield 是 public Transform，已烘焙进层级）
-                var shields = Resources.FindObjectsOfTypeAll<Shield>();
-                foreach (var s in shields)
-                {
-                    if (s == null) continue;
-                    if (s.shield != null)
-                    {
-                        BSLog.Info("[WEAPON] 找到盾牌模板: " + s.name + " shield=" + s.shield.name +
-                            " (bounds=" + (s.shield.GetComponent<MeshFilter>() != null ? "mesh" : "无mesh") + ")");
-                        return s.shield;
-                    }
-                }
-                if (Time.time - _lastNoShieldLog > 5f)
-                {
-                    _lastNoShieldLog = Time.time;
-                    BSLog.Info("[WEAPON] 本局暂无可复用盾牌模板（扫描 " + shields.Length + " 个 Shield，可能本局无剑盾兵）");
+                    BSLog.Info("[WEAPON] 使用基底盾牌: " + t.name + " (localPos=" + t.localPosition.ToString("F3") + ")");
+                    return t;
                 }
             }
-            catch (Exception e) { BSLog.Warn("[WEAPON] 扫描 Shield 失败: " + e); }
             return null;
         }
 

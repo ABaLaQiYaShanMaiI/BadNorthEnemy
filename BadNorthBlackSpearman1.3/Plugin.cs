@@ -16,15 +16,8 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// BadNorthBlackSpearman v1.3 —— 新思路（特质 Mod 式注入，而非克隆）。
-    /// 与 v1.0/v1.1（运行时劫持）、v1.2（Instantiate 克隆 + 外部工具链）不同，
-    /// 本版本照搬“特质 Mod”的注入模式：
-    ///   1. MMHOOK Hook GameSetup.Awake，新建一个干净的 VikingReference
-    ///      （new GameObject + AddComponent，绝不 Instantiate 克隆），
-    ///      反射配置私有字段，注册进 LevelStateObjectReferences.dict（敌人生成池注册表）。
-    ///   2. Harmony Patch LevelNode.Setup，把新单位加入每关 enemies（真正的敌人生成池）。
-    ///   3. MMHOOK Hook Landing.Spawn，施加黑色外观 / 数值强化 / 冲刺与刺击技能。
-    ///   4. 像特质 Mod 一样，从 Resources/ 加载美术图标 + 注册 I2 本地化。
+    /// BadNorthBlackSpearman v1.3 —— 特质 Mod 式注入：GameSetup.Awake 新建干净 VikingReference 并注册进
+    /// 敌人生成池 dict；LevelNode.Setup 注入每关敌人；Landing.Spawn 施加黑色外观/数值强化/冲锋/刺击技能。
     /// </summary>
     [BepInPlugin(Plugin.GUID, Plugin.NAME, Plugin.VERSION)]
     public class Plugin : BaseUnityPlugin
@@ -48,7 +41,6 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<bool> EnableRecolor;
         public static ConfigEntry<bool> EnableWeaponSwap;
         public static ConfigEntry<bool> EnableCharge;
-        public static ConfigEntry<bool> EnableStab;
         public static ConfigEntry<bool> RemoveSword;
         public static ConfigEntry<bool> EnableShield;
 
@@ -112,7 +104,7 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Info($"[配置] Source={SourceVikingName.Value} New={NewVikingName.Value} Bounty={Bounty.Value} " +
                     $"SpawnChance={SpawnChance.Value} ForceFirstWave={ForceFirstWave.Value} " +
                     $"DMG={DamageMult.Value} KB={KnockbackMult.Value} Stun={StunMult.Value} Scale={ScaleMult.Value} " +
-                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Stab={EnableStab.Value} Shield={EnableShield.Value}");
+                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Shield={EnableShield.Value} RemoveSword={RemoveSword.Value}");
             }
             catch (Exception e)
             {
@@ -125,10 +117,9 @@ namespace BadNorthBlackSpearman1_3
 
         void BindConfig()
         {
-            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_Sword",
+            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_SwordShield",
                 "借用其 VikingAgent 预制体作为视觉/行为模板（仅借用引用，不克隆整个 VikingReference）。\n" +
-                "v1.3 稳定基底：Viking_Sword（单手持剑，无额外技能残留，GetAttack/range patch 兼容）。\n" +
-                "⚠️ 曾试 Viking_Twohanded（双手持械观感更好但自带技能组件，且身体帧处理麻烦），已回退。\n" +
+                "v1.3 基底：Viking_SwordShield（保留其真实盾牌美术，仅移除剑视觉并挂长矛）。\n" +
                 "⚠️ 如果旧 cfg 里有其它值会覆盖此默认值，请删除或更新 cfg。");
             NewVikingName = Config.Bind("General", "NewVikingName", "Viking_BlackSpearman",
                 "新单位在敌人生成池中的名字。");
@@ -147,11 +138,8 @@ namespace BadNorthBlackSpearman1_3
 
             EnableRecolor = Config.Bind("Visual", "EnableRecolor", true, "是否把新单位染成黑色。");
             EnableWeaponSwap = Config.Bind("Visual", "EnableWeaponSwap", true, "是否移除剑盾并复用我方长矛（混搭武器）。");
-            // ★ 去剑（2026-08-14 研究修正）：剑是烘焙在 OnehandedXXXX 动画帧里的暗红像素
-            // （颜色签名 R>70,G<40,B<20，实测随挥剑动画绕身体移动），由 SwordRemover 运行时擦除帧像素。
-            // sprite2（PartTex_Median_BlurAlpha）是身体遮罩，不去动它。
-            EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲刺技能。");
-            EnableStab = Config.Bind("Skills", "EnableStab", true, "是否注入刺击技能。");
+            // 去剑：剑烘焙在 OnehandedXXXX 动画帧里的暗红像素（R>70,G<40,B<20），由 SwordRemover 运行时擦除帧像素。
+            EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲锋技能。");
             EnableShield = Config.Bind("Skills", "EnableShield", true,
                 "是否让黑矛兵身上的盾牌具备剑盾兵格挡效果（近战正面格挡、箭矢/飞斧减伤弹开）。\n" +
                 "设为 false 则盾牌仅剩视觉、不参与格挡。");
@@ -167,10 +155,7 @@ namespace BadNorthBlackSpearman1_3
             EnsureBlackSpearmanRegistered();
         }
 
-        /// <summary>
-        /// 确保黑矛兵已注册。dict 在菜单阶段为空、进入游戏后才被原版维京人填充，
-        /// 因此这里采用"重试直到成功"：GameSetup.Awake 与 LevelNode.Setup 都会调用它。
-        /// </summary>
+        /// <summary>确保黑矛兵已注册（dict 菜单阶段为空，GameSetup.Awake 与 LevelNode.Setup 都调用，重试直到成功）。</summary>
         bool EnsureBlackSpearmanRegistered()
         {
             if (_blackSpearman != null) return true;
@@ -203,10 +188,7 @@ namespace BadNorthBlackSpearman1_3
                 return;
             }
 
-            // ★ 关键：新建一个干净对象，而不是 Instantiate 克隆现有 prefab。
-            //    作为根对象存在（不挂在 GameSetup/LevelArcConsistency 下），
-            //    避免被 LevelArcConsistency 的 LevelAssigner 扫描命中，
-            //    从而避开自动添加的 DomainBool.values==null 引发的 NPE。
+            // ★ 新建干净对象而非克隆 prefab：作为根对象存在，避开 LevelArcConsistency 扫描与 DomainBool NPE。
             var go = new GameObject(NewVikingName.Value);
             DontDestroyOnLoad(go);
 
@@ -216,11 +198,8 @@ namespace BadNorthBlackSpearman1_3
             vr.approachAudioId = src.approachAudioId;
             vr.arriveAudioId = src.arriveAudioId;
 
-            // ★ 预制体层面剥离（层次 A）：不直接借用源预制体，而是克隆一份"干净模板"，
-            //    提前销毁逻辑残留组件（实测 Viking_Sword 基底也带 Arsonist！它会抢占
-            //    brain.actions，导致黑矛兵去烧房子、冲锋永不触发），再交给
-            //    VikingReference.Start() 实例化。这样 Agent.Setup()/Brain.Setup() 收集
-            //    IBrainAction/IAttackResponder/IAgentOrder 时根本不会有残留组件。
+            // ★ 预制体层面剥离：克隆"干净模板"，提前销毁逻辑残留组件（实测 Arsonist 会抢占
+            //    brain.actions 导致冲锋永不触发），再交给 VikingReference.Start() 实例化。
             var stripped = BuildStrippedTemplate(_sourceViking);
             if (!ReferenceEquals(vikingField, null))
             {
@@ -228,8 +207,7 @@ namespace BadNorthBlackSpearman1_3
                 vikingField.SetValue(vr, stripped != null ? stripped.GetComponent<VikingAgent>() : _sourceViking);
             }
 
-            // 不手动实例化 vikingClone —— 原版 VikingReference.Start() 会在下一帧创建唯一副本。
-            //（此前手动 Instantiate 导致"双 Container + 孤儿克隆"：手动副本永远无人引用。）
+            // 不手动实例化 vikingClone —— 原版 VikingReference.Start() 下一帧创建唯一副本（手动 Instantiate 曾致双 Container + 孤儿克隆）。
 
             LevelStateObjectReferences.dict[NewVikingName.Value] = vr;
             _blackSpearman = vr;
@@ -239,10 +217,7 @@ namespace BadNorthBlackSpearman1_3
             StartCoroutine(ApplyArtDelayed(vr));
         }
 
-        /// <summary>
-        /// 克隆源 VikingAgent 预制体并剥离逻辑残留组件，得到"干净模板"。
-        /// 只删除会抢占/干扰行为的组件；Pirate（下船）/KillAllEnemies（寻敌）/Swordsman（近战大脑）必须保留。
-        /// </summary>
+        /// <summary>克隆源 VikingAgent 预制体并剥离逻辑残留组件（Pirate/KillAllEnemies/Swordsman 必须保留）。</summary>
         static VikingAgent BuildStrippedTemplate(VikingAgent src)
         {
             if (src == null) return null;
@@ -250,27 +225,22 @@ namespace BadNorthBlackSpearman1_3
             {
                 GameObject stripped = UnityEngine.Object.Instantiate(src.gameObject);
                 stripped.name = "BlackSpearman_StrippedTemplate";
-                // ★ 自身保持 activeSelf=true（Unity Instantiate 会保留原对象 active 状态，
-                //    Start() 从它克隆出的 vikingClone 才会是 active，否则敌人不可见），
-                //    挂在 inactive 的 holder 下避免它作为运行时对象出现在场景里。
+                // ★ 自身保持 active（Start 克隆的 vikingClone 才会可见），挂在 inactive holder 下避免出现在场景。
                 var holder = new GameObject("BlackSpearman_StrippedHolder");
                 holder.SetActive(false);
                 stripped.transform.SetParent(holder.transform, false);
 
-                // ① 逻辑残留组件：DestroyImmediate 立即销毁！
-                //    ⚠️ 不能用 Destroy()（延迟到帧末）——AddComponent<VikingReference> 后
-                //    Unity 在同帧的 Start 阶段就会执行 VR.Start() 克隆本模板，届时 Destroy 还没生效，
-                //    Arsonist 会被复制进 vikingClone（实测组件树再次出现 Arsonist）。
+                // ① 逻辑残留：DestroyImmediate 立即销毁（Destroy 延迟到帧末，VR.Start() 同帧就会克隆本模板）。
                 var arsonist = stripped.GetComponent<Arsonist>();
                 if (arsonist != null) UnityEngine.Object.DestroyImmediate(arsonist);
                 var shield = stripped.GetComponent<Shield>();
                 if (shield != null) UnityEngine.Object.DestroyImmediate(shield);
 
-                // ② 视觉残留子对象（盾/剑/aimer/weapon）—— 与 BlackSpearmanWeapon.RemoveSwordShield 共用同一工具
+                // ② 视觉残留：禁用剑/武器/瞄准骨子对象（盾牌保留——剑盾兵基底的盾牌美术即黑矛兵的盾牌）
                 int removedVisuals = BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.VisualChildNameKeys);
 
                 BSLog.Info("[REGISTER] 已生成剥离模板: 删除Arsonist=" + (arsonist != null) +
-                    " 删除Shield=" + (shield != null) + "，子对象已按名称禁用 " + removedVisuals + " 个");
+                    " 删除Shield组件=" + (shield != null) + " 保留盾牌美术，禁用剑/武器子对象 " + removedVisuals + " 个");
                 return stripped.GetComponent<VikingAgent>();
             }
             catch (Exception e)
@@ -343,12 +313,8 @@ namespace BadNorthBlackSpearman1_3
                         BindingFlags.NonPublic | BindingFlags.Static)));
             }, ref _patchGetAttack);
 
-            // ★★ 2026-08-15 根因修复：旧代码用 GetMethod(..., new[]{ typeof(Agent), typeof(Func<Agent,bool>) })
-            //    按参数类型定位 Attack。net472 编译产物对 System.Func`2 的引用携带 mscorlib 4.0.0.0，
-            //    而游戏运行在 Unity 2018.4 / Mono(CLR2.0, mscorlib 2.0) —— 该引用在 JIT 编译本方法体时
-            //    直接抛 TypeLoadException，整个方法死在入口，range/GetAttack/Attack/AttackUpdate
-            //    四条 Patch 全部静默失效（日志里只见一行 Awake 初始化异常: System.Func`2）。
-            //    修复：不再引用 Func<,>，仅按方法名查找（Swordsman 只有一个 public Attack，无歧义）。
+            // ⚠️ 勿按参数类型定位 Attack：Func<,> 引用会让 Unity Mono(mscorlib 2.0) JIT 抛 TypeLoadException，
+            //    使整批 Patch 静默失效。按方法名查找（Swordsman 只有一个 public Attack，无歧义）。
             TryPatch("Swordsman.Attack（长矛穿刺·不播挥剑）", () =>
             {
                 var m = typeof(Swordsman).GetMethod("Attack", BindingFlags.Instance | BindingFlags.Public);
@@ -380,21 +346,12 @@ namespace BadNorthBlackSpearman1_3
             }, ref _patchPlayAnimation);
         }
 
-        // ★ 自定义委托代替 System.Action：
-        //   ⚠️ 2026-08-15 实测——本机运行环境是 Unity Mono（mscorlib 4.0.0.0 的 Action/Func 是
-        //   type-forward 到 System.Core 的），net472 编译产物若引用 [mscorlib]System.Action，运行期
-        //   MonoMod 反射枚举 mod 方法时即抛 TypeLoadException（"Could not load type 'System.Action'
-        //   from assembly 'mscorlib, Version=4.0.0.0'"）。mod 自定义委托继承 MulticastDelegate，
-        //   不依赖 mscorlib 的 Action，彻底绕开该问题。⚠️ mod 内禁止再写 System.Action/System.Func。
-        //   ⚠️ 雷区③（2026-08-15 第三轮实测）：对 MethodInfo/PropertyInfo/Type 等反射对象用
-        //   == / != null，net472 编译产物会引用 System.Reflection.MethodInfo.op_Equality /
-        //   PropertyInfo.op_Inequality 等运算符（.NET 4.0 的 mscorlib 才声明），Unity 运行时
-        //   mscorlib 没有 → MissingMethodException（Method not found: op_Equality），TryPatch
-        //   逐条全 FAIL。反射对象判空一律用 ReferenceEquals（旧代码/ SwordRemover 注释同款铁律）。
+        // ⚠️ 雷区（Unity Mono / mscorlib 2.0）：禁止 System.Action/System.Func（TypeLoadException 使整批
+        //    Patch 失效）—— 用自定义委托；反射对象判空一律 ReferenceEquals（== 会引 op_Equality 导致
+        //    MissingMethodException）。
         delegate void PatchJob();
 
-        // ★ 每个 Patch 独立 try/catch：任何一个失败都只报它自己，不再出现
-        //   "整个 PatchSwordsman 被一处异常打崩、其余 Patch 静默未生效"的情况。
+        // 每个 Patch 独立 try/catch：单个失败不拖垮其余 Patch。
         static void TryPatch(string label, PatchJob apply, ref bool ok)
         {
             try
@@ -410,8 +367,7 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
-        // ★ 挥剑动画溯源：黑矛兵被要求播放 Attack/Clash 动画时立刻打调用栈，
-        //   直接回答"刺击期间到底还有没有原版挥剑路径在播动画"。
+        // 挥剑动画溯源：黑矛兵被要求播放 Attack/Clash 动画时打调用栈。
         static void AgentPlayAnimationPrefix(Agent __instance, int anim)
         {
             try
@@ -447,9 +403,7 @@ namespace BadNorthBlackSpearman1_3
             {
                 if (__instance == null || __instance.agent == null) return;
                 if (!_done.Contains(__instance.agent)) return;
-                // ★ 长矛攻击距离：原"radius*0.7*1.3 ≈ 0.118m"仍是剑的贴脸距离——这就是"攻击逻辑还是剑"的根源
-                //   （黑矛兵必须站到剑的距离才出手）。改为"矛长 0.6m + 身体半程"≈0.69m，
-                //   让攻击在矛尖够得到的地方触发，才是长矛刺击手感。
+                // 长矛攻击距离：原 radius*0.7*1.3≈0.118m 是剑的贴脸距离；改为"矛长 0.6m + 身体半程"≈0.69m。
                 __result = __instance.agent.radius * 0.7f + 0.6f;
             }
             catch { }
@@ -488,9 +442,8 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
-        // ★ 长矛穿刺：黑矛兵攻击 = 站桩刺击。原版 Swordsman.Attack() 会播放挥剑动画帧（Onehanded），
-        //   观感就是"用长矛执行剑的劈砍"。这里跳过原版（不播挥剑动画），矛的刺出/收回/命中由
-        //   SpearChargeComponent.UpdateMeleeThrust 驱动；攻击时长由 MeleeAttackDuration 控制。
+        // 长矛穿刺：跳过原版挥剑动画（观感是"用长矛执行剑的劈砍"），矛的刺出/收回/命中由
+        // SpearChargeComponent.UpdateMeleeThrust 驱动。
         static readonly FieldInfo StaminaField = AccessTools.Field(typeof(Swordsman), "stamina");
         static readonly FieldInfo StaminaCostField = AccessTools.Field(typeof(Swordsman), "attackStaminaCost");
 
@@ -552,9 +505,8 @@ namespace BadNorthBlackSpearman1_3
                     SpearChargeComponent.NotifyMeleeAttackEnd(__instance.agent);
                     if (stam > 0f && __instance.agent.enemyAgent != null)
                     {
-                        // ★ 连刺：不调用原版 Attack()——其签名含 System.Func<,>，是 Unity Mono 的
-                        //   类型加载雷区（见 TryPatch 注释）。改为直接重启攻击状态 + 矛刺周期，
-                        //   与 Attack 前缀的效果一致（前缀本就不播挥剑动画）。
+                        // ★ 连刺：不调用原版 Attack()（其签名含 System.Func<,>，Unity Mono 类型加载雷区），
+                        //   直接重启攻击状态 + 矛刺周期。
                         __instance.target = __instance.agent.enemyAgent;
                         __instance.attack.SetActive(true);
                         SpearChargeComponent.NotifyMeleeAttackStart(__instance.agent);
@@ -562,12 +514,8 @@ namespace BadNorthBlackSpearman1_3
                     return false;
                 }
 
-                // ★ 攻击中：站桩刺击（不再每帧"朝目标贴拢推进"——那是原版挥剑的逼近行为）。
-                //   面向优先用"攻击开始瞬间锁定的突刺方向"（SetDirection 是瞬时 snap）——
-                //   旧版每帧取活动目标当前位置，身体朝向随目标位移/自旋逐帧阶跃 → 突刺本地偏移
-                //   随之跳变 → 矛"小的抽动"。锁向固定后身体朝向恒定，配合
-                //   SpearChargeComponent.UpdateMeleeThrust 的本地锁定偏移 → 整段刺击完全稳定。
-                //   锁方向无效时退回旧行为（面向目标当前位置）。
+                // 攻击中站桩刺击：面向锁定突刺方向（不再每帧追目标当前位置 → 消除"小的抽动"），
+                // 锁方向无效时退回面向目标当前位置。
                 __instance.agent.walkDir = Vector3.zero;
                 var stabCharge = __instance.agent.GetComponent<SpearChargeComponent>();
                 if (stabCharge != null && stabCharge.IsThrustDirectionLocked)
@@ -663,11 +611,6 @@ namespace BadNorthBlackSpearman1_3
                 var ch = a.gameObject.AddComponent<SpearChargeComponent>();
                 if (ch != null) ch.Setup(a);
                 RegisterBrainAction(a, ch);
-            }
-            if (EnableStab.Value)
-            {
-                var st = a.gameObject.AddComponent<SpearStabAction>();
-                RegisterBrainAction(a, st);
             }
             // ★ 去剑组件：无论 RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
             var remover = a.gameObject.AddComponent<SwordRemover>();

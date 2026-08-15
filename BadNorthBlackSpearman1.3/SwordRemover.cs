@@ -7,17 +7,10 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 去剑组件：原版 Viking_Sword 的"剑"（剑刃+剑柄）烘焙在 OnehandedXXXX 动画帧里。
-    /// 剑刃 = 暗红色像素（R&gt;70,G&lt;40,B&lt;20，随挥剑动画绕身体移动，每帧 58~292 个像素）；
-    /// 剑柄/护手 = 剑刃外侧紧贴的非红不透明像素（离线统计：剑刃 bbox 外侧 ±6px 纵向带内）。
+    /// 去剑组件：原版 Viking 的"剑"（剑刃+剑柄）烘焙在 OnehandedXXXX 动画帧里。
     /// 原理：把材质块 _MainTex 换成"擦除剑像素"的克隆纹理（与图集同尺寸，UV 不变，绝不动 bSprite/网格）。
-    /// 擦除规则（方向感知）：
-    ///   ① 整帧 rect 内的红暗像素（无论剑在身体左侧/右侧）——清除剑刃；
-    ///   ② 剑柄/护手 = 剑刃基部靠身体一侧的非红不透明像素（右偏剑擦基部左侧、左偏剑擦基部右侧，
-    ///      仅 bbox 上下 ±OuterBandPx 纵向带 + 基部向外 ±HiltBandPx 水平带）。
-    ///   ③ 预擦除：首次见到 Onehanded 帧时把图集里全部 Onehanded 帧一次性擦除，消除动画播放时"剑闪回"。
-    /// ⚠️ 安全阀：擦除占比 >20% 判定误擦并跳过该帧；帧纹理是共享图集，只擦当前帧 rect。
-    /// 说明：攻击逻辑已由 GetAttack patch 改写为长矛攻击，这里只解决视觉残留。
+    /// 剑刃 = 暗红像素（R>70,G<40,B<20）；剑柄与身体同色、无法像素分离（已知遗留，盾牌遮挡）。
+    /// ⚠️ 安全阀：单帧擦除占比超阈值判定误擦并跳过；帧纹理是共享图集，只擦当前帧 rect。
     /// </summary>
     public class SwordRemover : MonoBehaviour
     {
@@ -71,7 +64,7 @@ namespace BadNorthBlackSpearman1_3
             }
             if (_sa == null)
             {
-                BSLog.Warn("[去剑] 未找到 Onehanded 帧的 SpriteAnimator（可能基底不是 Viking_Sword），组件停用");
+                BSLog.Warn("[去剑] 未找到 Onehanded 帧的 SpriteAnimator（可能基底不是 Viking_SwordShield），组件停用");
                 Destroy(this);
             }
         }
