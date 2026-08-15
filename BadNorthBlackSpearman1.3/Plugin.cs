@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -50,6 +50,7 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<bool> EnableCharge;
         public static ConfigEntry<bool> EnableStab;
         public static ConfigEntry<bool> RemoveSword;
+        public static ConfigEntry<bool> EnableShield;
 
         static VikingReference _blackSpearman;
         static VikingAgent _sourceViking;
@@ -111,7 +112,7 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Info($"[配置] Source={SourceVikingName.Value} New={NewVikingName.Value} Bounty={Bounty.Value} " +
                     $"SpawnChance={SpawnChance.Value} ForceFirstWave={ForceFirstWave.Value} " +
                     $"DMG={DamageMult.Value} KB={KnockbackMult.Value} Stun={StunMult.Value} Scale={ScaleMult.Value} " +
-                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Stab={EnableStab.Value}");
+                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Stab={EnableStab.Value} Shield={EnableShield.Value}");
             }
             catch (Exception e)
             {
@@ -151,6 +152,9 @@ namespace BadNorthBlackSpearman1_3
             // sprite2（PartTex_Median_BlurAlpha）是身体遮罩，不去动它。
             EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲刺技能。");
             EnableStab = Config.Bind("Skills", "EnableStab", true, "是否注入刺击技能。");
+            EnableShield = Config.Bind("Skills", "EnableShield", true,
+                "是否让黑矛兵身上的盾牌具备剑盾兵格挡效果（近战正面格挡、箭矢/飞斧减伤弹开）。\n" +
+                "设为 false 则盾牌仅剩视觉、不参与格挡。");
             RemoveSword = Config.Bind("Visual", "RemoveSword", false,
                 "是否移除烘焙在身体动画帧（OnehandedXXXX）里的剑（默认关闭：颜色签名需先用日志诊断校准，" +
                 "直接开启会误擦身体暗红衣物导致身体透明）。");
@@ -559,17 +563,17 @@ namespace BadNorthBlackSpearman1_3
                 }
 
                 // ★ 攻击中：站桩刺击（不再每帧"朝目标贴拢推进"——那是原版挥剑的逼近行为）。
-                //   只保留面向目标（SetDirection），walkDir 归零让身体转 stand，矛由
-                //   SpearChargeComponent.UpdateMeleeThrust 稳定直刺。观感从"边跑边挥"变"站定直刺"。
-                if (__instance.target != null && __instance.target.aliveAndGrounded.active)
-                {
-                    __instance.agent.walkDir = Vector3.zero;
+                //   面向优先用"攻击开始瞬间锁定的突刺方向"（SetDirection 是瞬时 snap）——
+                //   旧版每帧取活动目标当前位置，身体朝向随目标位移/自旋逐帧阶跃 → 突刺本地偏移
+                //   随之跳变 → 矛"小的抽动"。锁向固定后身体朝向恒定，配合
+                //   SpearChargeComponent.UpdateMeleeThrust 的本地锁定偏移 → 整段刺击完全稳定。
+                //   锁方向无效时退回旧行为（面向目标当前位置）。
+                __instance.agent.walkDir = Vector3.zero;
+                var stabCharge = __instance.agent.GetComponent<SpearChargeComponent>();
+                if (stabCharge != null && stabCharge.IsThrustDirectionLocked)
+                    __instance.agent.SetDirection(stabCharge.LockedThrustDirection);
+                else if (__instance.target != null && __instance.target.aliveAndGrounded.active)
                     __instance.agent.SetDirection(__instance.target.transform.position - __instance.transform.position);
-                }
-                else
-                {
-                    __instance.agent.walkDir = Vector3.zero;
-                }
                 return false;
             }
             catch (Exception e)

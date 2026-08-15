@@ -19,7 +19,7 @@ namespace BadNorthBlackSpearman1_3
         const float DetectionRadius = 6.0f;   // 扫描兜底探测范围（优先取 Swordsman 大脑目标）
         const float ChargeSpeed = 5.0f;       // 冲刺速度 5m/s（更快更冲，冲击感）
         const float ChargeOvershoot = 1.5f;   // ★ 穿透余量：冲过锁定格 1.5m，穿透敌阵、冲击阵营
-        const float CooldownTime = 4.25f;     // ★ 冷却（用户指定 4~4.5s，取中值；空大后摇更明显）
+        const float CooldownTime = 10f;       // ★ 冷却（2026-08-15 用户指定：延长到 10s，冲锋更稀有、更像"技能"）
         const float WindUpDuration = 0.5f;    // 起手
         const float RetreatDistance = 0.6f;   // ★ 后退 0.6m（原 1.2 太远，且易退到船）
         const float SpearLength = 0.6f;       // 原版 Spear.spearLength
@@ -68,6 +68,7 @@ namespace BadNorthBlackSpearman1_3
         readonly HashSet<Agent> _hitAgents = new HashSet<Agent>();   // 本回合已命中（去重，同目标只结算一次）
         Swordsman _swordsman;          // 近战刺击：读取 Swordsman.attack 状态
         Vector3 _spearBaseLocalPos;    // 长矛挂载基点（突刺偏移在此之上叠加）
+        Vector3 _thrustOffsetLocal;    // ★ 刺击位移（本地空间：攻击开始瞬间按"对准后的身体朝向"锁定一次，整段不再重算）
         float _thrust;                 // 当前突刺量 0~1
         bool _prevAttackActive;        // 近战诊断：上一帧是否在攻击
         bool _thrustHitDone;           // 本回合矛刺到位后是否已触发伤害（FirstHit）
@@ -129,6 +130,19 @@ namespace BadNorthBlackSpearman1_3
                 DiagnosticsComponent.DumpAgentSprites(agent);
             }
             Log("Setup OK. speed=" + _originalSpeed.ToString("F1") + " spear=" + (_spearTransform != null));
+        }
+
+        /// <summary>刺击期间的身体锁定朝向（供 Plugin.SwordsmanAttackUpdatePrefix 使用：
+        /// 让身体朝固定突刺方向站桩，不再每帧追活动目标导致朝向阶跃 → 矛"小的抽动"）。</summary>
+        public bool IsThrustDirectionLocked
+        {
+            get { return _thrustDirLocked; }
+        }
+
+        /// <summary>攻击开始瞬间锁定的世界突刺方向（与 IsThrustDirectionLocked 配套使用）。</summary>
+        public Vector3 LockedThrustDirection
+        {
+            get { return _thrustDirWorld; }
         }
 
         bool IBrainAction.MaybeAct(Brain brain)
@@ -196,13 +210,30 @@ namespace BadNorthBlackSpearman1_3
                         _thrustDirWorld = toT.normalized;
                         _thrustDirLocked = true;
                     }
-                    if (SpearVisual.TryGetAimRotation(_agent, t.chestPos, out _spearTargetRot))
-                    {
-                        _hasSpearTarget = true;
-                        _thrustRotLocked = true;
-                    }
                 }
-                if (!_thrustDirLocked) _thrustDirWorld = _agent.transform.forward;
+                if (!_thrustDirLocked)
+                {
+                    // 目标不可用（死亡/丢失）→ 退回自身朝向并同样锁定
+                    _thrustDirWorld = _agent.transform.forward;
+                    _thrustDirLocked = true;
+                }
+
+                // ★ 刺击开始瞬间先把身体朝向 snap 到突刺方向（SetDirection 是瞬时旋转），
+                //   再在"已对准"的本地系里锁定突刺位移 —— 两处同帧一致，整段刺击不再抖动。
+                try { _agent.SetDirection(_thrustDirWorld); } catch { }
+                _thrustOffsetLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld) * ThrustDistance;
+
+                // ★ 稳定刺击朝向（2026-08-15 修复"小的抽动"）：LookRotation(dir, 虚拟right=cross(dir,up))
+                //   恒 ⊥ dir —— 避免旧版 LookRotation(dir, agent.right) 在目标位于角色侧向时
+                //   roll 翻转 180°（矛精灵上下颠倒，刺击瞬间最刺眼的一种抽动）。
+                //   agent 正对目标时 虚拟right ≡ agent.right → 观感与旧版零差异。
+                Vector3 stableRight = Vector3.Cross(_thrustDirWorld, Vector3.up);
+                if (stableRight.sqrMagnitude > 0.001f)
+                {
+                    _spearTargetRot = Quaternion.LookRotation(_thrustDirWorld, stableRight.normalized) * Quaternion.Euler(0f, 0f, 90f);
+                    _hasSpearTarget = true;
+                    _thrustRotLocked = true;
+                }
                 // ★ 视觉取证：本会话首次刺击时截一张整屏（帧末落盘，直接看身体在播什么）
                 CaptureScreenshotOnce("attack");
                 BSLog.Info("[近战] 攻击开始 target=" + (t != null ? t.name : "null") +
@@ -232,22 +263,26 @@ namespace BadNorthBlackSpearman1_3
                 _thrust = thrust;
 
                 // ★ 命中：矛刺到位（thrust 首次达 1）时手动触发伤害。
-                //   原版由挥剑动画事件 FirstHit/Hit 触发，穿刺不播挥剑动画 → 必须自己触发
-                //   （FirstHit 是 public，内部 DoHit→GetAttack→DealDamage）。
+                //   对齐我方长矛兵 Spear.Hit()（Spear.cs:330）：
+                //     · TestHit 矛本地空间球判定（矛尖指向才中，非纯距离）
+                //     · 主目标 ×1、副目标(敌兵) ×0.33 贯穿（一次刺击可伤 1~2 个）
+                //     · Attack 附 PrefabManager.hitEffect 命中特效
+                //   原版由挥剑动画事件 FirstHit/Hit 触发，穿刺不播挥剑动画 → 必须自己触发。
                 if (_thrust >= 1f && !_thrustHitDone)
                 {
                     _thrustHitDone = true;
                     if (_swordsman != null)
                     {
-                        try { _swordsman.FirstHit(); }
-                        catch (Exception e) { BSLog.Warn("[近战] FirstHit 异常: " + e); }
+                        try { DoSpearHit(); }
+                        catch (Exception e) { BSLog.Warn("[近战] SpearHit 异常: " + e); }
                     }
                 }
 
-                // ★ 矛沿"锁定世界方向"直线刺出：InverseTransformDirection 每帧把锁定的世界方向
-                //   转回本地，即使 agent 转身也能稳定直刺；不再每帧向目标重算 → 不鬼畜。
-                Vector3 dirLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld);
-                _spearTransform.localPosition = _spearBaseLocalPos + dirLocal * (ThrustDistance * _thrust);
+                // ★ 矛沿锁定方向直线刺出：_thrustOffsetLocal 在攻击开始瞬间已按"对准后的身体朝向"
+                //   锁定（本地空间），整段刺击只放大位移、不再重算方向。
+                //   旧版每帧 InverseTransformDirection 重算 → 攻击期间身体 SetDirection 阶跃/转向，
+                //   本地偏移逐帧跳变 → 矛位置微小抖动（"小的抽动"）。锁定后完全静止。
+                _spearTransform.localPosition = _spearBaseLocalPos + _thrustOffsetLocal * _thrust;
                 // ★ 攻击期间黑矛兵站桩（不边跑边刺）：walkDir 归零让身体转 stand，矛稳定前刺
                 if (_agent != null) _agent.walkDir = Vector3.zero;
 
@@ -289,6 +324,77 @@ namespace BadNorthBlackSpearman1_3
                 _spearTransform.localPosition = _spearBaseLocalPos;
             }
         }
+
+
+        /// <summary>
+        /// 近战刺击命中（对齐我方长矛兵 Spear.Hit()，Spear.cs:330）：
+        /// 用"矛本地空间球"判定（TestHit），矛尖指向目标才结算——不再是剑兵的纯距离判定；
+        /// 主目标 ×1，若我方敌兵(enemyAgent)也在矛尖范围内则 ×0.33 贯穿（一次刺击可伤 1~2 个）；
+        /// 伤害用 Swordsman.damage/knockback/stun（本身已按 squad.level 等级化），
+        /// Attack 附 PrefabManager.hitEffect 命中特效。返回是否命中主目标。
+        /// </summary>
+        bool DoSpearHit()
+        {
+            if (_swordsman == null || _agent == null || _spearTransform == null) return false;
+            Agent primary = _swordsman.target != null ? _swordsman.target : _agent.enemyAgent;
+            if (primary == null) return false;
+            bool hitAny = false;
+
+            // 主目标：矛尖指向才中，伤害 ×1
+            if (TestHit(primary.chestPos))
+            {
+                DealSpearDamage(primary, 1f);
+                hitAny = true;
+            }
+            // 副目标：我方敌兵在矛尖范围内 → ×0.33 贯穿（Spear.Hit() 中 num/=2 后 ×0.6667 再对副目标再除）
+            Agent secondary = _agent.enemyAgent;
+            if (secondary != null && secondary != primary &&
+                secondary.aliveState != null && secondary.aliveState.active && TestHit(secondary.chestPos))
+            {
+                DealSpearDamage(secondary, 0.33f);
+            }
+            return hitAny;
+        }
+
+        /// <summary>
+        /// 对齐 Spear.TestHit（Spear.cs:363）：把敌人 chest 转成长矛本地坐标，矛长归一化，
+        /// z 前移 0.5·len（矛中点靠矛尖）、x/y 放宽 2 倍，落在单位球内即命中。
+        /// </summary>
+        bool TestHit(Vector3 enemyPos)
+        {
+            if (_spearTransform == null) return false;
+            Vector3 v = _spearTransform.InverseTransformPoint(enemyPos);
+            float d = SpearLength;          // 0.6m
+            v /= d;
+            v.z -= 0.5f;
+            v.x *= 2f;
+            v.y *= 2f;
+            return v.sqrMagnitude < 1f;
+        }
+
+        /// <summary>对齐 Spear.GetAttack：长矛伤害（等级化）+ 命中特效（PrefabManager.hitEffect）。</summary>
+        void DealSpearDamage(Agent target, float mult)
+        {
+            if (target == null || _swordsman == null || _agent == null) return;
+            Vector3 dir = _thrustDirLocked ? _thrustDirWorld : (target.chestPos - _agent.chestPos);
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.001f) dir = _agent.transform.forward;
+            var settings = new AttackSettings
+            {
+                damage = _swordsman.damage * mult,
+                knockback = _swordsman.knockback,
+                launchImpulse = 0f,
+                stun = _swordsman.stun
+            };
+            Vector3 pos = Vector3.Lerp(target.chestPos, _spearTransform.position, 0.3f);
+            Attack atk = new Attack(settings, dir.normalized, pos, _swordsman, _agent.squad,
+                "Sfx/English/Spear", ScriptableObjectSingleton<PrefabManager>.instance.hitEffect);
+            target.DealDamage(atk);
+            BSLog.Info("[近战] SpearHit " + target.name + " dmg=" + (settings.damage).ToString("F1") +
+                " kb=" + settings.knockback.ToString("F1") + " stun=" + settings.stun.ToString("F1") +
+                " mult=" + mult.ToString("F2") + " hitEffect=" + (atk.effect != null));
+        }
+
 
         /// <summary>Unity Animator 状态解析成可读信息：控制器名 + 当前 clip 名 + 状态哈希 + 进度。
         /// ⚠️ 旧日志只打 fullPathHash（如 hash=81563449），根本看不出是 Idle/Run/Attack，等于没暴露。</summary>

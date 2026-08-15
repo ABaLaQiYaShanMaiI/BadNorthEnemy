@@ -15,7 +15,7 @@
 | 维度 | 实现 |
 |---|---|
 | 触发逻辑 | 登岛（`navPos.onMain`）后**优先跟随 Swordsman 大脑锁定目标**（Twohanded 式），路径朝目标导航格；大脑无目标才退回 6m 扫描兜底 |
-| 技能表现 | 0.5s 举矛前摇 → **非追踪**直线冲锋（5m/s、穿透锁定格 1.5m）→ 后退 0.6m 迎击 → **4.25s 冷却** |
+| 技能表现 | 0.5s 举矛前摇 → **非追踪**直线冲锋（5m/s、穿透锁定格 1.5m）→ 后退 0.6m 迎击 → **10s 冷却** |
 | 攻击效果 | 沿途**单矛线宽 0.5m** 扫过一排（能量逐击递减 ×0.8）→ **终点爆发**（伤害×0.3、击退+2、撞飞）—— 沿途推散、终点撞飞 |
 | 可躲高收益 | 冲锋**非追踪 + 前摇可见 + 线宽 0.5m**：横向拉开即可躲过；躲过则黑矛兵冲空陷入长后摇 |
 | 战术价值 | 逼迫我方放弃优先占据的窄道/少接战面地形、转入可进可退的开阔地，或阻碍单位转场——与不同兵种同场可碰撞出火花 |
@@ -25,7 +25,7 @@
 2. 命中改用 `AgentEnumerators` + **视觉长矛锚点**（修复冲锋时 transform 滞后 navPos 约 1m 导致的"隔空命中"）；
 3. **抵达爆发**对终点周围所有存活单位生效（还原原版"最后一撞"）；
 4. 协同防重**软降级**（大脑目标也参与防重，避免多个黑矛兵挤同一目标）；
-5. 参数定稿：`CooldownTime=4.25s`、`HitRadius=0.5m`、`ArrivalBurstRadius=1.2m`。
+5. 参数定稿：`CooldownTime=10s`（2026-08-15 用户延长，冲锋更稀有、更像"技能"）、`HitRadius=0.5m`、`ArrivalBurstRadius=1.2m`。
 
 ---
 
@@ -125,7 +125,8 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 | Combat | `DamageMult` / `KnockbackMult` / `StunMult` / `ScaleMult` | 1.6 / 2.5 / 1.2 / 1.05 | 数值倍率 |
 | Visual | `EnableRecolor` | true | 黑色外观 |
 | Visual | `EnableWeaponSwap` | true | 移除剑盾 + 复用我方长矛（混搭武器） |
-| Skills | `EnableCharge` / `EnableStab` | true / true | 冲刺 / 刺击 |
+| Skills | `EnableCharge` / `EnableStab` | true / true | 冲锋 / 刺击 |
+| Skills | `EnableShield` | true | 盾牌 = 剑盾兵真实格挡（近战正面归零、箭矢×0.05 弹开、飞斧归零、长矛×0.2）；`false` = 仅视觉 |
 
 ---
 
@@ -279,6 +280,22 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 - 实测：sprite2 亮银擦除被安全阀拒绝（`2681/6571=40.8%`>35%）；剑柄在 PartTex 里是暗色 `(33,26,24)/(66,48,41)`，与身体同色 → **帧级/颜色级/部件级三路证明剑柄无法靠像素擦除解决**。
 - 转方向：**Patch `Swordsman.Attack()`** 让黑矛兵攻击不播挥剑动画（原版播 Onehanded 挥剑帧 = "用长矛执行剑的劈砍"），**Patch `AttackUpdate()`** 用矛刺周期（0.5s）结束攻击；矛刺到位瞬间手动 `FirstHit()` 触发长矛伤害（原版由挥剑动画事件触发）。观感从"跳扑挥砍"改为"站桩端矛戳刺"。
 - 副作用：攻击不再播挥剑动画 → 攻击时剑柄不再出现；待机剑柄是否残留待 `[近战·待机帧]` 日志确认。
+**🎯 近战刺击收尾 + 盾牌格挡 + 冷却延长（2026-08-15 七次进展，✅ 定稿）**：
+- **刺击"小的抽动"修复**（攻击全程零重算、两处同帧锁死）：
+  - 攻击开始瞬间 `SetDirection(_thrustDirWorld)` 先把身体 snap 对准突刺方向，再把突刺位移以**本地空间**锁定为 `_thrustOffsetLocal`（`InverseTransformDirection(dir) × ThrustDistance` 只算一次）——旧版每帧重算，身体 SetDirection 阶跃/转向时本地偏移逐帧跳变 = 肉眼可见的抽动；
+  - 刺击朝向改用 `LookRotation(dir, cross(dir, up))`（虚拟 right，恒 ⊥ dir）——旧版 `LookRotation(dir, agent.right)` 在目标位于角色侧向时 roll 翻转 180°（矛精灵上下颠倒）；agent 正对目标时两式完全等价 → 观感零变化；
+  - `Plugin.SwordsmanAttackUpdatePrefix` 攻击期间面向改用**锁定突刺方向**（不再每帧追活动目标当前位置）→ 身体朝向恒定、突刺稳定。
+- **近战命中对齐我方长矛兵 Spear**（`DoSpearHit` / `TestHit` / `DealSpearDamage`）：矛本地空间球判定（矛尖指向才中）、主目标 ×1 / 副目标 ×0.33 贯穿、`PrefabManager.hitEffect` 命中特效。
+- **盾牌 = 剑盾兵真实格挡**（`BlackSpearmanShield.cs`，复刻 `Shield.ModifyAttack`）：近战正面格挡归零、箭矢 ×0.05 弹开/砸落、飞斧归零、长矛 ×0.2；`EnableShield` cfg 可关（false = 仅视觉）。
+- **冲锋冷却 4.25s → 10s**（用户指定，冲锋更稀有更像技能；不改变已定稿的冲锋表现本身）。
+
+**📋 当前已知遗留问题（2026-08-15）**：
+1. 剑柄仍与持剑手像素重叠、PartTex 同色，像素擦除三路（帧/颜色/部件）均证明无解 → 用盾牌遮挡方案，观感可接受；
+2. 身体仍播放 Onehanded 基底动画帧（挥剑/走路基底），攻击以矛前刺主导观感，但待机时手部姿态仍是持剑；
+3. 盾牌为静态遮挡（不随动画摆动），且 `Shield.ModifyAttack` 的 `facing <= 0.5f` 正面判定若与视觉朝向不符，需放宽阈值或调 `localRotation/localPosition`；
+4. 冲锋为单体冲刺（敌方无 `EnglishFormationAgent`），列阵冲锋留作后续可选。
+
+
 
 ---
 
@@ -294,6 +311,7 @@ BadNorthBlackSpearman1.3/
 ├── SpearChargeComponent.cs     # 冲刺技能（IBrainAction）
 ├── SpearStabAction.cs          # 刺击技能（IBrainAction）
 ├── SpearVisual.cs              # 长矛朝向统一工具（冲锋/刺击/普通攻击共用举矛公式）
+├── BlackSpearmanShield.cs      # 盾牌格挡效果（复刻 Shield.ModifyAttack，EnableShield 可关）
 ├── SwordRemover.cs             # 去剑组件（运行时擦除 Onehanded 动画帧里的剑像素）
 ├── Resources/
 │   └── black_spearman_icon.png # 美术图标（可选）

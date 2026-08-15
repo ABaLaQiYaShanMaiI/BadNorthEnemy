@@ -24,7 +24,15 @@ namespace BadNorthBlackSpearman1_3
             if (a == null) return;
             RemoveSwordShield(a);
             MountSpear(a);
-            MountShieldCover(a);
+            Transform shieldTf = MountShieldCover(a);
+            // ★ 盾牌真实效果（剑盾兵格挡）：挂载 BlackSpearmanShield（IAttackResponder）。
+            //   EnableShield=false 时仅剩视觉、不参与格挡。
+            if (shieldTf != null)
+            {
+                var comp = a.gameObject.GetComponent<BlackSpearmanShield>();
+                if (comp == null) comp = a.gameObject.AddComponent<BlackSpearmanShield>();
+                if (comp != null) comp.Setup(a, shieldTf, Plugin.EnableShield != null && Plugin.EnableShield.Value);
+            }
         }
 
         /// <summary>按名称关键字禁用 root 下的视觉残留子对象（Plugin.BuildStrippedTemplate 也复用）。返回禁用数量。</summary>
@@ -68,7 +76,7 @@ namespace BadNorthBlackSpearman1_3
         /// 挂到黑矛兵身体右侧（剑柄区域），视觉遮挡剑柄。静态挂载（不随动画摆动），
         /// 优先找已生成实例，找不到则下次再试。可被 cfg RemoveSword=false 一并禁用。
         /// </summary>
-        static void MountShieldCover(Agent a)
+        static Transform MountShieldCover(Agent a)
         {
             try
             {
@@ -80,7 +88,7 @@ namespace BadNorthBlackSpearman1_3
                         _lastNoShieldLog = Time.time;
                         BSLog.Info("[WEAPON] 暂无可复用的盾牌模板（场上无 SwordShield），跳过剑柄遮挡");
                     }
-                    return;
+                    return null;
                 }
 
                 var clone = UnityEngine.Object.Instantiate(_shieldTemplate.gameObject);
@@ -98,8 +106,10 @@ namespace BadNorthBlackSpearman1_3
                     " (localPos=" + clone.transform.localPosition.ToString("F3") +
                     ", localScale=" + clone.transform.localScale.ToString("F3") +
                     ", children=" + clone.transform.childCount + ")");
+                return clone.transform;
             }
             catch (Exception e) { BSLog.Warn("[WEAPON] 挂载盾牌失败: " + e); }
+            return null;
         }
 
         static Transform FindShieldTemplate()
