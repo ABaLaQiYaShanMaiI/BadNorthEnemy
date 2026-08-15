@@ -9,11 +9,15 @@ namespace BadNorthBlackSpearman1_3
     ///   1. 移除剑视觉（按名称禁用剑/武器/瞄准骨子对象），保留盾牌美术；
     ///   2. 复用我方 Pikeman 的长矛（Spear.spearAim 骨上的 BatchedSprite），克隆挂到黑矛兵身上；
     ///   3. 在保留的盾牌上挂 BlackSpearmanShield（剑盾兵格挡效果）。
+    /// 盾牌日志固定分两个维度（判断\"盾牌存在\"必须同时看两者，缺一不可）：
+    ///   [盾牌·美术资源] 静态检查：子对象是否存在、Renderer/Mesh/Sprite/材质是否齐备有效、LevelMesh/BodyColoredMesh 渲染管线组件；
+    ///   [盾牌·实际效果] 运行期检查：是否真的上屏(isVisible)、姿态/距身/朝外、格挡是否真的触发(计数)。
     /// </summary>
     public static class BlackSpearmanWeapon
     {
         static Transform _spearTemplate;
         static float _lastNoSpearLog = -999f;
+        static float _lastNoShieldLog = -999f;
 
         /// <summary>按名称关键字禁用的剑视觉子对象表（不含盾牌——盾牌要保留），供预制体剥离与运行时移除共用。</summary>
         public static readonly string[] VisualChildNameKeys = { "sword", "weapon", "aimer", "剑" };
@@ -23,19 +27,75 @@ namespace BadNorthBlackSpearman1_3
             if (a == null) return;
             RemoveSword(a);
             MountSpear(a);
-            // ★ 盾牌真实格挡：使用基底自带的盾牌子对象挂载 BlackSpearmanShield（IAttackResponder）。
-            //   EnableShield=false 时仅剩视觉、不参与格挡。
-            Transform shieldTf = FindShieldTransform(a);
-            if (shieldTf != null)
+            MountShield(a);
+        }
+
+        /// <summary>
+        /// 挂载盾牌（预制件装配大改）：美术资源查找/兜底 → 挂格挡组件 → 两维体检 → 姿态退化自愈。
+        /// 任何一步的结果都以日志明确区分\"美术资源\"与\"实际效果\"两个维度。
+        /// </summary>
+        static void MountShield(Agent a)
+        {
+            try
             {
+                // ① 美术资源：优先使用基底剑盾兵自带的盾牌子对象
+                Transform shieldTf = FindShieldTransform(a.transform);
+                if (shieldTf != null)
+                    BSLog.Info("[盾牌·美术资源] 使用基底盾牌子对象: " + shieldTf.name);
+                else
+                    shieldTf = CloneFallbackShield(a);   // ② 兜底：克隆场上剑盾兵盾牌
+                if (shieldTf == null)
+                {
+                    BSLog.Warn("[盾牌·美术资源] 盾牌缺失（基底无盾牌且场上无剑盾兵可克隆）→ 黑矛兵无盾牌视觉/格挡");
+                    return;
+                }
+                shieldTf.gameObject.SetActive(true);
+
+                // ③ 实际效果：挂 BlackSpearmanShield（EnableShield=false 时仅视觉，但仍持续输出效果体检）
                 var comp = a.gameObject.GetComponent<BlackSpearmanShield>();
                 if (comp == null) comp = a.gameObject.AddComponent<BlackSpearmanShield>();
                 if (comp != null) comp.Setup(a, shieldTf, Plugin.EnableShield != null && Plugin.EnableShield.Value);
+
+                // ④ 美术资源完整体检（含盾牌是否具备可渲染外观）
+                DumpShieldHealth(a, "[盾牌·美术资源] 挂载时");
+
+                // ⑤ 姿态退化自愈（scale≈0 / 陷入身体 → 重置到身左侧默认姿态）
+                FixDegeneratePose(a, shieldTf);
             }
-            else
+            catch (Exception e) { BSLog.Warn("[盾牌·美术资源] 挂载盾牌异常: " + e); }
+        }
+
+        /// <summary>兜底：基底无盾牌时克隆场上剑盾兵的盾牌（原 MountShieldCover 方案，仅应急；克隆体未必进渲染管线）。</summary>
+        static Transform CloneFallbackShield(Agent a)
+        {
+            try
             {
-                BSLog.Warn("[WEAPON] 未找到基底盾牌子对象，盾牌格挡不挂载");
+                var shields = Resources.FindObjectsOfTypeAll<Shield>();
+                foreach (var s in shields)
+                {
+                    if (s == null || s.shield == null) continue;
+                    if (Time.time - _lastNoShieldLog > 5f)
+                    {
+                        _lastNoShieldLog = Time.time;
+                        BSLog.Warn("[盾牌·美术资源] 基底无盾牌，克隆场上剑盾兵盾牌兜底: " + s.name + " shield=" + s.shield.name);
+                    }
+                    var clone = UnityEngine.Object.Instantiate(s.shield.gameObject);
+                    clone.name = "Shield_BlackSpearman_Fallback";
+                    clone.transform.SetParent(a.transform, false);
+                    clone.transform.localPosition = new Vector3(-a.radius * 0.9f, a.radius * 1.4f, a.radius * 0.4f);
+                    clone.transform.localScale = Vector3.one * a.radius * 1.2f;
+                    clone.transform.localRotation = Quaternion.identity;
+                    clone.SetActive(true);
+                    return clone.transform;
+                }
+                if (Time.time - _lastNoShieldLog > 5f)
+                {
+                    _lastNoShieldLog = Time.time;
+                    BSLog.Warn("[盾牌·美术资源] 基底无盾牌，且场上暂无剑盾兵可克隆");
+                }
             }
+            catch (Exception e) { BSLog.Warn("[盾牌·美术资源] 兜底克隆异常: " + e); }
+            return null;
         }
 
         /// <summary>按名称关键字禁用 root 下的视觉残留子对象（Plugin.BuildStrippedTemplate 也复用）。返回禁用数量。</summary>
@@ -71,21 +131,118 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[WEAPON] 移除剑视觉失败: " + e); }
         }
 
-        /// <summary>在 agent 层级递归查找盾牌子对象（基底 Viking_SwordShield 自带，供 BlackSpearmanShield 判定正面朝向）。</summary>
-        static Transform FindShieldTransform(Agent a)
+        /// <summary>递归查找盾牌子对象（基底剑盾兵自带；按名称关键字 shield/盾）。供 Apply / 剥离 / 诊断复用。</summary>
+        public static Transform FindShieldTransform(Transform root)
         {
-            if (a == null) return null;
-            foreach (var t in a.transform.GetComponentsInChildren<Transform>(true))
+            if (root == null) return null;
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
             {
-                if (t == null || t.gameObject == a.gameObject) continue;
+                if (t == null || t.gameObject == root.gameObject) continue;
                 string n = t.name.ToLowerInvariant();
                 if (n.Contains("shield") || n.Contains("盾"))
-                {
-                    BSLog.Info("[WEAPON] 使用基底盾牌: " + t.name + " (localPos=" + t.localPosition.ToString("F3") + ")");
                     return t;
-                }
             }
             return null;
+        }
+
+        /// <summary>盾牌两维体检（美术资源 + 实际效果），供挂载时与 F8 诊断复用。</summary>
+        public static void DumpShieldHealth(Agent a, string tag)
+        {
+            try
+            {
+                if (a == null) return;
+                Transform shieldTf = null;
+                var comp = a.GetComponent<BlackSpearmanShield>();
+                if (comp != null && comp.shield != null) shieldTf = comp.shield;
+                if (shieldTf == null) shieldTf = FindShieldTransform(a.transform);
+                if (shieldTf == null)
+                {
+                    BSLog.Raw(tag + " 盾牌不存在（美术缺失：无视觉也无格挡）");
+                    return;
+                }
+
+                BSLog.Raw("\n" + tag + " ==== 盾牌体检 ====");
+                BSLog.Raw("[美术资源]（静态：子对象/Renderer/Mesh/Sprite/材质/渲染管线组件）");
+                BSLog.Raw("· 子对象: " + shieldTf.name + " activeSelf=" + shieldTf.gameObject.activeSelf + " 路径=" + TransformPath(shieldTf));
+
+                var renderers = shieldTf.GetComponentsInChildren<Renderer>(true);
+                BSLog.Raw("· Renderer x" + renderers.Length);
+                bool anyValid = false;
+                foreach (var r in renderers)
+                {
+                    if (r == null) continue;
+                    string kind = (r is MeshRenderer) ? "MeshRenderer" : (r is SpriteRenderer) ? "SpriteRenderer" : r.GetType().Name;
+                    string asset = "无资源";
+                    var mf = r.GetComponent<MeshFilter>();
+                    if (mf != null && mf.sharedMesh != null)
+                    {
+                        asset = "mesh=" + mf.sharedMesh.name;
+                        if (mf.sharedMesh.bounds.size.sqrMagnitude > 0.0001f) anyValid = true;
+                    }
+                    var sr = r as SpriteRenderer;
+                    if (sr != null && sr.sprite != null)
+                    {
+                        asset = "sprite=" + sr.sprite.name;
+                        anyValid = true;
+                    }
+                    string mat = (r.sharedMaterial != null) ? r.sharedMaterial.name + " shader=" + r.sharedMaterial.shader.name : "无材质";
+                    bool ok = r.sharedMaterial != null && (asset.StartsWith("mesh=") || asset.StartsWith("sprite="));
+                    BSLog.Raw("  · " + r.gameObject.name + " [" + kind + "] enabled=" + r.enabled +
+                        " 资源=" + asset + " 材质=" + mat + (ok ? " ✓" : " ✗"));
+                }
+                BSLog.Raw("· 渲染管线组件: LevelMesh=" + (shieldTf.GetComponent<LevelMesh>() != null) +
+                    " BodyColoredMesh=" + (shieldTf.GetComponent<BodyColoredMesh>() != null));
+                BSLog.Raw("· 外观判定: " + (anyValid ? "具备可渲染资源，盾牌应有可见外观" : "无有效渲染资源 → 盾牌必然不可见!"));
+
+                BSLog.Raw("[实际效果]（运行期动态）");
+                BSLog.Raw("· 本地姿态: pos=" + shieldTf.localPosition.ToString("F3") +
+                    " scale=" + shieldTf.localScale.ToString("F3") +
+                    " rot(euler)=" + shieldTf.localRotation.eulerAngles.ToString("F1"));
+                BSLog.Raw("· 世界姿态: pos=" + shieldTf.position.ToString("F3") +
+                    " 距身体中心=" + Vector3.Distance(shieldTf.position, a.transform.position).ToString("F3") + "m");
+                BSLog.Raw("· 朝外判定 Dot(shield.forward, agent.forward)=" + Vector3.Dot(shieldTf.forward, a.transform.forward).ToString("F2") +
+                    "（格挡生效条件: Dot(shield.forward, -攻击方向) > 0.5）");
+                if (renderers.Length > 0)
+                    BSLog.Raw("· 上屏状态 isVisible=" + renderers[0].isVisible + "（挂载当帧为 False 属正常，15s 后由定期体检再报）");
+                if (comp != null)
+                    BSLog.Raw("· 格挡组件: 已挂载 cfgEnable=" + comp.enabledByCfg +
+                        " 触发块[近战=" + comp.BlockMelee + " 箭=" + comp.BlockArrow + " 斧=" + comp.BlockAxe + " 矛=" + comp.BlockSpear + "]");
+                else
+                    BSLog.Raw("· 格挡组件: 未挂载");
+            }
+            catch (Exception e) { BSLog.Warn(tag + " 盾牌体检异常: " + e); }
+        }
+
+        /// <summary>姿态退化自愈：本地 scale≈0 或盾牌陷入身体中心 → 重置到身左侧默认姿态并告警。</summary>
+        static void FixDegeneratePose(Agent a, Transform shieldTf)
+        {
+            try
+            {
+                if (shieldTf.localScale.sqrMagnitude < 0.0025f ||
+                    Vector3.Distance(shieldTf.position, a.transform.position) < a.radius * 0.2f)
+                {
+                    shieldTf.localPosition = new Vector3(-a.radius * 0.9f, a.radius * 1.4f, a.radius * 0.4f);
+                    shieldTf.localScale = Vector3.one * a.radius * 1.2f;
+                    shieldTf.localRotation = Quaternion.identity;
+                    BSLog.Warn("[盾牌·美术资源] 盾牌姿态异常（scale≈0 或陷入身体），已重置到身左侧默认姿态 pos=" +
+                        shieldTf.localPosition.ToString("F3") + " scale=" + shieldTf.localScale.ToString("F3"));
+                }
+            }
+            catch (Exception e) { BSLog.Warn("[盾牌·美术资源] 姿态自愈失败: " + e); }
+        }
+
+        /// <summary>拼接 Transform 完整路径（定位盾牌子对象在层级中的位置）。</summary>
+        static string TransformPath(Transform t)
+        {
+            if (t == null) return "null";
+            string path = t.name;
+            var cur = t.parent;
+            while (cur != null)
+            {
+                path = cur.name + "/" + path;
+                cur = cur.parent;
+            }
+            return path;
         }
 
         static void MountSpear(Agent a)

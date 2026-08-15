@@ -25,6 +25,7 @@ namespace BadNorthBlackSpearman1_3
                     BSLog.Raw("\n==================== 手动完整诊断 (F8) ====================");
                     DumpFull();
                     DumpBlackSpearmanRender();
+                    DumpBlackSpearmanShields();
                     BSLog.Raw("==================== 手动完整诊断结束 ====================\n");
                 }
                 if (Input.GetKeyDown(KeyCode.F9))
@@ -104,6 +105,28 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Raw("\n[渲染诊断] 共 " + n + " 个黑矛兵\n");
             }
             catch (Exception e) { BSLog.Warn("[渲染诊断] 异常: " + e); }
+        }
+
+        /// <summary>黑矛兵盾牌两维体检（F8 触发）：每个黑矛兵分别输出 美术资源 与 实际效果。</summary>
+        void DumpBlackSpearmanShields()
+        {
+            try
+            {
+                var vr = Plugin.BlackSpearman;
+                if (vr == null) { BSLog.Raw("[盾牌体检] BlackSpearman 未注册"); return; }
+                var agents = Resources.FindObjectsOfTypeAll<Agent>();
+                int n = 0;
+                foreach (var a in agents)
+                {
+                    if (a == null) continue;
+                    var va = a.GetComponent<VikingAgent>();
+                    if (va == null || !ReferenceEquals(va.vikingReference, vr)) continue;
+                    n++;
+                    BlackSpearmanWeapon.DumpShieldHealth(a, "[盾牌体检] #" + n + " " + a.name);
+                }
+                BSLog.Raw("\n[盾牌体检] 共 " + n + " 个黑矛兵\n");
+            }
+            catch (Exception e) { BSLog.Warn("[盾牌体检] 异常: " + e); }
         }
 
         /// <summary>

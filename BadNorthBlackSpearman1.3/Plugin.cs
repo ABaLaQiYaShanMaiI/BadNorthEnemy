@@ -233,14 +233,22 @@ namespace BadNorthBlackSpearman1_3
                 // ① 逻辑残留：DestroyImmediate 立即销毁（Destroy 延迟到帧末，VR.Start() 同帧就会克隆本模板）。
                 var arsonist = stripped.GetComponent<Arsonist>();
                 if (arsonist != null) UnityEngine.Object.DestroyImmediate(arsonist);
-                var shield = stripped.GetComponent<Shield>();
-                if (shield != null) UnityEngine.Object.DestroyImmediate(shield);
+                // ★ 销毁 Shield 逻辑组件前先记录盾牌子对象（美术资源维度：
+                //   权威引用 Shield.shield 字段优先，名称关键字兜底——避免\"组件销毁后再也定位不到盾牌\"）。
+                var shieldComp = stripped.GetComponent<Shield>();
+                Transform shieldTf = (shieldComp != null && shieldComp.shield != null) ? shieldComp.shield : null;
+                if (shieldTf == null) shieldTf = BlackSpearmanWeapon.FindShieldTransform(stripped.transform);
+                if (shieldComp != null) UnityEngine.Object.DestroyImmediate(shieldComp);
 
                 // ② 视觉残留：禁用剑/武器/瞄准骨子对象（盾牌保留——剑盾兵基底的盾牌美术即黑矛兵的盾牌）
                 int removedVisuals = BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.VisualChildNameKeys);
 
                 BSLog.Info("[REGISTER] 已生成剥离模板: 删除Arsonist=" + (arsonist != null) +
-                    " 删除Shield组件=" + (shield != null) + " 保留盾牌美术，禁用剑/武器子对象 " + removedVisuals + " 个");
+                    " 删除Shield组件=" + (shieldComp != null) +
+                    " 盾牌美术[美术资源]=" + (shieldTf != null
+                        ? shieldTf.name + " active=" + shieldTf.gameObject.activeSelf
+                        : "缺失（黑矛兵将无盾牌视觉!）") +
+                    "，禁用剑/武器子对象 " + removedVisuals + " 个");
                 return stripped.GetComponent<VikingAgent>();
             }
             catch (Exception e)
