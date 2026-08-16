@@ -32,8 +32,16 @@ namespace BadNorthBlackSpearman1_3
 
         float _lastLogTime = -999f;
 
-        // 精灵帧闪动检测：近 1s 内的 (时间, 帧名) 序列
-        readonly List<KeyValuePair<float, string>> _spriteHistory = new List<KeyValuePair<float, string>>();
+        // 精灵帧闪动检测：近 1s 内的 (时间, 帧名, 动画进度) 序列
+        // ★ 第二十轮：原口径"1s 内 ≥3 种帧名且变化 ≥4 次"会把正常待机呼吸循环（帧按序前进）误报成闪动刷屏。
+        //   新口径只在"同一动画进度(norm 差 <0.02)出现不同帧名"时才报真闪动（正常循环每个 norm 只对应一帧）。
+        struct SpriteSample
+        {
+            public float time;
+            public string name;
+            public float norm;
+        }
+        readonly List<SpriteSample> _spriteHistory = new List<SpriteSample>();
 
         public void Setup(Agent agent)
         {
@@ -114,7 +122,9 @@ namespace BadNorthBlackSpearman1_3
                     }
                 }
 
-                if (clip == _prevClip && _prevNorm >= 0f && norm >= 0f && (norm - _prevNorm) < -0.3f)
+                // ★ 第二十轮：只报"剪辑中途倒退"（_prevNorm<0.7 时 norm 回落），
+                //   不报正常的循环回卷（0.95→0.02 是剪辑播完回到开头，原口径把每个循环回卷都刷成异常）。
+                if (clip == _prevClip && _prevNorm >= 0f && norm >= 0f && _prevNorm < 0.7f && (norm - _prevNorm) < -0.3f)
                 {
                     fire = true; reason = "③动画倒退 " + _prevNorm.ToString("F2") + "→" + norm.ToString("F2");
                 }
@@ -150,21 +160,31 @@ namespace BadNorthBlackSpearman1_3
 
             if (!animMoving)
             {
-                _spriteHistory.Add(new KeyValuePair<float, string>(now, sprite));
-                while (_spriteHistory.Count > 0 && now - _spriteHistory[0].Key > 1f) _spriteHistory.RemoveAt(0);
-                int changeCount = 0;
+                _spriteHistory.Add(new SpriteSample { time = now, name = sprite, norm = norm });
+                while (_spriteHistory.Count > 0 && now - _spriteHistory[0].time > 1f) _spriteHistory.RemoveAt(0);
+                // ★ 第二十轮：真闪动 = 同一动画进度(norm)出现不同帧名（正常待机/走路循环每帧各占一个进度，永不会同进度双帧）。
+                string badA = null, badB = null;
+                float badNorm = -1f;
                 var distinct = new HashSet<string>();
-                for (int i = 0; i < _spriteHistory.Count; i++)
+                for (int i = 0; i < _spriteHistory.Count && badA == null; i++)
                 {
-                    distinct.Add(_spriteHistory[i].Value);
-                    if (i > 0 && _spriteHistory[i].Value != _spriteHistory[i - 1].Value) changeCount++;
+                    var si = _spriteHistory[i];
+                    distinct.Add(si.name);
+                    if (si.norm < 0f) continue;
+                    for (int j = i + 1; j < _spriteHistory.Count; j++)
+                    {
+                        var sj = _spriteHistory[j];
+                        if (sj.norm >= 0f && si.name != sj.name && Mathf.Abs(si.norm - sj.norm) < 0.02f)
+                        {
+                            badA = si.name; badB = sj.name; badNorm = si.norm;
+                            break;
+                        }
+                    }
                 }
-                if (distinct.Count >= 3 && changeCount >= 4)
+                if (badA != null && badB != null)
                 {
                     fire = true;
-                    var sb = new System.Text.StringBuilder();
-                    foreach (var s in distinct) { if (sb.Length > 0) sb.Append("/"); sb.Append(s); }
-                    reason = "⑥精灵帧闪动(静止时) 1s内变化" + changeCount + "次 帧=" + sb.ToString();
+                    reason = "⑥精灵帧闪动(同动画进度换帧) " + badA + "↔" + badB + " norm=" + badNorm.ToString("F3");
                 }
             }
 

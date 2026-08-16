@@ -82,6 +82,11 @@ namespace BadNorthBlackSpearman1_3
         bool _dumped;      // 运行时诊断已输出（处理第一帧时）
         bool _partKeepLogged;   // 模式0：保留原部件贴图的体检日志已输出（避免每帧刷屏）
         bool _blocksRepaired;   // 身体材质块修复+详细转储已输出（每个黑矛兵一次）
+        Sprite _frameSprite;    // ★ 第二十轮：Update 阶段采样的当前精灵（=原版 SpriteAnimator.SetSprite 本帧提交的精灵）。
+                                //   动画系统在 Update→LateUpdate 之间把 sprite 字段推进到下一帧；LateUpdate 若直接用
+                                //   _sa.sprite（已是新帧），会把"新帧的去剑纹理"贴到"旧帧的网格 UV"上 → 每换一帧动画闪一帧
+                                //   （=用户所见"身子闪烁"）。改用 Update 采样值可保证去剑纹理与网格 UV 永远一致。
+        bool _partAppliedDiagDone;   // 第二十轮：sprite2 改色克隆应用诊断已输出（每个黑矛兵一次）
 
         public void Setup(Agent agent, bool eraseEnabled)
         {
@@ -108,11 +113,20 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
+        void Update()
+        {
+            // ★ 第二十轮（身子闪烁根治）：在 Update 阶段采样当前精灵——与原版 SpriteAnimator.SetSprite() 同一时刻、同一值。
+            //   原版把"动画系统写进 sprite 字段的帧"与"网格 UV"在它的 Update 里一起提交；本组件的 LateUpdate 再用同一帧精灵
+            //   覆盖 _MainTex 为去剑克隆，两者始终匹配。旧代码 LateUpdate 直接用 _sa.sprite（动画在 Update→LateUpdate 之间
+            //   已推进到下一帧）→ 去剑纹理(新帧) vs 网格 UV(旧帧) 错位一帧 = 每次换动画帧都闪一下。
+            if (_sa != null && _sa.sprite != null) _frameSprite = _sa.sprite;
+        }
+
         void LateUpdate()
         {
             if (_sa == null) return;
 
-            var cur = _sa.sprite;
+            var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
             if (cur != null && cur.texture != null && IsSwordFrameSprite(cur))
             {
                 // ★ 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
@@ -186,6 +200,40 @@ namespace BadNorthBlackSpearman1_3
                             _sa.SetSprite2(erased2);   // 同步更新 part 纹理 + RG 图集编码
                     }
                 }
+            }
+
+            // ★ 第二十轮：sprite2 应用诊断——确认"剑柄改身体色/亮银擦除"的克隆确实写进了渲染器块（回答"剑柄改色为何没生效"）
+            if (_eraseEnabled && !_partAppliedDiagDone && _sa.sprite2 != null)
+            {
+                _partAppliedDiagDone = true;
+                try
+                {
+                    bool isClone = _blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2);
+                    Texture2D partTex = _sa.sprite2.texture as Texture2D;
+                    string blockPart = "?";
+                    int blockPartId = -1;
+                    var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
+                    if (mrs != null && mrs.Length > 0)
+                    {
+                        var b = new MaterialPropertyBlock();
+                        mrs[0].GetPropertyBlock(b);
+                        Texture pt = null;
+                        try { pt = b.GetTexture("_PartTex"); } catch { }
+                        if (pt != null)
+                        {
+                            blockPart = pt.name + " id=" + pt.GetInstanceID();
+                            blockPartId = pt.GetInstanceID();
+                        }
+                        else blockPart = "null";
+                    }
+                    string verdict = (isClone && partTex != null && blockPartId == partTex.GetInstanceID())
+                        ? " ← 改色克隆已上块（剑柄应已改身体色）"
+                        : " ← ⚠️ 块里不是改色克隆（剑柄仍显示原色，需查 SetSprite2/烘焙重置）";
+                    BSLog.Info("[去剑] sprite2 应用诊断: sprite2=" + _sa.sprite2.name +
+                        " 纹理=" + (partTex != null ? partTex.name + " id=" + partTex.GetInstanceID() : "null") +
+                        " 已是改色克隆=" + isClone + " | 渲染器块_PartTex=" + blockPart + verdict);
+                }
+                catch (Exception e) { BSLog.Warn("[去剑] sprite2 应用诊断异常: " + e); }
             }
         }
 
