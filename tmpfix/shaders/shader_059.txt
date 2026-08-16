@@ -1,0 +1,169 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Weather/Rain" {
+Properties {
+
+_MainTex ("Texture", 2D) = "white" { }
+
+_PosTex0 ("Position Texture 0", 2D) = "white" { }
+
+_PosTex1 ("Position Texture 1", 2D) = "white" { }
+
+_Size ("Size", Vector) = (0.1,0.2,0,0)
+
+_ScreenSpaceSize ("Screen Space Size", Range(0, 1)) = 0.0
+
+_Alpha ("Alpha", Vector) = (1,3,0,0)
+
+[Toggle] _Age ("Age", Float) = 0.0
+
+_Lifespan ("Lifespan", Vector) = (1,2,0,0)
+
+[Toggle] _Mirror ("Mirror", Float) = 0.0
+
+}
+SubShader {
+ LOD 100
+ Tags { "CanUseSpriteAtlas" = "true" "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "RenderType" = "Opaque" }
+ Pass {
+  LOD 100
+  Tags { "CanUseSpriteAtlas" = "true" "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "RenderType" = "Opaque" }
+ AlphaToMask On
+ Cull Off
+  GpuProgramID 47717
+Program "vp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_MOBILE_PLATFORM" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_MOBILE_PLATFORM" "_AGE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}

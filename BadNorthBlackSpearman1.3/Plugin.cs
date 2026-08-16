@@ -42,6 +42,9 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<bool> EnableWeaponSwap;
         public static ConfigEntry<bool> EnableCharge;
         public static ConfigEntry<bool> RemoveSword;
+        public static ConfigEntry<int> RemoveSwordSprite2Mode;
+        public static ConfigEntry<bool> RemoveSwordFrameUVErase;
+        public static ConfigEntry<int> RemoveSwordFrameUVHalo;
         public static ConfigEntry<bool> EnableShield;
 
         static VikingReference _blackSpearman;
@@ -104,7 +107,8 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Info($"[配置] Source={SourceVikingName.Value} New={NewVikingName.Value} Bounty={Bounty.Value} " +
                     $"SpawnChance={SpawnChance.Value} ForceFirstWave={ForceFirstWave.Value} " +
                     $"DMG={DamageMult.Value} KB={KnockbackMult.Value} Stun={StunMult.Value} Scale={ScaleMult.Value} " +
-                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Shield={EnableShield.Value} RemoveSword={RemoveSword.Value}");
+                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Shield={EnableShield.Value} " +
+                    $"RemoveSword={RemoveSword.Value} Sprite2Mode={RemoveSwordSprite2Mode.Value} UVErase={RemoveSwordFrameUVErase.Value} UVHalo={RemoveSwordFrameUVHalo.Value}");
             }
             catch (Exception e)
             {
@@ -146,6 +150,18 @@ namespace BadNorthBlackSpearman1_3
             RemoveSword = Config.Bind("Visual", "RemoveSword", false,
                 "是否移除烘焙在身体动画帧（OnehandedXXXX）里的剑（默认关闭：颜色签名需先用日志诊断校准，" +
                 "直接开启会误擦身体暗红衣物导致身体透明）。");
+            RemoveSwordSprite2Mode = Config.Bind("Visual", "RemoveSwordSprite2Mode", 2,
+                "sprite2(部件贴图)处理模式——新基底 PartTex_SwordShield 的剑/盾/身体都在部件贴图里（剑盾=亮银亮色、身体=暗色）。\n" +
+                "0=保留原部件贴图、只靠帧擦除去剑（剑盾亮色会经帧 UV 采样残留成白框，第十三轮已弃用）；\n" +
+                "1=整块清空部件单元（身体一起消失会变白框，勿用）；\n" +
+                "2=只擦亮银亮色像素（剑刃+2D盾从部件贴图抹掉、暗色身体保留，第十三轮默认——白框/亮剑根治）。");
+            RemoveSwordFrameUVErase = Config.Bind("Visual", "RemoveSwordFrameUVErase", true,
+                "帧擦除是否启用\"UV 感知亮采样擦除\"（第十二轮白框根治）：任何帧像素的 R/G UV 解码采样到\n" +
+                "亮银部件像素(>150)都一并擦除——运行时 ETC2 压缩让部件贴图局部变亮，身体帧像素采样到亮像素 = 白框，\n" +
+                "红暗阈值抓不到它们，只有按 UV 采样判定才抓得到。默认 true（暗身体像素采样暗部件像素，不受影响）。");
+            RemoveSwordFrameUVHalo = Config.Bind("Visual", "RemoveSwordFrameUVHalo", 0,
+                "UV 亮像素光晕（0~6，部件像素距离）：>0 时把\"解码 UV 落在距亮部件像素 ≤N 部件像素\"的帧像素也擦除，\n" +
+                "用于连持剑的手/护手/剑刃边缘一起删。默认 0（只擦纯亮像素=白框）；若手/剑柄仍可见，逐步加大 1→2→3。");
         }
 
         void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
@@ -623,6 +639,11 @@ namespace BadNorthBlackSpearman1_3
             // ★ 去剑组件：无论 RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
             var remover = a.gameObject.AddComponent<SwordRemover>();
             if (remover != null) remover.Setup(a, RemoveSword.Value);
+            // ★ sprite2(部件贴图)处理模式：0=保留原部件(默认，避免白框) 1=整块清空(旧) 2=只擦亮银剑身
+            SwordRemover.Sprite2Mode = RemoveSwordSprite2Mode.Value;
+            // ★★ UV 感知亮采样擦除（白框根治）+ 光晕（吃持剑的手）：模式0下按"帧 UV→部件采样"判定白框像素
+            SwordRemover.UVErase = RemoveSwordFrameUVErase.Value;
+            SwordRemover.UVHalo = RemoveSwordFrameUVHalo.Value;
         }
 
         static void RegisterBrainAction(Agent a, IBrainAction action)

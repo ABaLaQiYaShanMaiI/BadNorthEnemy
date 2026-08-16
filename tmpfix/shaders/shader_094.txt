@@ -1,0 +1,52 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Unlit/Godray" {
+Properties {
+
+_MainTex ("Texture", 2D) = "white" { }
+
+_Color ("Color", Color) = (1,1,1,1)
+
+_Radius ("Radius", Float) = 0.0
+
+}
+SubShader {
+ LOD 100
+ Tags { "CanUseSpriteAtlas" = "true" "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "RenderType" = "Opaque" }
+ Pass {
+  LOD 100
+  Tags { "CanUseSpriteAtlas" = "true" "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "RenderType" = "Opaque" }
+ Cull Off
+  GpuProgramID 24897
+Program "vp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}

@@ -101,6 +101,30 @@ namespace BadNorthBlackSpearman1_3
                             " sprite=" + (spr.sprite != null ? spr.sprite.name : "null") +
                             " color=(" + spr.color.r.ToString("F2") + "," + spr.color.g.ToString("F2") + "," + spr.color.b.ToString("F2") + ")");
                     }
+
+                    // 网格子对象材质块纹理（_MainTex 是否为去剑克隆、_PartTex 部件贴图）——验证擦除覆盖全部变体
+                    var mrs = a.GetComponentsInChildren<MeshRenderer>(true);
+                    foreach (var mr in mrs)
+                    {
+                        if (mr == null) continue;
+                        var block = new MaterialPropertyBlock();
+                        try { mr.GetPropertyBlock(block); } catch { continue; }
+                        Texture mt = null, pt = null;
+                        try { mt = block.GetTexture("_MainTex"); } catch { }
+                        try { pt = block.GetTexture("_PartTex"); } catch { }
+                        string mtName = mt != null ? mt.name : "null";
+                        string ptName = pt != null ? pt.name : "null";
+                        if (mt != null && SwordRemover.IsSharedClone(mt))
+                            mtName += " ←去剑克隆✓";
+                        else if (mtName.IndexOf("_NoSword", StringComparison.Ordinal) >= 0 ||
+                                 ptName.IndexOf("_NoSword", StringComparison.Ordinal) >= 0)
+                            mtName += " ←去剑克隆";
+                        var mf = mr.GetComponent<MeshFilter>();
+                        int verts = (mf != null && mf.sharedMesh != null) ? mf.sharedMesh.vertexCount : -1;
+                        BSLog.Raw("  MeshRenderer · " + mr.gameObject.name + ": enabled=" + mr.enabled +
+                            " verts=" + verts + " isVisible=" + mr.isVisible +
+                            " block._MainTex=" + mtName + " block._PartTex=" + ptName);
+                    }
                 }
                 BSLog.Raw("\n[渲染诊断] 共 " + n + " 个黑矛兵\n");
             }

@@ -1,0 +1,40 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Unlit/IslandMap" {
+Properties {
+
+_MainTex ("Main Texture", 2D) = "white" { }
+
+}
+SubShader {
+ LOD 100
+ Tags { "RenderType" = "Opaque" }
+ Pass {
+  LOD 100
+  Tags { "RenderType" = "Opaque" }
+ Cull Off
+  GpuProgramID 2365
+Program "vp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CLIFF_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CLIFF_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}

@@ -1,0 +1,813 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Unlit/House" {
+Properties {
+
+_MainTex ("Texture", 2D) = "white" { }
+
+_BloodTex ("Texture", 2D) = "white" { }
+
+_OutlineMultiplier ("Outline Multiplier", Float) = 0.800000011920929
+
+_Offset ("Offset", Range(0, 10)) = 1.0
+
+_AddColor0 ("Add Color 0", Color) = (0,0,0,0)
+
+_AddColor1 ("Add Color 1", Color) = (0,0,0,0)
+
+_AddColor2 ("Add Color 2", Color) = (0,0,0,0)
+
+_Add0 ("Add 0", Float) = 0.0
+
+_Add1 ("Add 1", Float) = 0.0
+
+_Add2 ("Add 2", Float) = 0.0
+
+[Toggle] _Mirror ("Mirror", Float) = 1.0
+
+[Toggle] _Outline ("Outline", Float) = 0.0
+
+}
+SubShader {
+ LOD 100
+ Tags { "RenderType" = "Opaque" }
+ Pass {
+  LOD 100
+  Tags { "RenderType" = "Opaque" }
+  GpuProgramID 45040
+Program "vp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_MIRROR_ON" "_GAME_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_OUTLINE_ON" "_LOWEND_ON" "_SNOW_ON" "_HIGHLIGHT_ON" }
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}

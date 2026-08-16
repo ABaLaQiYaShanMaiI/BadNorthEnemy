@@ -1,0 +1,43 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Unlit/FireParticle" {
+Properties {
+
+_MainTex ("Texture", 2D) = "white" { }
+
+_InnerCore ("Inner Core", Color) = (0.5,0.5,0.5,1)
+
+_InnerRim ("Inner Rim", Color) = (0.5,0.5,0.5,1)
+
+_OuterCore ("Outer Core", Color) = (0.5,0.5,0.5,1)
+
+_OuterRim ("Outer Rim", Color) = (0.5,0.5,0.5,1)
+
+_Emissive ("Emissive", Range(0, 1)) = 0.0
+
+}
+SubShader {
+ LOD 100
+ Tags { "RenderType" = "Opaque" }
+ Pass {
+  LOD 100
+  Tags { "RenderType" = "Opaque" }
+ ZWrite Off
+ Cull Front
+  GpuProgramID 49915
+Program "vp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}

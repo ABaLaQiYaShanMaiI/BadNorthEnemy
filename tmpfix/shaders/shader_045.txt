@@ -1,0 +1,43 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Unlit/WindFire" {
+Properties {
+
+_MainTex ("Texture", 2D) = "white" { }
+
+_PosTex ("Position Texture", 2D) = "white" { }
+
+_Color0 ("Color0", Color) = (0.5,0.5,0.5,1)
+
+_Color1 ("Color1", Color) = (0.5,0.5,0.5,1)
+
+_Fire ("Fire", Range(0, 1)) = 1.0
+
+[KeywordEnum(None, Up, Cliff, Tree)] _COLOR ("Color Mode", Float) = 0.0
+
+}
+SubShader {
+ LOD 100
+ Tags { "RenderType" = "Transparent" }
+ Pass {
+  LOD 100
+  Tags { "RenderType" = "Transparent" }
+ ZWrite Off
+ Cull Off
+  GpuProgramID 41285
+Program "vp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}

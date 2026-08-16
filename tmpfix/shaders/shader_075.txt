@@ -1,0 +1,2087 @@
+//////////////////////////////////////////
+//
+// NOTE: This is *not* a valid shader file
+//
+///////////////////////////////////////////
+Shader "Unlit/Decal" {
+Properties {
+
+_MainTex ("Texture", 2D) = "white" { }
+
+_Color ("Color", Color) = (0.5,0.5,0.5,1)
+
+[Toggle] _Paint ("Paint", Float) = 0.0
+
+[Toggle] _Selected ("Selected", Float) = 0.0
+
+[KeywordEnum(None, X, Y, Z)] _AXIS ("Primary Axis", Float) = 0.0
+
+[KeywordEnum(None, Up, Cliff, Tree)] _COLOR ("Color Mode", Float) = 0.0
+
+_Stencil ("Stencil ID", Float) = 2.0
+
+}
+SubShader {
+ LOD 100
+ Tags { "RenderType" = "Opaque" }
+ Pass {
+  LOD 100
+  Tags { "RenderType" = "Opaque" }
+ ZWrite Off
+ Cull Off
+  GpuProgramID 52025
+Program "vp" {
+SubProgram "d3d11 " {
+Keywords { "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+}
+Program "fp" {
+SubProgram "d3d11 " {
+Keywords { "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_NONE" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_X" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Y" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_UP" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_CLIFF" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+SubProgram "d3d11 " {
+Keywords { "_BLOOD_ON" "_GAME_ON" "_PAINT_ON" "_COLOR_TREE" "_CINEMATIC_ON" "_AXIS_Z" }
+"// shader disassembly not supported on DXBC"
+}
+}
+}
+}
+}
