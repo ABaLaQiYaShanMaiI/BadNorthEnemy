@@ -1016,6 +1016,10 @@ namespace BadNorthBlackSpearman1_3
                 int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
                 int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
                 int darkStrong = 0, darkMid = 0, darkBright = 0;
+                int midUpper = 0, midLower = 0;     // 第三十一轮：头盔区(rect 上半)/肩甲胸甲区(下半) 的暗灰像素数
+                long sSum = 0; int sN = 0, sMax = 0;   // 躯干/亮银 压暗后 max 通道亮度统计（LERP b=0.02 → 屏幕色≈克隆色）
+                long mSum = 0; int mN = 0, mMax = 0;   // 头盔灰(×0.8) 压暗后 max 通道亮度统计
+                int cellH = y1 - y0;
                 for (int y = y0; y < y1; y++)
                 {
                     if (y < 0 || y >= h) continue;
@@ -1030,22 +1034,32 @@ namespace BadNorthBlackSpearman1_3
                             // ★ 第二十六轮（闪白根治）：亮银（剑刃/盾/冠饰）不再保留——其近白像素(189,190,189)
                             //   一旦经"帧擦除覆盖不到的帧像素"渲染出来就是白闪（用户实测：身体快速变白又恢复）。
                             //   全部重度压暗 ×0.15 → 克隆内不再有近白像素，白闪源头彻底消除。
-                            px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                            Color32 d1 = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                            px[i] = d1;
                             darkBright++;
+                            int b1 = Mathf.Max(d1.r, Mathf.Max(d1.g, d1.b));
+                            sSum += b1; sN++; if (b1 > sMax) sMax = b1;
                             continue;
                         }
                         if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
                         {
                             // ★ 第三十轮（头盔可见）：暗灰 ×0.45 → ×0.8——着色器是 LERP（b=0.02 时屏幕色≈克隆色），
                             //   ×0.45 的灰(16-45)与黑躯(25)对比太小 → 头盔观感纯黑。×0.8 → 头盔/肩甲呈可见暗灰(32-80)。
-                            px[i] = new Color32((byte)(c.r * 0.8f), (byte)(c.g * 0.8f), (byte)(c.b * 0.8f), c.a);
+                            Color32 d2 = new Color32((byte)(c.r * 0.8f), (byte)(c.g * 0.8f), (byte)(c.b * 0.8f), c.a);
+                            px[i] = d2;
                             darkMid++;
+                            if (cellH > 0 && (y - y0) * 2 >= cellH) midUpper++; else midLower++;
+                            int b2 = Mathf.Max(d2.r, Mathf.Max(d2.g, d2.b));
+                            mSum += b2; mN++; if (b2 > mMax) mMax = b2;
                         }
                         else
                         {
                             // 暖棕/暖肤/其它：重度压暗 → 躯干/手/脸 烘黑
-                            px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                            Color32 d3 = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                            px[i] = d3;
                             darkStrong++;
+                            int b3 = Mathf.Max(d3.r, Mathf.Max(d3.g, d3.b));
+                            sSum += b3; sN++; if (b3 > sMax) sMax = b3;
                         }
                     }
                 }
@@ -1067,7 +1081,10 @@ namespace BadNorthBlackSpearman1_3
                 _sprite2Cache[key] = spr;
                 BSLog.Info("[去剑] sprite2 分区压暗(剑盾基底) " + s2.name + " 重压=" + darkStrong +
                     " 中压(头盔灰×0.8)=" + darkMid + " 亮银压暗=" + darkBright + " 残留亮银=" + remainBright +
-                    "px（第三十轮：头盔/肩甲可见暗灰、躯干/手/脸烘黑；残留=0）");
+                    "px（第三十轮：头盔/肩甲可见暗灰、躯干/手/脸烘黑；残留=0）" +
+                    " ｜ 压暗后max通道亮度（屏幕色≈克隆色）：躯干avg=" + (sN > 0 ? sSum / sN : 0) + "(max=" + sMax +
+                    ") 头盔灰avg=" + (mN > 0 ? mSum / mN : 0) + "(max=" + mMax + ") 头盔区(上半)=" + midUpper +
+                    "px 肩胸区(下半)=" + midLower + "px");
                 return spr;
             }
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 压暗失败: " + e); return null; }
