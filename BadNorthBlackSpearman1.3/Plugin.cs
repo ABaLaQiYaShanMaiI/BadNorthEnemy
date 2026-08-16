@@ -698,9 +698,8 @@ namespace BadNorthBlackSpearman1_3
             // ★ 去剑组件：无论 RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
             var remover = a.gameObject.AddComponent<SwordRemover>();
             if (remover != null) remover.Setup(a, RemoveSword.Value);
-            // ★ 第十八轮：抽动探针（“人物抽动”诊断）——逐帧监控位置/朝向/动画/长矛/橡皮筋，异常打 [抽动] 日志
-            var probe = a.gameObject.AddComponent<TwitchProbeComponent>();
-            if (probe != null) probe.Setup(a);
+            // ★ 第二十三轮：移除逐帧抽动探针（TwitchProbe）——其"[抽动]⑥精灵帧闪动"口径多次误报刷屏，
+            //   且橡皮筋/闪烁根因已由 LateUpdate 硬同步 + 同帧采样根治，不再需要常驻诊断。诊断可 F8 手动转储。
             // ★ sprite2(部件贴图)处理模式：0=保留原部件(默认，避免白框) 1=整块清空(旧) 2=只擦亮银剑身
             SwordRemover.Sprite2Mode = RemoveSwordSprite2Mode.Value;
             // ★★ UV 感知亮采样擦除（白框根治）+ 光晕（吃持剑的手）：模式0下按"帧 UV→部件采样"判定白框像素

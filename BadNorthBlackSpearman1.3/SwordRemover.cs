@@ -851,35 +851,54 @@ namespace BadNorthBlackSpearman1_3
                     UnityEngine.Object.Destroy(tex);
                     return null;
                 }
+                // ★ 第十四轮：剑柄残留诊断——擦完后原亮银 bbox 内仍不透明的像素统计 + 定位图（回答"剑柄/手到底剩在哪"）
+                //   ★ 第二十三轮：放在改色/压暗之前执行（否则统一压暗后分类计数全部归零，诊断失真）。
+                DumpGripResidue(px, w, h, minX, maxX, minY, maxY, s2.name);
                 // ★ 第十八轮：剑柄改身体色（用户指定“剑柄颜色与黑矛兵身躯颜色一致”）——GripFloodPx 默认 2。
-                //   RecolorGripToBody 把暗灰剑柄(40≤r≤100,|r-b|≤25)/亮灰护手(100<r<150 中性)改身体暗色(33,26,24)，保留 alpha 不挖洞。
+                //   RecolorGripToBody 第二十三轮起改为“就近取身体像素色”（邻域复制），保留 alpha 不挖洞。
                 int gripPainted = 0;
                 if (GripFloodPx > 0)
                     gripPainted = RecolorGripToBody(px, w, h, x0, y0, x1, y1);
+                // ★ 第二十三轮（身体颜色根治）：部件贴图整体压暗（烘黑身体）——不再依赖顶点色 B 通道做黑
+                //   （游戏内该乘算可能被重置/未生效 → 身体显示原色暖棕、剑柄深色带可见 = “颜色不对劲+闪烁”）。
+                //   剑柄已按就近取身体色填充，压暗后与身体完全一致 → 剑柄带消失。顶点色 B 由 BlackSpearmanVisual 恢复 1.0。
+                int darkened = 0;
+                for (int y = y0; y < y1; y++)
+                {
+                    if (y < 0 || y >= h) continue;
+                    for (int x = x0; x < x1; x++)
+                    {
+                        if (x < 0 || x >= w) continue;
+                        int i = y * w + x;
+                        Color32 c = px[i];
+                        if (c.a <= 8) continue;
+                        px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                        darkened++;
+                    }
+                }
                 tex.SetPixels32(px); tex.Apply();
                 var spr = Sprite.Create(tex, r, s2.pivot, s2.pixelsPerUnit, 0, SpriteMeshType.FullRect, s2.border);
                 spr.name = s2.name + "_NoSword";
                 _sprite2Cache[key] = spr;
                 BSLog.Info("[去剑] sprite2 亮银剑身擦除(剑盾基底) " + s2.name + " 擦除=" + erased2 + "/" + opaque +
                     " bbox=(" + minX + "," + minY + ")-(" + maxX + "," + maxY + ") 擦bbox=" + recolorBbox +
-                    " 剑柄改色=" + gripPainted + "px（第十八轮：改身体色，预期≈1900px 归入身体色；剑区预期挖洞）");
-                // ★ 第十四轮：剑柄残留诊断——擦完后原亮银 bbox 内仍不透明的像素统计 + 定位图（回答"剑柄/手到底剩在哪"）
-                DumpGripResidue(px, w, h, minX, maxX, minY, maxY, s2.name);
+                    " 剑柄改色=" + gripPainted + "px 压暗=" + darkened + "px（第二十三轮：就近取身体色+整体烘黑，剑柄带融入身体）");
                 return spr;
             }
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 亮银擦除失败: " + e); return null; }
         }
 
-        /// <summary>★ 第十五轮引入 / 第十八轮恢复默认启用：剑柄/护手改色融入身体（部件贴图层，模式2配套）。
-        /// 运行时探针实测：剑柄=暗灰(54,50,49)、身体=暗(33,26,24)；着色器以部件贴图为颜色源，
-        /// 把单元内"暗灰剑柄(40≤r≤100,|r-b|≤25)+亮灰护手(100<r<150 中性)"改为身体暗色(33,26,24)——
-        /// 保留原 alpha（不挖洞不白框），使胸口剑柄带与黑矛兵身躯颜色一致。由 RemoveSwordSprite2GripBand&gt;0 启用（第十八轮默认 2）。</summary>
+        /// <summary>★ 第二十三轮：剑柄/护手改色 = 就近取身体像素色（邻域复制），再整体压暗（烘黑身体）。
+        /// 旧版填固定暗色 (33,26,24)（离线采样的身体暗部/阴影色）——运行时身体亮部实为 (170,146,115)，
+        /// 深色带在暖棕身体上清晰可见 = 用户所见"剑柄颜色未改"。新版：每个剑柄像素向外环搜索最近的
+        /// 非剑柄灰/非透明像素并取该像素色 → 剑柄与紧邻身体天然同色，压暗后完全融入。保留 alpha（不挖洞）。</summary>
         static int RecolorGripToBody(Color32[] px, int w, int h, int x0, int y0, int x1, int y1)
         {
             if (px == null) return 0;
             int x0c = Mathf.Clamp(x0, 0, w - 1), x1c = Mathf.Clamp(x1, 0, w);
             int y0c = Mathf.Clamp(y0, 0, h - 1), y1c = Mathf.Clamp(y1, 0, h);
             int painted = 0;
+            const int SearchRadius = 20;   // 邻域搜索半径（px）
             for (int y = y0c; y < y1c; y++)
             {
                 for (int x = x0c; x < x1c; x++)
@@ -887,17 +906,46 @@ namespace BadNorthBlackSpearman1_3
                     int i = y * w + x;
                     Color32 c = px[i];
                     if (c.a <= 8) continue;                                   // 透明
-                    bool darkGray = c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25;
-                    bool lightGray = c.r > 100 && c.r < 150 &&
-                        Mathf.Abs(c.r - c.b) <= 25 && Mathf.Abs(c.g - c.b) <= 25;
-                    if (darkGray || lightGray)
-                    {
-                        px[i] = new Color32(33, 26, 24, c.a);                 // 改身体暗色，保留 alpha（防挖洞）
-                        painted++;
-                    }
+                    if (!IsGripGray(c)) continue;
+                    Color32 body = FindNearestBodyColor(px, w, h, x, y, x0c, y0c, x1c, y1c, SearchRadius);
+                    px[i] = new Color32(body.r, body.g, body.b, c.a);         // 就近取身体色，保留 alpha（防挖洞）
+                    painted++;
                 }
             }
             return painted;
+        }
+
+        /// <summary>剑柄/护手灰判定（与原版阈值一致）：暗灰(40≤r≤100,|r-b|≤25) 或 亮灰(100<r<150 中性)。</summary>
+        static bool IsGripGray(Color32 c)
+        {
+            bool darkGray = c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25;
+            bool lightGray = c.r > 100 && c.r < 150 &&
+                Mathf.Abs(c.r - c.b) <= 25 && Mathf.Abs(c.g - c.b) <= 25;
+            return darkGray || lightGray;
+        }
+
+        /// <summary>以 (cx,cy) 为中心向外扩展方环，返回最近的非剑柄灰、非透明像素色（八邻域方向全覆盖）。</summary>
+        static Color32 FindNearestBodyColor(Color32[] px, int w, int h, int cx, int cy,
+            int x0, int y0, int x1, int y1, int maxRadius)
+        {
+            for (int r = 1; r <= maxRadius; r++)
+            {
+                for (int dy = -r; dy <= r; dy++)
+                {
+                    for (int dx = -r; dx <= r; dx++)
+                    {
+                        if (Mathf.Abs(dx) != r && Mathf.Abs(dy) != r) continue;   // 只扫方环边缘
+                        int x = cx + dx, y = cy + dy;
+                        if (x < x0 || x >= x1 || y < y0 || y >= y1) continue;
+                        int i = y * w + x;
+                        Color32 c = px[i];
+                        if (c.a <= 8) continue;
+                        if (IsGripGray(c)) continue;   // 跳过同类剑柄灰，防止"以灰填灰"
+                        return c;
+                    }
+                }
+            }
+            return new Color32(20, 18, 16, 255);   // 兜底（搜索失败极少见）
         }
 
         /// <summary>★ 第十四轮：剑柄残留诊断——亮银擦除后，原亮银 bbox 内仍不透明的像素统计与定位图。

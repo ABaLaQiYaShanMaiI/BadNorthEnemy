@@ -6,7 +6,9 @@ namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
     /// 黑矛兵黑色外观：一次性染色 + 持续对抗 AgentTextureBaker 的纹理重烘焙覆盖。
-    /// 前 60 帧每帧重刷，之后每 30 帧重刷一次（与 v1.1 的策略一致）。
+    /// ★ 第二十三轮：黑色改由 SwordRemover 烘进部件贴图克隆（PartTex 整体压暗），顶点色 B 恢复 1.0——
+    ///   旧版用顶点色 B=0.01 乘算做黑，若被重置/未生效身体就显示原色（暖棕）→ "身体颜色不对劲+闪烁"。
+    ///   这里只在 B 偏离 1.0 时修复（防每帧写网格顶点色）；前 60 帧每帧重刷、之后每 30 帧兜底一次。
     /// </summary>
     public class BlackSpearmanVisual : MonoBehaviour
     {
@@ -56,8 +58,9 @@ namespace BadNorthBlackSpearman1_3
                     try
                     {
                         var c = bs.color;
-                        // R/G 是 UV 编码，只把 B 通道压到近乎 0 → 黑色
-                        bs.color = new Color(c.r, c.g, 0.01f, c.a);
+                        // 黑色已烘进部件贴图克隆 → B 恢复 1.0（不再乘算压黑）
+                        if (Mathf.Abs(c.b - 1f) > 0.02f)
+                            bs.color = new Color(c.r, c.g, 1f, c.a);
                     }
                     catch { }
                 }

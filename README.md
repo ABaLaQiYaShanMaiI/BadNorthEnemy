@@ -8,11 +8,20 @@
 
 为《Bad North》游戏添加**黑色长矛手（Black Spearman）**敌人的 BepInEx 插件 Mod。
 
-## 当前版本：v1.8 (appearance only)
+## 当前版本：v1.3（黑矛兵完整版）🏆
 
-### ⚠️ 当前状态
+> 📍 **本文档已由 v1.8 停更状态转正到 1.3**。v1.3（`BadNorthBlackSpearman1.3/`）是当前维护版本：
+> **新建 VikingReference（非克隆）+ 注入敌人生成池 + 特质式美术资源**，技能/外观/格挡/数值全部定稿，
+> 最新的开发记录见 [`BadNorthBlackSpearman1.3/README.md`](BadNorthBlackSpearman1.3/README.md) 与
+> [`BadNorthBlackSpearman1.3/困惑清单与调试记录.md`](BadNorthBlackSpearman1.3/困惑清单与调试记录.md)。
 
-**冲刺技能和武器替换已暂停开发**，当前版本专注于外观实现（颜色、盾牌移除、属性强化）。技能代码保留在 `SpearChargeComponent.cs` 中，`Plugin.cs` 中相关调用已注释。
+### ⚠️ 当前状态（2026-08-16 第二十三轮）
+
+**技能与外观已定稿**：登岛触发 + 长矛突击 + 可躲高收益、盾牌格挡、技能期可被击杀、10s 冷却。
+第二十三轮修复：身体颜色/剑柄（黑色烘进部件贴图）、冲锋/近战橡皮筋（LateUpdate 硬同步 navPos）、探针与日志清理。
+**待实测**：① 身体整体黑色、剑柄带消失、无闪烁；② 冲锋/近战无橡皮筋；③ 日志量下降。
+
+> ⚠️ 本文档下方"功能概述/冲刺技能详解"等章节为历史版本（v1.8）遗留内容，仅作参考，实际以 1.3 目录内文档为准。
 
 ### 功能概述
 

@@ -52,6 +52,11 @@ namespace BadNorthBlackSpearman1_3
         Vector3 _chargeStartPos;
         float _posLogTimer;
         float _actScanTimer;
+        // ★ 第二十三轮：冲锋/后退渲染同步缓冲——DoCharging/DoRetreat 每帧写入的 navPos 快照，
+        //   LateUpdate 里重新断言并硬同步 transform（防大脑/导航在 Update 后被改写造成"橡皮筋"回弹）。
+        bool _renderSnapPending;
+        Vector3 _renderSnapPos;
+        NavPos _renderSnapNav;
         Agent _targetAgent;            // 冲锋目标（冲刺结束后转身后退迎击）
         float _chargeDistance;         // 锁定冲锋距离（到目标被定位时位置 + 矛长，不追踪）
         float _chargeDuration;         // 对应时长 = 距离 / 速度
@@ -70,8 +75,7 @@ namespace BadNorthBlackSpearman1_3
         float _thrust;                 // 当前突刺量 0~1
         bool _prevAttackActive;        // 近战诊断：上一帧是否在攻击
         bool _thrustHitDone;           // 本回合矛刺到位后是否已触发伤害（FirstHit）
-        float _meleeDiagTimer;         // 近战诊断节流（突刺中每 0.15s 打一次）
-        float _idleDiagTimer;          // 待机/移动帧诊断节流（每 2s 打一次）
+        float _meleeDiagTimer;         // 近战诊断节流（突刺中每 0.2s 打一次）
         float _thrustStartTime;        // ★ 本回合刺击开始时间（节奏曲线用）
         Vector3 _thrustDirWorld;       // ★ 刺击开始时锁定的世界方向（整段刺击不再重算 → 消除鬼畜）
         bool _thrustDirLocked;         // ★ 方向是否已锁定（目标存活才锁；目标消失退回 agent.forward）
@@ -171,7 +175,10 @@ namespace BadNorthBlackSpearman1_3
                 return;
             }
 
-            TrackSpearToHand();   // ★ 第十五轮：矛根每帧跟随持剑手（身体动画驱动），消除"持矛手脱离身躯"
+            // ★ 第二十三轮（近战橡皮筋根治）：攻击（刺击）期间冻结矛根，不再每帧跟随持剑手的动画摆动——
+            //   矛沿锁定方向直线刺出；攻击结束后恢复跟随（避免"走一步刺一下"的手-矛分离抖动）。
+            bool meleeAttacking = _swordsman != null && _swordsman.attack != null && _swordsman.attack.active;
+            if (!meleeAttacking) TrackSpearToHand();   // ★ 第十五轮：矛根每帧跟随持剑手（身体动画驱动），消除"持矛手脱离身躯"
 
             UpdateMeleeThrust();   // ★ 近战刺击表现：Swordsman 攻击时长矛前刺（视觉"刺"）
 
@@ -337,11 +344,11 @@ namespace BadNorthBlackSpearman1_3
                 // 攻击期间站桩：walkDir 归零让身体转 stand，矛稳定前刺
                 if (_agent != null) _agent.walkDir = Vector3.zero;
 
-                // 近战诊断：突刺过程矛的位置/旋转（每 0.15s）
+                // 近战诊断：突刺过程矛的位置/旋转（只在刺出/保持段记录，收回段 thrust<0.3 不刷屏）
                 _meleeDiagTimer -= Time.deltaTime;
-                if (_meleeDiagTimer <= 0f)
+                if (_meleeDiagTimer <= 0f && _thrust > 0.3f)
                 {
-                    _meleeDiagTimer = 0.15f;
+                    _meleeDiagTimer = 0.2f;
                     BSLog.Info("[近战] 突刺中 thrust=" + _thrust.ToString("F2") +
                         " spearPos=" + _spearTransform.position.ToString("F2") +
                         " spearLocalPos=" + _spearTransform.localPosition.ToString("F3") +
@@ -353,20 +360,6 @@ namespace BadNorthBlackSpearman1_3
             else
             {
                 _thrust = Mathf.Max(0f, _thrust - Time.deltaTime / ThrustFallTime);
-                // 待机/移动帧诊断：非攻击时每 2s 记录当前动画状态与帧名（确认待机剑柄来自哪个动画）
-                _idleDiagTimer -= Time.deltaTime;
-                if (_idleDiagTimer <= 0f)
-                {
-                    _idleDiagTimer = 2f;
-                    try
-                    {
-                        string spName = "?";
-                        var sa = _agent != null ? _agent.GetComponentInChildren<SpriteAnimator>(true) : null;
-                        if (sa != null && sa.sprite != null) spName = sa.sprite.name;
-                        BSLog.Info("[近战·待机帧] " + DescribeAnimator(_agent) + " " + DescribeBody(_agent) + " sprite=" + spName);
-                    }
-                    catch { }
-                }
             }
             // ★ 非刺出状态回到挂载基点（避免长矛卡在刺出位）
             if (!attacking && _thrust <= 0.001f && _spearTransform.localPosition != _spearBaseLocalPos)
@@ -593,6 +586,7 @@ namespace BadNorthBlackSpearman1_3
         {
             _phase = Phase.WindUp;
             _phaseTimer = WindUpDuration;
+            _renderSnapPending = false;   // ★ 第二十三轮：起手阶段不硬同步（站桩举矛）
             if (_chargeState != null) _chargeState.SetActive(true);
             // ★ 第十八轮：movability 拉满（原 0.2 抄自原版 travelling，但原版 travelling 的 navPos 是走路速度
             //   推进；本冲锋 navPos 以 ChargeSpeed=5m/s 推进，movability=0.2 把 transform 追 navPos 的速度限制在
@@ -658,16 +652,20 @@ namespace BadNorthBlackSpearman1_3
                 if (!np.MoveTo(local))
                     np = new NavPos(np.navigationMesh, target, true, 1f);   // 原版同款回退
                 _agent.navPos = np;
+                // ★ 第二十三轮：记录本帧 navPos 快照，LateUpdate 重新断言 + 硬同步 transform（防大脑改写）
+                _renderSnapPending = true;
+                _renderSnapPos = target;
+                _renderSnapNav = np;
                 // ⚠️ 不做 transform 硬同步：让 Body.stepping 正常驱动（保留跑步动画，避免"滑行平移"）。
                 //    navPos 推进比 Body 动画快，transform 会有轻微滞后——但命中判定基于 navPos 的矛尖，
                 //    不受滞后影响；观感是"跑步冲刺"而非"快速平移"。
             }
 
-            // 每 0.3s 记录位置 + 长矛旋转 + Body 状态 + 动画参数 + navPos 滞后量
+            // 每 1.5s 记录位置 + 长矛旋转 + Body 状态 + 动画参数 + navPos 滞后量（降频：渲染已由 LateUpdate 硬同步）
             _posLogTimer -= Time.deltaTime;
             if (_posLogTimer <= 0f)
             {
-                _posLogTimer = 0.3f;
+                _posLogTimer = 1.5f;
                 string sr = _spearTransform != null ? _spearTransform.rotation.eulerAngles.ToString("F1") : "null";
                 string lr = _spearTransform != null ? _spearTransform.localRotation.eulerAngles.ToString("F1") : "null";
                 string lp = _spearTransform != null ? _spearTransform.localPosition.ToString("F3") : "null";
@@ -709,6 +707,7 @@ namespace BadNorthBlackSpearman1_3
         void StartRetreat()
         {
             _phase = Phase.Retreat;
+            _renderSnapPending = false;   // ★ 第二十三轮：后退帧重新记录快照
             // ★ navPos 失效保护：敌人被击飞/冲锋撞崖可能使 navPos 变空（wPos 访问会崩），直接收尾进冷却。
             if (!_agent.navPos.valid) { EndCharge(); return; }
             // ★ 防"退到船/海"：不在主岛 navmesh 上就不后退（否则会退到船建模上，玩家打不到）
@@ -745,6 +744,10 @@ namespace BadNorthBlackSpearman1_3
                     return;
                 }
                 _agent.navPos = np;
+                // ★ 第二十三轮：后退同样记录渲染同步快照
+                _renderSnapPending = true;
+                _renderSnapPos = np.wPos;
+                _renderSnapNav = np;
             }
 
             // 稳住阵脚：面朝敌人 + 矛保持迎击（朝敌）
@@ -777,6 +780,29 @@ namespace BadNorthBlackSpearman1_3
 
         void LateUpdate()
         {
+            // ★ 第二十三轮（橡皮筋根治）：Body.stepping 是"追赶式"插值——navPos 以冲锋速度(5m/s)推进时
+            //   transform 落后 navPos 实测可达 1.36m（日志 lag=），观感=橡皮筋。渲染帧末尾把身体硬同步到 navPos：
+            //   Body 底层 stepping 动画照常播放（跑步/踏步），只保证最终渲染位置与导航一致；近战刺击同理
+            //   （攻击期间 walkDir 已被 AttackUpdate 前缀冻结，navPos 停住，同步后身体站桩、矛直线前刺）。
+            //   冲锋/后退用 DoCharging/DoRetreat 写入的快照重新断言 navPos——防大脑/导航在 Update 后被改写回弹。
+            if (_agent != null && _agent.aliveState != null && _agent.aliveState.active)
+            {
+                bool chargeMove = _phase == Phase.Charging || _phase == Phase.Retreat;
+                bool meleeMove = _swordsman != null && _swordsman.attack != null && _swordsman.attack.active;
+                if (chargeMove)
+                {
+                    if (_renderSnapPending && _renderSnapNav.valid)
+                    {
+                        _agent.navPos = _renderSnapNav;             // 重新断言（防被改写）
+                        _agent.transform.position = _renderSnapPos; // 渲染与冲锋线对齐
+                    }
+                }
+                else if (meleeMove && _agent.navPos.valid)
+                {
+                    _agent.transform.position = _agent.navPos.wPos;
+                }
+            }
+
             // 举矛/放矛旋转插值。
             // 冲锋位移推进见 Update → DoCharging（固定起点插值 + navPos 整体赋值），这里不再重复推进：
             // 旧版曾在此用 transform.position + dir*speed*dt 增量推进，与 DoCharging 的固定插值每帧互相覆盖
@@ -921,6 +947,7 @@ namespace BadNorthBlackSpearman1_3
                 " 终点=" + _agent.navPos.wPos.ToString("F2"));
             _phase = Phase.Cooldown;
             _phaseTimer = CooldownTime;
+            _renderSnapPending = false;   // ★ 第二十三轮：退出冲锋/后退，停止硬同步
             if (_chargeState != null) _chargeState.SetActive(false);
             _agent.maxSpeed = _originalSpeed;   // 恢复冲锋前的速度
             _agent.movability = 1f;
@@ -940,6 +967,7 @@ namespace BadNorthBlackSpearman1_3
         void AbortCharge()
         {
             if (_chargeState != null) _chargeState.SetActive(false);
+            _renderSnapPending = false;   // ★ 第二十三轮：中止同步
             if (_agent != null)
             {
                 _agent.maxSpeed = _originalSpeed;

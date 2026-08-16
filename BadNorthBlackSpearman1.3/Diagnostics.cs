@@ -13,7 +13,7 @@ namespace BadNorthBlackSpearman1_3
     /// </summary>
     public class DiagnosticsComponent : MonoBehaviour
     {
-        const float HeartbeatInterval = 8f;
+        const float HeartbeatInterval = 30f;   // ★ 第二十三轮：8s→30s，心跳降频（原每 8s 全量 dump 注册表太吵）
         float _lastHeartbeat;
 
         void Update()
