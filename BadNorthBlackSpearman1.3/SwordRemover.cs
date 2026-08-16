@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using Voxels.TowerDefense;
 using Voxels.TowerDefense.SpriteMagic;
@@ -146,6 +147,8 @@ namespace BadNorthBlackSpearman1_3
                 {
                     _deathDumped = true;
                     DumpDeathSplit();
+                    // ★ 第二十九轮：死亡后 0.5s 持续补块（对抗死亡重烘焙把材质块清空 → 白尸），并转储尸体最终状态
+                    StartCoroutine(ReblockAfterDeath());
                 }
                 _wasAlive = aliveNow;
             }
@@ -328,6 +331,77 @@ namespace BadNorthBlackSpearman1_3
                     (aAnomaly ? " ⚠️顶点alpha<0.9(身体透明=闪白源)" : "") + anomaly);
             }
             catch (Exception e) { BSLog.Warn("[渲染诊断] 异常: " + e); }
+        }
+
+        /// <summary>★ 第二十九轮：死亡后持续补块——死亡瞬间游戏可能重烘焙身体、把材质块清空（白尸）；
+        /// 死亡后 30 帧内每帧把去剑克隆+部件克隆重新写回 4 个身体渲染器，最后转储尸体最终块状态。</summary>
+        IEnumerator ReblockAfterDeath()
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+                try
+                {
+                    if (_sa == null) yield break;
+                    var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
+                    if (cur == null) continue;
+                    Texture2D erasedTex = EnsureErasedTexture(cur);
+                    if (erasedTex != null)
+                    {
+                        if (_sa.sprite2 != null && _sa.sprite2.texture != null)
+                            _sa.block.SetTexture("_PartTex", _sa.sprite2.texture);
+                        _sa.block.SetTexture("_MainTex", erasedTex);
+                        _sa.ComittBlock();
+                        RepairBodyMaterialBlocks(erasedTex);
+                    }
+                }
+                catch { }
+            }
+            DumpCorpseState();
+        }
+
+        /// <summary>转储尸体最终材质块状态（确认补块后尸体是暗的，不再白身）。</summary>
+        void DumpCorpseState()
+        {
+            try
+            {
+                BSLog.Warn("[死亡后] 尸体块状态 sprite=" + (_sa != null && _sa.sprite != null ? _sa.sprite.name : "?") +
+                    " 顶点色=" + (_sa != null ? _sa.color.ToString("F2") : "?"));
+                var mrs = _sa != null ? _sa.GetComponentsInChildren<MeshRenderer>(true) : null;
+                if (mrs == null) return;
+                int clone = 0, nullPart = 0, total = 0;
+                Texture2D erasedTex = null;
+                try
+                {
+                    var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
+                    if (cur != null) erasedTex = EnsureErasedTexture(cur);
+                }
+                catch { }
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                    if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                    total++;
+                    var block = new MaterialPropertyBlock();
+                    try { mr.GetPropertyBlock(block); } catch { }
+                    Texture mt = null, pt = null;
+                    try { mt = block.GetTexture("_MainTex"); } catch { }
+                    try { pt = block.GetTexture("_PartTex"); } catch { }
+                    bool mIsClone = erasedTex != null && mt != null && mt.GetInstanceID() == erasedTex.GetInstanceID();
+                    bool pIsClone = _sa != null && _sa.sprite2 != null && _sa.sprite2.texture != null &&
+                        pt != null && pt.GetInstanceID() == _sa.sprite2.texture.GetInstanceID();
+                    if (mIsClone && pIsClone) clone++;
+                    if (pt == null) nullPart++;
+                    BSLog.Warn("  · " + mr.gameObject.name +
+                        " _MainTex=" + (mt != null ? (mIsClone ? "克隆✓" : mt.name) : "NULL") +
+                        " _PartTex=" + (pt != null ? (pIsClone ? "克隆✓" : pt.name) : "NULL"));
+                }
+                BSLog.Warn("  → 尸体渲染器 " + total + "：双克隆=" + clone + " _PartTex=NULL=" + nullPart +
+                    (clone == total ? " ← 补块成功，尸体为黑" : (nullPart > 0 ? " ⚠️仍有空块=白尸" : "")));
+            }
+            catch (Exception e) { BSLog.Warn("[死亡后] 转储异常: " + e); }
         }
 
         /// <summary>★ 第二十七轮：死亡瞬间渲染器转储——打印 4 个身体渲染器的位置/网格UV/材质块 + Ragdoller 状态，
