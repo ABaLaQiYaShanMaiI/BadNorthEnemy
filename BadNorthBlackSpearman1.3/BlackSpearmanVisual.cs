@@ -21,6 +21,8 @@ namespace BadNorthBlackSpearman1_3
     {
         Agent _agent;
         int _frames;
+        static int _unitIdCounter;       // ★ 第三十六轮：单位编号计数器（区分多个黑矛兵的采样日志）
+        int _unitId;                     // 本黑矛兵编号
         // ★ 第二十五轮：长矛手部压暗 —— 玩家长矛精灵（Spear_0/1/2）自带两只暖肤的手（128x18 精灵 y8-12），
         //   克隆纹理并压暗全部暖肤像素（r-b>25 且 r>130），手变黑、矛杆保持原色。静态缓存按纹理实例 ID 共享。
         static readonly Dictionary<int, Texture2D> _spearTexCache = new Dictionary<int, Texture2D>();
@@ -28,6 +30,7 @@ namespace BadNorthBlackSpearman1_3
         public void ApplyOnce(Agent agent)
         {
             _agent = agent;
+            _unitId = ++_unitIdCounter;
             Recolor();
         }
 
@@ -49,11 +52,39 @@ namespace BadNorthBlackSpearman1_3
                     }
                 }
             }
+
+            // ★ 第三十四轮（头部闪白定位）：高频头部亮度采样——每 0.016s（≈每帧）采盔顶实际渲染色，
+            //   记录亮度时间序列 + 相邻跳变（>0.25）+ 屏坐标跳动（>5px），把"头部闪白/抽搐"量化成可判读的曲线。
+            // ★ 第三十六轮：间隔 0.1s→0.03s；★ 第四十轮：0.03s→0.016s（抓 60Hz 高频闪动），限 150 次 ≈ 2.5s。
+            if (_headSampleCount < 600)
+            {
+                bool onMain = _agent != null && _agent.navPos.valid && _agent.navPos.onMain;
+                if (onMain)
+                {
+                    _headSampleTimer -= Time.unscaledDeltaTime;   // ★ 第四十一轮：改用未缩放真实时间——慢放(空格)时采样
+                    if (_headSampleTimer <= 0f)                   //   仍按真实帧率，频率对比才有效（Time.deltaTime 会被 timeScale 拖慢）
+                    {
+                        _headSampleTimer = 0.016f;
+                        StartCoroutine(SampleHeadBrightness());
+                    }
+                }
+            }
         }
 
         float _pixelSampleTimer;
         static int _pixelSampleCount;   // 限前 30 次采样（防刷屏）
         bool _pixelNoCamLogged;         // 找不到相机时打印一次原因
+        float _headSampleTimer;         // ★ 第三十四轮：头部高频采样计时器
+        int _headSampleCount;           // 头部采样计数（限 600 次 ≈ 10s，留出"正常→空格慢放→恢复"对比窗口）
+        float _prevHeadBright = -1f;    // 上一次头部亮度（跳变检测）
+        int _prevHeadSX = -1, _prevHeadSY = -1;   // ★ 第四十轮：上一次头部屏坐标（几何跳动检测）
+        // ★ 第四十一轮（用户建议）：头盔变动频率统计——每窗口(30采样≈0.5真实秒)输出亮度/位移跳变率(按真实秒)+timeScale，
+        //   供"空格慢放"对比：跳变率(次/真实秒)不随 ts 下降 = 每渲染帧级变动(渲染层问题)；随 ts 同降 = 游戏时间(动画/状态机)驱动。
+        float _hWinStart;               // 统计窗口起点(真实秒)
+        int _hWinSamples;               // 窗口内采样数
+        int _hWinBJumps;                // 窗口内亮度跳变数
+        int _hWinPJumps;                // 窗口内位移跳变数
+        float _hWinBrightSum;           // 窗口内亮度累加（平均亮度）
 
         /// <summary>帧末读屏幕：采样黑矛兵脚→盔顶垂直条 5 点（各 3x3），输出最暗/最亮点亮度。
         /// 最暗≤0.35=黑身正常渲染（✓）；整条>0.35=被英文兵遮挡或身体透明（✗=闪白回归信号）。
@@ -115,6 +146,82 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Info("[像素采样] 胸屏幕(" + px + "," + py + ") 垂直条" + offs.Length + "点 最暗=" +
                     minB.ToString("F3") + "@" + minAt + " 最亮=" + maxB.ToString("F3") + "@" + maxAt +
                     " → 黑身=" + (minB <= 0.35f ? "✓正常渲染" : "✗未采到黑身") + flag);
+            }
+            catch { }
+        }
+
+        /// <summary>★ 第三十四轮：帧末采盔顶实际渲染色（3x3），记录亮度 + 当前动画帧名 + 相邻跳变，
+        /// 用于把"头部闪白/抽搐"量化（亮度忽高忽低=闪白；帧名对应动画位置，判断是否只在某些帧闪）。</summary>
+        IEnumerator SampleHeadBrightness()
+        {
+            yield return new WaitForEndOfFrame();
+            try
+            {
+                if (_agent == null) yield break;
+                Camera cam = Camera.main;
+                if (ReferenceEquals(cam, null))
+                {
+                    var cams = Camera.allCameras;
+                    if (cams != null && cams.Length > 0) cam = cams[0];
+                }
+                if (ReferenceEquals(cam, null)) yield break;
+                Vector3 head = _agent.chestPos + Vector3.up * 0.45f;
+                Vector3 sp = cam.WorldToScreenPoint(head);
+                if (sp.z <= 0f || sp.x < 3 || sp.y < 3 || sp.x > Screen.width - 4 || sp.y > Screen.height - 4)
+                    yield break;
+                int sx = Mathf.Clamp(Mathf.RoundToInt(sp.x), 3, Screen.width - 4);
+                int sy = Mathf.Clamp(Mathf.RoundToInt(sp.y), 3, Screen.height - 4);
+                var tex = new Texture2D(3, 3, TextureFormat.RGBA32, false);
+                tex.ReadPixels(new Rect(sx - 1, sy - 1, 3, 3), 0, 0);
+                tex.Apply();
+                Color[] cs = tex.GetPixels();
+                float sum = 0f;
+                for (int i = 0; i < cs.Length; i++) sum += cs[i].r + cs[i].g + cs[i].b;
+                float br = sum / (cs.Length * 3f);
+                UnityEngine.Object.Destroy(tex);
+                // ★ 第四十一轮：统计窗口累计（真实秒），供频率/慢放对比
+                if (_hWinStart <= 0f) _hWinStart = Time.realtimeSinceStartup;
+                _hWinSamples++;
+                _hWinBrightSum += br;
+                string jump = "";
+                bool bJump = false;
+                if (_prevHeadBright >= 0f && Mathf.Abs(br - _prevHeadBright) > 0.25f)
+                {
+                    bJump = true;
+                    jump = " ⚠️跳变" + (br > _prevHeadBright ? "↑变亮" : "↓变暗");
+                }
+                string frame = "?";
+                try
+                {
+                    var sa = _agent.GetComponentInChildren<SpriteAnimator>();
+                    if (sa != null && sa.sprite != null) frame = sa.sprite.name;
+                }
+                catch { }
+                _headSampleCount++;
+                string posJump = "";
+                bool pJump = false;
+                if (_prevHeadSX >= 0 && (Mathf.Abs(sx - _prevHeadSX) > 5 || Mathf.Abs(sy - _prevHeadSY) > 5))
+                {
+                    pJump = true;
+                    posJump = " ⚠️跳动";
+                }
+                BSLog.Info("[头部采样#" + _unitId + "] 亮度=" + br.ToString("F2") + jump + posJump + " 帧=" + frame +
+                    " 屏=(" + sx + "," + sy + ") ts=" + Time.timeScale.ToString("F2"));
+                _prevHeadBright = br;
+                _prevHeadSX = sx; _prevHeadSY = sy;
+                if (bJump) _hWinBJumps++;
+                if (pJump) _hWinPJumps++;
+                if (_hWinSamples >= 30)
+                {
+                    float realSec = Mathf.Max(0.0001f, Time.realtimeSinceStartup - _hWinStart);
+                    BSLog.Info("[头盔统计#" + _unitId + "] 真实秒=" + realSec.ToString("F2") +
+                        " ts=" + Time.timeScale.ToString("F2") + " 采样=" + _hWinSamples +
+                        " 亮度跳变=" + _hWinBJumps + "(" + (_hWinBJumps / realSec).ToString("F1") + "/真实秒)" +
+                        " 位移跳变=" + _hWinPJumps + "(" + (_hWinPJumps / realSec).ToString("F1") + "/真实秒)" +
+                        " 平均亮度=" + (_hWinBrightSum / _hWinSamples).ToString("F2") +
+                        " → 慢放对比: 频率随ts降=动画/游戏时间驱动; 频率不降=每帧渲染层变动");
+                    _hWinStart = 0f; _hWinSamples = 0; _hWinBJumps = 0; _hWinPJumps = 0; _hWinBrightSum = 0f;
+                }
             }
             catch { }
         }

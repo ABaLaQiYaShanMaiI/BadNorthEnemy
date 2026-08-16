@@ -108,6 +108,7 @@ namespace BadNorthBlackSpearman1_3
         float _bSpikeTimer;            // ★ 第二十七轮：受击白闪（顶点色B尖峰）追踪节流（0.2s）
         bool _wasAlive = true;         // ★ 第二十七轮：上一帧存活状态（死亡瞬间转储用）
         bool _deathDumped;             // 死亡转储已输出（每个黑矛兵一次）
+        bool _preRenderLogged;         // ★ 第三十五轮：onPreRender 渲染前补块首次触发日志
 
         public void Setup(Agent agent, bool eraseEnabled)
         {
@@ -135,6 +136,27 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
+        void OnEnable()
+        {
+            Camera.onPreRender += OnPreRenderReblock;
+        }
+
+        void OnDisable()
+        {
+            Camera.onPreRender -= OnPreRenderReblock;
+        }
+
+        /// <summary>★ 第三十五轮：渲染前最后一刻补块——游戏死亡重烘焙在比 LateUpdate 更晚的阶段清空 _MainTex/_PartTex，
+        /// 把补块覆盖掉（腾空期白影/影分身）。onPreRender 在相机渲染前触发，抢在渲染前最后时刻写回克隆。</summary>
+        void OnPreRenderReblock(Camera cam)
+        {
+            if (_deathDumped)
+            {
+                if (!_preRenderLogged) { _preRenderLogged = true; BSLog.Warn("[影分身] onPreRender 渲染前补块已触发（死亡后最后一刻写回克隆）"); }
+                ReblockCorpseOnce();
+            }
+        }
+
         void Update()
         {
             // ★ 第二十轮（身子闪烁根治）：在 Update 阶段采样当前精灵——与原版 SpriteAnimator.SetSprite() 同一时刻、同一值。
@@ -152,11 +174,132 @@ namespace BadNorthBlackSpearman1_3
                 {
                     _deathDumped = true;
                     DumpDeathSplit();
-                    // ★ 第二十九轮：死亡后 0.5s 持续补块（对抗死亡重烘焙把材质块清空 → 白尸），并转储尸体最终状态
+                    // ★ 第三十四轮（死亡腾空影分身根治）：死亡瞬间游戏重烘焙清空 _MainTex/_PartTex → 主 + _MIRROR_ON 镜像
+                    //   都渲染默认白、ragdoll 腾空偏移 → 两个重叠白影 = 影分身。原 ReblockAfterDeath 协程首个 yield return null
+                    //   要等下一帧才补块，死亡当帧仍是白影。现在**当帧同步补块**，让死亡当帧就是黑单尸；30 帧协程继续兜底。
+                    ReblockCorpseOnce();
+                    StartCoroutine(ScanKillHelmets());   // ★ 第四十一轮（用户建议）：击杀时头盔计数（读屏数暗身/头盔灰团块）
                     StartCoroutine(ReblockAfterDeath());
                 }
                 _wasAlive = aliveNow;
             }
+        }
+
+        /// <summary>★ 第四十一轮（用户建议）：击杀时头盔计数——死亡后第 3 帧读屏，在尸体屏坐标 ±160/±200 窗口内
+        /// 用连通域统计 ①暗身团块 ②头盔灰团块 ③亮白团块（默认白影）：
+        /// 正常=暗身1+头盔灰1+亮白0；若 ≥2 个暗身 或 ≥2 个头盔灰团块 = 凭空多生成身影/头盔（影分身实锤）。
+        /// ★ 第四十一轮改进：死亡当帧游戏把身体网格顶点全部重置为 (0,0,0)（[死亡分裂] 前顶点全零）→ 身体塌缩不可见，
+        ///   当帧读屏必得"暗身=0"（误报）。改为等 3 帧（网格重建 + onPreRender 补块生效）后再扫描。</summary>
+        IEnumerator ScanKillHelmets()
+        {
+            for (int i = 0; i < 3; i++) yield return null;   // 等网格重建 + 补块生效
+            yield return new WaitForEndOfFrame();
+            try
+            {
+                Camera cam = Camera.main;
+                if (ReferenceEquals(cam, null))
+                {
+                    var cams = Camera.allCameras;
+                    if (cams != null && cams.Length > 0) cam = cams[0];
+                }
+                if (ReferenceEquals(cam, null) || _agent == null) yield break;
+                Vector3 sp = cam.WorldToScreenPoint(_agent.transform.position);
+                if (sp.z <= 0f) yield break;
+                int cx = Mathf.RoundToInt(sp.x), cy = Mathf.RoundToInt(sp.y);
+                int x0 = Mathf.Clamp(cx - 160, 0, Screen.width - 1), x1 = Mathf.Clamp(cx + 160, 0, Screen.width - 1);
+                int y0 = Mathf.Clamp(cy - 200, 0, Screen.height - 1), y1 = Mathf.Clamp(cy + 200, 0, Screen.height - 1);
+                int w = x1 - x0 + 1, h = y1 - y0 + 1;
+                if (w < 20 || h < 20) yield break;
+
+                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                tex.ReadPixels(new Rect(x0, y0, w, h), 0, 0);
+                tex.Apply();
+                Color[] px = tex.GetPixels();
+                UnityEngine.Object.Destroy(tex);
+
+                bool[] dark = new bool[w * h];
+                bool[] helm = new bool[w * h];
+                bool[] white = new bool[w * h];
+                int darkN = 0, helmN = 0, whiteN = 0;
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        Color c = px[y * w + x];
+                        float br = (c.r + c.g + c.b) / 3f;
+                        bool isDark = br < 0.35f;
+                        // ★ 头盔灰收紧：头盔源 avg=71/255≈0.28 max=132≈0.52，屏幕色≈克隆色 → 0.18~0.55 才像头盔暗灰；
+                        //   旧阈值 0.85 把岛屿中灰/英文兵全算进去（上次日志头盔灰≈整个窗口=背景误分类）。
+                        bool isHelm = Mathf.Abs(c.r - c.b) < 0.20f && Mathf.Abs(c.g - c.b) < 0.20f &&
+                            br >= 0.18f && br <= 0.55f;
+                        bool isWhite = br > 0.85f;   // 默认白渲染/白影
+                        dark[y * w + x] = isDark; if (isDark) darkN++;
+                        helm[y * w + x] = isHelm; if (isHelm) helmN++;
+                        white[y * w + x] = isWhite; if (isWhite) whiteN++;
+                    }
+                }
+
+                List<int[]> dBlobs = new List<int[]>();
+                List<int[]> hBlobs = new List<int[]>();
+                List<int[]> wBlobs = new List<int[]>();
+                int dCnt = CountScreenBlobs(dark, w, h, 60, dBlobs);
+                int hCnt = CountScreenBlobs(helm, w, h, 20, hBlobs);
+                int wCnt = CountScreenBlobs(white, w, h, 100, wBlobs);
+                string verdict;
+                if (dCnt >= 2 || hCnt >= 2)
+                    verdict = "⚠️异常: 多身影/多头盔=影分身实锤";
+                else if (dCnt == 0 && wCnt == 0)
+                    verdict = "⚠️异常: 无暗身无白影=身体未渲染/网格塌缩";
+                else if (dCnt == 1 && wCnt == 0)
+                    verdict = "单尸=正常";
+                else
+                    verdict = "⚠️观察: 暗身=" + dCnt + " 亮白=" + wCnt + "（可能有白影）";
+                BSLog.Warn("[击杀头盔计数] 尸体屏=(" + cx + "," + cy + ") 窗口=" + w + "x" + h +
+                    " 暗身px=" + darkN + " 团块=" + dCnt + " 头盔灰px=" + helmN + " 团块=" + hCnt +
+                    " 亮白px=" + whiteN + " 团块=" + wCnt + " → " + verdict);
+                for (int i = 0; i < dBlobs.Count; i++)
+                    BSLog.Warn("  [暗身团块] bbox=(" + (x0 + dBlobs[i][0]) + "," + (y0 + dBlobs[i][1]) + ")-(" +
+                        (x0 + dBlobs[i][2]) + "," + (y0 + dBlobs[i][3]) + ") 面积=" + dBlobs[i][4]);
+                for (int i = 0; i < hBlobs.Count; i++)
+                    BSLog.Warn("  [头盔团块] bbox=(" + (x0 + hBlobs[i][0]) + "," + (y0 + hBlobs[i][1]) + ")-(" +
+                        (x0 + hBlobs[i][2]) + "," + (y0 + hBlobs[i][3]) + ") 面积=" + hBlobs[i][4]);
+                for (int i = 0; i < wBlobs.Count; i++)
+                    BSLog.Warn("  [亮白团块] bbox=(" + (x0 + wBlobs[i][0]) + "," + (y0 + wBlobs[i][1]) + ")-(" +
+                        (x0 + wBlobs[i][2]) + "," + (y0 + wBlobs[i][3]) + ") 面积=" + wBlobs[i][4]);
+            }
+            catch { }
+        }
+
+        /// <summary>4 连通域统计（阈值面积内的团块 bbox+面积），供击杀头盔计数用。</summary>
+        static int CountScreenBlobs(bool[] mask, int w, int h, int minArea, List<int[]> blobs)
+        {
+            bool[] seen = new bool[w * h];
+            int count = 0;
+            for (int i = 0; i < mask.Length; i++)
+            {
+                if (!mask[i] || seen[i]) continue;
+                var stack = new Stack<int>();
+                stack.Push(i); seen[i] = true;
+                int area = 0, x0 = i % w, y0 = i / w, x1 = x0, y1 = y0;
+                while (stack.Count > 0)
+                {
+                    int cur = stack.Pop();
+                    int cx = cur % w, cy = cur / w;
+                    area++;
+                    if (cx < x0) x0 = cx; if (cx > x1) x1 = cx;
+                    if (cy < y0) y0 = cy; if (cy > y1) y1 = cy;
+                    if (cx > 0 && mask[cur - 1] && !seen[cur - 1]) { seen[cur - 1] = true; stack.Push(cur - 1); }
+                    if (cx < w - 1 && mask[cur + 1] && !seen[cur + 1]) { seen[cur + 1] = true; stack.Push(cur + 1); }
+                    if (cy > 0 && mask[cur - w] && !seen[cur - w]) { seen[cur - w] = true; stack.Push(cur - w); }
+                    if (cy < h - 1 && mask[cur + w] && !seen[cur + w]) { seen[cur + w] = true; stack.Push(cur + w); }
+                }
+                if (area >= minArea)
+                {
+                    count++;
+                    blobs.Add(new[] { x0, y0, x1, y1, area });
+                }
+            }
+            return count;
         }
 
         void LateUpdate()
@@ -339,30 +482,138 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>★ 第二十九轮：死亡后持续补块——死亡瞬间游戏可能重烘焙身体、把材质块清空（白尸）；
-        /// 死亡后 30 帧内每帧把去剑克隆+部件克隆重新写回 4 个身体渲染器，最后转储尸体最终块状态。</summary>
+        /// 死亡后 30 帧内每帧把去剑克隆+部件克隆重新写回 4 个身体渲染器，最后转储尸体最终块状态。
+        /// ★ 第三十四轮：补块逻辑抽成 ReblockCorpseOnce()，死亡当帧先同步调用一次（见 Update），协程再兜底 30 帧。</summary>
         IEnumerator ReblockAfterDeath()
         {
             for (int i = 0; i < 30; i++)
             {
                 yield return null;
-                try
-                {
-                    if (_sa == null) yield break;
-                    var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
-                    if (cur == null) continue;
-                    Texture2D erasedTex = EnsureErasedTexture(cur);
-                    if (erasedTex != null)
-                    {
-                        if (_sa.sprite2 != null && _sa.sprite2.texture != null)
-                            _sa.block.SetTexture("_PartTex", _sa.sprite2.texture);
-                        _sa.block.SetTexture("_MainTex", erasedTex);
-                        _sa.ComittBlock();
-                        RepairBodyMaterialBlocks(erasedTex);
-                    }
-                }
-                catch { }
+                ReblockCorpseOnce();
+                // ★ 第三十六轮：死亡腾空期每 ~3 帧转储所有渲染器世界/本地坐标，
+                //   看"上半身/下半身"或"影子/长矛"是否在 ragdoll 期分离错位 = 影分身的第二身影。
+                if (i % 3 == 0) DumpCorpseRenderers(i);
             }
             DumpCorpseState();
+        }
+
+        /// <summary>★ 第三十六轮：转储 agent 下全部 MeshRenderer 的世界/本地坐标 + enabled，
+        /// 暴露死亡腾空期"两个重叠偏移身影"到底由哪个渲染器造成（上半身 vs 下半身 / 影子 / 长矛）。</summary>
+        void DumpCorpseRenderers(int frameIdx)
+        {
+            try
+            {
+                var root = _agent != null ? _agent.transform : (_sa != null ? _sa.transform : null);
+                if (root == null) return;
+                var sb = new System.Text.StringBuilder();
+                sb.Append("[尸体部位] f=" + frameIdx);
+                // 1) agent 内所有 MeshRenderer
+                var mrs = root.GetComponentsInChildren<MeshRenderer>(true);
+                if (mrs != null)
+                {
+                    for (int i = 0; i < mrs.Length; i++)
+                    {
+                        var mr = mrs[i];
+                        if (mr == null) continue;
+                        sb.Append(" | " + mr.gameObject.name +
+                            " w=" + mr.transform.position.ToString("F2") +
+                            " l=" + mr.transform.localPosition.ToString("F2") +
+                            " en=" + mr.enabled);
+                    }
+                }
+                // 2) agent 内所有 SpriteRenderer（查 SpriteRenderer + MeshRenderers 双重渲染）
+                var srs = root.GetComponentsInChildren<SpriteRenderer>(true);
+                if (srs != null)
+                {
+                    for (int i = 0; i < srs.Length; i++)
+                    {
+                        var sr = srs[i];
+                        if (sr == null) continue;
+                        sb.Append(" | [Sprite]" + sr.gameObject.name +
+                            " en=" + sr.enabled +
+                            " spr=" + (sr.sprite != null ? sr.sprite.name : "null"));
+                    }
+                }
+                // 3) 全场景 MeshRenderer 中离尸体 <0.8m 的（查 agent 外的第二尸体/影分身）
+                Vector3 corpsePos = root.position;
+                var all = Resources.FindObjectsOfTypeAll<MeshRenderer>();
+                if (all != null)
+                {
+                    int near = 0;
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        var r = all[i];
+                        if (r == null) continue;
+                        if (!r.gameObject.activeInHierarchy) continue;
+                        if (Vector3.Distance(r.transform.position, corpsePos) < 0.8f)
+                        {
+                            sb.Append(" | [场景]" + r.gameObject.name +
+                                " w=" + r.transform.position.ToString("F2") +
+                                " en=" + r.enabled);
+                            if (++near > 15) break;
+                        }
+                    }
+                }
+                BSLog.Warn(sb.ToString());
+            }
+            catch { }
+        }
+
+        /// <summary>★ 第三十四轮：把去剑克隆 + 部件克隆同步写回全部身体渲染器（主 + _MIRROR_ON 镜像），
+        /// 并重设 SpriteAnimator 自己的 block。死亡当帧同步调用可让尸体当帧就是黑单尸（不再白影/影分身）。</summary>
+        void ReblockCorpseOnce()
+        {
+            try
+            {
+                if (_sa == null) return;
+                var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
+                if (cur == null) return;
+                Texture2D erasedTex = EnsureErasedTexture(cur);
+                if (erasedTex != null)
+                {
+                    if (_sa.sprite2 != null && _sa.sprite2.texture != null)
+                        _sa.block.SetTexture("_PartTex", _sa.sprite2.texture);
+                    _sa.block.SetTexture("_MainTex", erasedTex);
+                    _sa.ComittBlock();
+                    RepairBodyMaterialBlocks(erasedTex);
+                }
+                // ★ 第三十四轮（影分身根治·尝试）：死亡/ragdoll 期 _MIRROR_ON 镜像渲染器与主渲染器
+                //   翻面偏移叠加 → 双影。补块后禁用镜像渲染器，只留主渲染器 → 单尸。死亡后不会复活，可永久禁用。
+                DisableMirrorRenderers();
+            }
+            catch { }
+        }
+
+        /// <summary>★ 第三十四轮：禁用 _MIRROR_ON 镜像渲染器（死亡补块时调用），消除 ragdoll 腾空期的影分身。
+        /// ★ 第三十七轮：扫描整个 agent（不只 _sa）→ 把长矛的 _MIRROR_ON 镜像也禁用；同时禁用 Shadow 地面阴影渲染器。
+        /// ★ 第三十八轮：继续禁用 Shield（盾牌）与 Spear（长矛主渲染器）——它们是 agent 子节点（BodyAnim 的兄弟），
+        /// 死亡腾空期不会随身体翻滚而悬在上方，与翻滚的身体形成"两个重叠偏移的身影"=影分身的真正来源。</summary>
+        void DisableMirrorRenderers()
+        {
+            try
+            {
+                var root = _agent != null ? _agent.transform : (_sa != null ? _sa.transform : null);
+                if (root == null) return;
+                var mrs = root.GetComponentsInChildren<MeshRenderer>(true);
+                if (mrs == null) return;
+                int disabled = 0;
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    if (mr.gameObject.name == null) continue;
+                    bool isMirror = mr.gameObject.name.IndexOf("_MIRROR_ON", StringComparison.Ordinal) >= 0;
+                    bool isShadow = mr.gameObject.name.IndexOf("Shadow", StringComparison.Ordinal) >= 0;
+                    bool isShield = mr.gameObject.name.IndexOf("Shield", StringComparison.Ordinal) >= 0;
+                    bool isSpear = mr.gameObject.name.IndexOf("Spear", StringComparison.Ordinal) >= 0;
+                    if (isMirror || isShadow || isShield || isSpear)
+                    {
+                        if (mr.enabled) { mr.enabled = false; disabled++; }
+                    }
+                }
+                if (disabled > 0) BSLog.Warn("[影分身] 已禁用镜像/阴影/盾牌/长矛渲染器 " + disabled + " 个（ragdoll 期只留身体=单尸）");
+            }
+            catch { }
         }
 
         /// <summary>转储尸体最终材质块状态（确认补块后尸体是暗的，不再白身）。</summary>
@@ -419,6 +670,7 @@ namespace BadNorthBlackSpearman1_3
                     " pos=" + (_agent != null ? _agent.transform.position.ToString("F2") : "?") +
                     " ragdoll=" + (_agent != null && _agent.ragdoller != null ? _agent.ragdoller.enabled.ToString() : "无ragdoller") +
                     " sprite=" + (_sa != null && _sa.sprite != null ? _sa.sprite.name : "?"));
+                DumpTransformHierarchy(_agent != null ? _agent.transform : null, "    ", 0);
                 var mrs = _sa != null ? _sa.GetComponentsInChildren<MeshRenderer>(true) : null;
                 if (mrs == null) return;
                 for (int i = 0; i < mrs.Length; i++)
@@ -427,14 +679,22 @@ namespace BadNorthBlackSpearman1_3
                     if (mr == null) continue;
                     var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
                     if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
-                    string uv0 = "?";
-                    string verts = "?";
+                    string uv0 = "?", verts = "?", bounds = "?", vpos = "?";
                     var mf = mr.GetComponent<MeshFilter>();
                     if (mf != null && mf.sharedMesh != null)
                     {
                         verts = mf.sharedMesh.vertexCount.ToString();
                         var uv = mf.sharedMesh.uv;
                         if (uv != null && uv.Length > 0) uv0 = uv[0].ToString("F3");
+                        bounds = "c=" + mf.sharedMesh.bounds.center.ToString("F2") + " size=" + mf.sharedMesh.bounds.size.ToString("F2");
+                        var vv = mf.sharedMesh.vertices;
+                        if (vv != null && vv.Length > 0)
+                        {
+                            var sb = new System.Text.StringBuilder();
+                            int n = Mathf.Min(4, vv.Length);
+                            for (int k = 0; k < n; k++) { if (k > 0) sb.Append(' '); sb.Append(vv[k].ToString("F2")); }
+                            vpos = sb.ToString();
+                        }
                     }
                     var block = new MaterialPropertyBlock();
                     try { mr.GetPropertyBlock(block); } catch { }
@@ -442,14 +702,32 @@ namespace BadNorthBlackSpearman1_3
                     try { mt = block.GetTexture("_MainTex"); } catch { }
                     try { pt = block.GetTexture("_PartTex"); } catch { }
                     BSLog.Warn("  · " + mr.gameObject.name +
+                        " shader=" + (sh != null ? sh.name : "null") +
+                        " localPos=" + mr.transform.localPosition.ToString("F2") +
                         " worldPos=" + mr.transform.position.ToString("F2") +
                         " 顶点=" + verts + " UV0=" + uv0 +
+                        " bounds=" + bounds + " 前顶点=" + vpos +
                         " _MainTex=" + (mt != null ? mt.name : "NULL") +
                         " _PartTex=" + (pt != null ? pt.name : "NULL") +
                         " isVisible=" + mr.isVisible);
                 }
             }
             catch (Exception e) { BSLog.Warn("[死亡分裂] 转储异常: " + e); }
+        }
+
+        /// <summary>★ 第三十四轮：转储 transform 层级（名字 + localPosition/localScale，最多 2 层），
+        /// 暴露 ragdoll 腾空期主/镜像子节点的相对偏移（影分身=镜像翻面+偏移的来源）。</summary>
+        static void DumpTransformHierarchy(Transform t, string indent, int depth)
+        {
+            if (t == null || depth > 2) return;
+            for (int i = 0; i < t.childCount; i++)
+            {
+                var c = t.GetChild(i);
+                if (c == null) continue;
+                BSLog.Warn(indent + c.name + " localPos=" + c.localPosition.ToString("F2") +
+                    " localScale=" + c.localScale.ToString("F2"));
+                DumpTransformHierarchy(c, indent + "  ", depth + 1);
+            }
         }
 
         /// <summary>sprite2（部件贴图）处理：旧基底 PartTex_Sword → 亮银剑柄擦除；新基底 PartTex_SwordShield → 按 Sprite2Mode：
@@ -1035,18 +1313,40 @@ namespace BadNorthBlackSpearman1_3
                         int i = y * w + x;
                         Color32 c = px[i];
                         if (c.a <= 8) continue;
-                        if (cy >= HelmSrcY0 && cy < HelmSrcY1 &&
-                            !(c.r - c.b > 25 && c.r > 130) &&
-                            ((c.r > 100 && c.g > 90 && c.b > 70) ||
-                             (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)))
+                        if (cy >= HelmSrcY0 && cy < HelmSrcY1 && !(c.r - c.b > 25 && c.r > 130))
                         {
-                            // ★ 第三十三轮（头盔恢复 v2）：头盔源 = 单元 y47-88 的暗灰/暖棕（帧头盔带 y10-30 采样），
-                            //   保留原色 → 头盔显示原版灰/暖褐。亮银一律不保留（单元 y20-24 亮银是帧剑刃/盾源，
-                            //   第三十二轮误提亮它 → 剑柄显现）；单元 y21-47 暖棕是帧躯干源，仍 ×0.15 压黑。
-                            helmKeep++;
-                            int b0 = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
-                            hSum += b0; hN++; if (b0 > hMax) hMax = b0;
-                            continue;
+                            // ★ 第三十五轮（头部闪白修复）：头盔源内的 >150 近白像素（银饰高光，max=190）
+                            //   压暗到 <150（×0.7 → 190→133），消除"头部闪白"（银饰在动画帧间时现时隐 = 视觉闪白）。
+                            if (c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin)
+                            {
+                                Color32 d4 = new Color32((byte)(c.r * 0.7f), (byte)(c.g * 0.7f), (byte)(c.b * 0.7f), c.a);
+                                px[i] = d4;
+                                helmKeep++;
+                                int b4 = Mathf.Max(d4.r, Mathf.Max(d4.g, d4.b));
+                                hSum += b4; hN++; if (b4 > hMax) hMax = b4;
+                                continue;
+                            }
+                            if (c.r > 100 && c.g > 90 && c.b > 70)
+                            {
+                                // ★ 第三十九轮（头部抽搐/闪白根治）：头盔源内的暖棕高光（盔沿/皮饰，r>100 g>90 b>70，max=173）
+                                //   与暗灰主体(40-100)亮度跨度大 → 动画换帧时头部 UV 在两者间横跳 → 亮度闪动=抽搐/闪白。
+                                //   现把暖棕高光压暗 ×0.5（173→87），与暗灰主体(40-100)亮度接轨 → 头部亮度趋于均匀、不再闪动。
+                                Color32 d5 = new Color32((byte)(c.r * 0.5f), (byte)(c.g * 0.5f), (byte)(c.b * 0.5f), c.a);
+                                px[i] = d5;
+                                helmKeep++;
+                                int b5 = Mathf.Max(d5.r, Mathf.Max(d5.g, d5.b));
+                                hSum += b5; hN++; if (b5 > hMax) hMax = b5;
+                                continue;
+                            }
+                            if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
+                            {
+                                // ★ 第三十三轮（头盔恢复 v2）：头盔源 = 单元 y47-88 的暗灰（帧头盔带 y10-30 采样），
+                                //   保留原色 → 头盔显示原版灰。亮银/暖棕已分别压暗，避免亮度跳变。
+                                helmKeep++;
+                                int b0 = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+                                hSum += b0; hN++; if (b0 > hMax) hMax = b0;
+                                continue;
+                            }
                         }
                         if (c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin)
                         {
@@ -1261,7 +1561,11 @@ namespace BadNorthBlackSpearman1_3
             {
                 // ★ 第二十四轮（头盔保护）：单元 y<HelmetMaxY 是头/头盔区（含亮银冠饰），不参与亮采样擦除掩码，
                 //   否则帧擦除会把头盔冠饰一起擦透明（用户实测"头盔部分材质透明"）。
-                if (y < HelmetMaxY) continue;
+                // ★ 第三十四轮（头部闪白/抽搐根治）：第三十三轮恢复头盔源（单元 y47-88 保留原色）后，该区混有 ~257 个
+                //   >150 近白像素（银饰/暖棕高光，max=190），其 y≥45 不在 HelmetMaxY 保护内 → 被纳入擦除掩码 →
+                //   解码 UV 采样到它们的头部帧像素被擦透明 → 动画换帧时头部时擦时显 = 头部闪白/抽搐。
+                //   修复：擦除掩码同时跳过头盔源 y≥HelmSrcY0，让头部帧像素永不被亮采样擦除（剑刃仍走红暗擦除，不受影响）。
+                if (y < HelmetMaxY || y >= HelmSrcY0) continue;
                 for (int x = 0; x < cw; x++)
                 {
                     int ax = x0 + x, ay = y0 + y;
