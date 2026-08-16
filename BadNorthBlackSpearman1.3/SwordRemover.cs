@@ -87,6 +87,10 @@ namespace BadNorthBlackSpearman1_3
                                 //   _sa.sprite（已是新帧），会把"新帧的去剑纹理"贴到"旧帧的网格 UV"上 → 每换一帧动画闪一帧
                                 //   （=用户所见"身子闪烁"）。改用 Update 采样值可保证去剑纹理与网格 UV 永远一致。
         bool _partAppliedDiagDone;   // 第二十轮：sprite2 改色克隆应用诊断已输出（每个黑矛兵一次）
+        Sprite _partCacheSprite;     // ★ 第二十一轮：帧擦除 UV 掩码的部件源 = 原版 sprite2（克隆前的原件）。
+                                     //   运行时 sprite2 会换成去剑/改色克隆（剑区透明）；掩码必须永远按原件构建，
+                                     //   否则换成克隆后掩码变空、UV 亮采样擦除失效。
+        int _partDiagFrame = -1;     // ★ 第二十一轮：sprite2 应用诊断的延迟帧（克隆上块后等 5 帧再判读稳态）
 
         public void Setup(Agent agent, bool eraseEnabled)
         {
@@ -109,7 +113,8 @@ namespace BadNorthBlackSpearman1_3
             else
             {
                 // ★ 部件单元缓存：帧擦除按"解码 UV→部件采样"判定白框像素，必须先有部件贴图
-                EnsurePartCache(_sa.sprite2);
+                _partCacheSprite = _sa.sprite2;   // 第二十一轮：锁定原版部件（掩码永远按原件构建）
+                EnsurePartCache(_partCacheSprite);
             }
         }
 
@@ -127,6 +132,14 @@ namespace BadNorthBlackSpearman1_3
             if (_sa == null) return;
 
             var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
+
+            // ★ 第二十一轮（顺序修复）：先把 sprite2 部件贴图换成去剑/改色克隆，再执行帧擦除写材质块——
+            //   旧顺序"先写块再换 sprite2"：帧擦除/RepairBodyMaterialBlocks 写入的 _PartTex 是原部件贴图，
+            //   随后 SetSprite2 的 ComittBlock 只把克隆提交给 BatchedSprite 的 rends（2 个渲染器），
+            //   其余身体渲染器块 _PartTex 仍是原部件 → 剑柄改色/亮银擦除实际没上大部分块（用户仍见剑柄）。
+            //   现在先换 sprite2，下面所有块写入都会用克隆纹理。
+            if (_eraseEnabled) ApplySprite2Erase();
+
             if (cur != null && cur.texture != null && IsSwordFrameSprite(cur))
             {
                 // ★ 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
@@ -155,85 +168,107 @@ namespace BadNorthBlackSpearman1_3
                 }
             }
 
-            // 2) sprite2（部件贴图）：旧基底 PartTex_Sword → 亮银剑柄擦除；新基底 PartTex_SwordShield → 按 Sprite2Mode：
-            //    0=保留原部件（只靠帧擦除去剑，身体最完整，避免白框）；1=整块清空（旧方案，会致身体白框）；
-            //    2=只擦亮银剑身（去剑+保留身体折中）。可重入：烘焙若重置 sprite2 会再次处理。
-            if (_eraseEnabled && _sa.sprite2 != null && _sa.sprite2.texture != null)
-            {
-                bool swordShieldPart =
-                    (_sa.sprite2.name != null && _sa.sprite2.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0) ||
-                    (_sa.sprite2.texture != null && _sa.sprite2.texture.name != null &&
-                     _sa.sprite2.texture.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0);
-                if (swordShieldPart)
-                {
-                    if (Sprite2Mode == 1)
-                    {
-                        if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
-                        {
-                            _blankSprite2 = GetBlankSprite2(_sa.sprite2);
-                            if (_blankSprite2 != null) _sa.SetSprite2(_blankSprite2);
-                        }
-                    }
-                    else if (Sprite2Mode == 2)
-                    {
-                        if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
-                        {
-                            _blankSprite2 = GetBrightErasedSprite2(_sa.sprite2);
-                            if (_blankSprite2 != null) _sa.SetSprite2(_blankSprite2);
-                        }
-                    }
-                    else
-                    {
-                        if (!_partKeepLogged)
-                        {
-                            _partKeepLogged = true;
-                            LogPartCellStats(_sa.sprite2);
-                        }
-                    }
-                }
-                else
-                {
-                    if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
-                    {
-                        Sprite erased2 = GetErasedSprite2(_sa.sprite2);
-                        if (erased2 != null && !ReferenceEquals(_sa.sprite2, erased2))
-                            _sa.SetSprite2(erased2);   // 同步更新 part 纹理 + RG 图集编码
-                    }
-                }
-            }
+            // sprite2 应用诊断见下方（克隆上块后延迟 5 帧判读稳态）
 
             // ★ 第二十轮：sprite2 应用诊断——确认"剑柄改身体色/亮银擦除"的克隆确实写进了渲染器块（回答"剑柄改色为何没生效"）
-            if (_eraseEnabled && !_partAppliedDiagDone && _sa.sprite2 != null)
+            //   ★ 第二十一轮：延迟到克隆上块后 5 帧再判读稳态，且统计全部 ColoredCharacter 身体渲染器里
+            //   块 _PartTex == 克隆 的数量（旧版当帧只读 mrs[0]，会命中一个未被 SpriteAnimator.ComittBlock 更新的
+            //   渲染器而误判"块里不是克隆"）。
+            if (_eraseEnabled && !_partAppliedDiagDone && _sa.sprite2 != null &&
+                _blankSprite2 != null && _partDiagFrame >= 0 && Time.frameCount >= _partDiagFrame)
             {
                 _partAppliedDiagDone = true;
                 try
                 {
-                    bool isClone = _blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2);
+                    bool isClone = ReferenceEquals(_sa.sprite2, _blankSprite2);
                     Texture2D partTex = _sa.sprite2.texture as Texture2D;
                     string blockPart = "?";
-                    int blockPartId = -1;
+                    int matchCount = 0, bodyCount = 0;
                     var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
-                    if (mrs != null && mrs.Length > 0)
+                    if (mrs != null)
                     {
                         var b = new MaterialPropertyBlock();
-                        mrs[0].GetPropertyBlock(b);
-                        Texture pt = null;
-                        try { pt = b.GetTexture("_PartTex"); } catch { }
-                        if (pt != null)
+                        for (int i = 0; i < mrs.Length; i++)
                         {
-                            blockPart = pt.name + " id=" + pt.GetInstanceID();
-                            blockPartId = pt.GetInstanceID();
+                            var mr = mrs[i];
+                            if (mr == null) continue;
+                            var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                            if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                            bodyCount++;
+                            try { mr.GetPropertyBlock(b); } catch { }
+                            Texture pt = null;
+                            try { pt = b.GetTexture("_PartTex"); } catch { }
+                            if (bodyCount == 1)
+                            {
+                                blockPart = pt != null ? pt.name + " id=" + pt.GetInstanceID() : "null";
+                            }
+                            if (partTex != null && pt != null && pt.GetInstanceID() == partTex.GetInstanceID()) matchCount++;
                         }
-                        else blockPart = "null";
                     }
-                    string verdict = (isClone && partTex != null && blockPartId == partTex.GetInstanceID())
-                        ? " ← 改色克隆已上块（剑柄应已改身体色）"
-                        : " ← ⚠️ 块里不是改色克隆（剑柄仍显示原色，需查 SetSprite2/烘焙重置）";
+                    string verdict = (isClone && partTex != null && bodyCount > 0 && matchCount == bodyCount)
+                        ? " ← 改色克隆已上块（全部 " + bodyCount + " 个身体渲染器匹配，剑柄应已改身体色）"
+                        : " ← ⚠️ 块里不是改色克隆（匹配 " + matchCount + "/" + bodyCount +
+                          " 个，剑柄仍显示原色，需查 SetSprite2/烘焙重置）";
                     BSLog.Info("[去剑] sprite2 应用诊断: sprite2=" + _sa.sprite2.name +
                         " 纹理=" + (partTex != null ? partTex.name + " id=" + partTex.GetInstanceID() : "null") +
-                        " 已是改色克隆=" + isClone + " | 渲染器块_PartTex=" + blockPart + verdict);
+                        " 已是改色克隆=" + isClone + " | 渲染器块_PartTex=" + blockPart +
+                        " 匹配克隆=" + matchCount + "/" + bodyCount + verdict);
                 }
                 catch (Exception e) { BSLog.Warn("[去剑] sprite2 应用诊断异常: " + e); }
+            }
+        }
+
+        /// <summary>sprite2（部件贴图）处理：旧基底 PartTex_Sword → 亮银剑柄擦除；新基底 PartTex_SwordShield → 按 Sprite2Mode：
+        /// 0=保留原部件（只靠帧擦除去剑，身体最完整，避免白框）；1=整块清空（旧方案，会致身体白框）；
+        /// 2=只擦亮银剑身（去剑+保留身体折中）。可重入：烘焙若重置 sprite2 会再次处理。
+        /// ★ 第二十一轮：必须在帧擦除写材质块之前执行——先换好克隆，块写入才用克隆纹理。</summary>
+        void ApplySprite2Erase()
+        {
+            if (_sa == null || _sa.sprite2 == null || _sa.sprite2.texture == null) return;
+            // 记录原版部件（仅首次；掩码按原件构建，见 EnsureErasedTexture）
+            if (_partCacheSprite == null) _partCacheSprite = _sa.sprite2;
+            bool swordShieldPart =
+                (_sa.sprite2.name != null && _sa.sprite2.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0) ||
+                (_sa.sprite2.texture != null && _sa.sprite2.texture.name != null &&
+                 _sa.sprite2.texture.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0);
+            if (swordShieldPart)
+            {
+                if (Sprite2Mode == 1)
+                {
+                    if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
+                    {
+                        _blankSprite2 = GetBlankSprite2(_sa.sprite2);
+                        if (_blankSprite2 != null) { _sa.SetSprite2(_blankSprite2); _partDiagFrame = Time.frameCount + 5; }
+                    }
+                }
+                else if (Sprite2Mode == 2)
+                {
+                    if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
+                    {
+                        _blankSprite2 = GetBrightErasedSprite2(_sa.sprite2);
+                        if (_blankSprite2 != null) { _sa.SetSprite2(_blankSprite2); _partDiagFrame = Time.frameCount + 5; }
+                    }
+                }
+                else
+                {
+                    if (!_partKeepLogged)
+                    {
+                        _partKeepLogged = true;
+                        LogPartCellStats(_sa.sprite2);
+                    }
+                }
+            }
+            else
+            {
+                if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
+                {
+                    Sprite erased2 = GetErasedSprite2(_sa.sprite2);
+                    if (erased2 != null && !ReferenceEquals(_sa.sprite2, erased2))
+                    {
+                        _sa.SetSprite2(erased2);   // 同步更新 part 纹理 + RG 图集编码
+                        _partDiagFrame = Time.frameCount + 5;
+                    }
+                }
             }
         }
 
@@ -999,7 +1034,9 @@ namespace BadNorthBlackSpearman1_3
                 var srcTex = cur.texture as Texture2D;
                 if (srcTex == null) return null;
                 // ★ 部件单元缓存：只有拿到 sprite2 部件贴图才能按 UV 判定白框像素（sprite2 未就绪就重试）
-                if (_sa != null) EnsurePartCache(_sa.sprite2);
+                //   第二十一轮：必须用原版部件（_partCacheSprite）构建掩码——运行时 sprite2 已是去剑/改色克隆，
+                //   剑区已透明，掩码会变空、UV 亮采样擦除失效。
+                if (_sa != null) EnsurePartCache(_partCacheSprite != null ? _partCacheSprite : _sa.sprite2);
                 Texture2D tex = GetSharedClone(srcTex);
                 if (tex == null) return null;
                 // ★ 首次：一次性预擦除图集里全部 Onehanded/Swordsman 帧 → 动画播放时无"首帧剑闪回"

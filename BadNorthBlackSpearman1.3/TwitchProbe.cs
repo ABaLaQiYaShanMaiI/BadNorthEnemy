@@ -14,7 +14,7 @@ namespace BadNorthBlackSpearman1_3
     /// 触发口径：
     ///   ① 位置跳变 &gt;0.35m/帧（非滑行）  ② 朝向急转 &gt;40°/帧（冲锋/后退排除）
     ///   ③ 动画倒退（同 clip 下 norm 回落 &gt;0.3）  ④ 橡皮筋（navPos-transform 差速变化 &gt;0.35m/帧）
-    ///   ⑤ 长矛本地 yaw 翻转 &gt;90°/帧  ⑥ 精灵帧闪动（1s 内 ≥3 种帧名且变化 ≥4 次）
+    ///   ⑤ 长矛本地 yaw 翻转 &gt;90°/帧  ⑥ 精灵帧振荡（同一动画进度内帧名来回切换 A→B→A）
     /// </summary>
     public class TwitchProbeComponent : MonoBehaviour
     {
@@ -162,20 +162,27 @@ namespace BadNorthBlackSpearman1_3
             {
                 _spriteHistory.Add(new SpriteSample { time = now, name = sprite, norm = norm });
                 while (_spriteHistory.Count > 0 && now - _spriteHistory[0].time > 1f) _spriteHistory.RemoveAt(0);
-                // ★ 第二十轮：真闪动 = 同一动画进度(norm)出现不同帧名（正常待机/走路循环每帧各占一个进度，永不会同进度双帧）。
+                // ★ 第二十一轮：真闪动 = 同一动画进度(norm 差<0.02)内帧名**来回振荡**（A→B→A）。
+                //   第二十轮口径"同进度出现不同帧名"会把正常慢速换帧误报成闪动刷屏：动画缓慢前进时，
+                //   采样恰好落在关键帧边界两侧（norm 差<0.02）就各得一个不同帧名——但那是**一次**正常换帧；
+                //   真闪动是 A 出现→B 出现→A 再次出现（同进度振荡，同一帧在窗口里出现≥2次）。
                 string badA = null, badB = null;
                 float badNorm = -1f;
-                var distinct = new HashSet<string>();
                 for (int i = 0; i < _spriteHistory.Count && badA == null; i++)
                 {
                     var si = _spriteHistory[i];
-                    distinct.Add(si.name);
                     if (si.norm < 0f) continue;
                     for (int j = i + 1; j < _spriteHistory.Count; j++)
                     {
                         var sj = _spriteHistory[j];
-                        if (sj.norm >= 0f && si.name != sj.name && Mathf.Abs(si.norm - sj.norm) < 0.02f)
+                        if (sj.norm < 0f || si.name == sj.name) continue;
+                        if (Mathf.Abs(si.norm - sj.norm) >= 0.02f) continue;
+                        // si.name(A) != sj.name(B) 且同进度 —— 再找第三个样本 sk：与 si 同名(A)、同进度、时间在 sj 之后
+                        for (int k = j + 1; k < _spriteHistory.Count; k++)
                         {
+                            var sk = _spriteHistory[k];
+                            if (sk.norm < 0f || sk.name != si.name) continue;
+                            if (Mathf.Abs(sk.norm - si.norm) >= 0.02f) continue;
                             badA = si.name; badB = sj.name; badNorm = si.norm;
                             break;
                         }
@@ -184,7 +191,7 @@ namespace BadNorthBlackSpearman1_3
                 if (badA != null && badB != null)
                 {
                     fire = true;
-                    reason = "⑥精灵帧闪动(同动画进度换帧) " + badA + "↔" + badB + " norm=" + badNorm.ToString("F3");
+                    reason = "⑥精灵帧振荡(同动画进度来回换帧) " + badA + "↔" + badB + " norm=" + badNorm.ToString("F3");
                 }
             }
 
