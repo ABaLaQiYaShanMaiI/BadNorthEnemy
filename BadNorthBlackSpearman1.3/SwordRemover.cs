@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
@@ -10,8 +10,9 @@ namespace BadNorthBlackSpearman1_3
     /// 去剑组件：原版 Viking 的"剑"烘焙位置随基底不同——
     ///   旧基底 Viking_Sword = OnehandedXXXX 动画帧里的暗红剑刃（R>70,G<40,B<20）+ sprite2 PartTex_Sword 亮银剑柄；
     ///   新基底 Viking_SwordShield = SwordsmanXXXX 帧 + sprite2 PartTex_SwordShield（剑+盾 2D 部件）。
-    /// 原理：帧内剑刃 → 把材质块 _MainTex 换成"擦除剑像素"的克隆纹理；部件贴图 → sprite2 换为去剑克隆
-    /// （旧基底亮银擦除；新基底整块清空——黑矛兵持矛+3D盾，2D 剑盾部件全不要）。
+    /// 原理（第十七轮用户回退）：部件贴图(sprite2) → 换为"亮银剑身擦透明"的克隆（模式2：亮银 + bbox 内接壤像素
+    /// 擦透明，剑区预期挖洞、身体其余保留——用户明确回退"擦除"方案，不要"改身体色"的黑色剑影）；帧内剑刃 →
+    /// 材质块 _MainTex 换去剑克隆（帧级红暗 + UV 亮采样擦除照常执行）。
     /// ⚠️ 安全阀：单帧擦除占比超阈值判定误擦并跳过；帧纹理是共享图集，只擦当前帧 rect。
     /// </summary>
     public class SwordRemover : MonoBehaviour
@@ -34,7 +35,7 @@ namespace BadNorthBlackSpearman1_3
         const int SilverBMin = 90;
         const int SilverNeutralTol = 60;     // 中性灰容差：|r-b|、|g-b| 都 <60 才算"金属银"
         const int SilverAlphaMin = 128;      // 只擦实心像素，忽略半透明边缘
-        const float Sprite2SafetyRatio = 0.35f; // sprite2 单元以剑为主体（PartTex_Sword），阈值放宽到 35%（帧级仍用 0.2） // 单帧擦除占比上限（超过则视为误擦，放弃该帧）
+        const float Sprite2SafetyRatio = 0.35f; // ★ 第十七轮回退：恢复“擦透明”方案，ETC2 增亮身体像素被擦会挖洞 → 收紧到 35% 防误擦（>35% 亮判定贴图异常）
         const int SwordBrightMin = 150;      // "纯亮"阈值：剑刃金属（r,g,b>150 中性亮色）。亮银擦除只用它，绝不碰暗色/肤色身体。
 
         static readonly Dictionary<int, Texture2D> _textureCache = new Dictionary<int, Texture2D>();  // 源纹理 → 去剑克隆
@@ -44,12 +45,14 @@ namespace BadNorthBlackSpearman1_3
         static readonly HashSet<int> _erasedRects = new HashSet<int>();                              // 已擦除的帧 rect（每 rect 只擦一次）
         static int _colorDiagDone;                                                                   // 帧颜色直方图诊断（限制次数）
         static bool _sprite2DiagDone;                                                                // sprite2 单元 ASCII 诊断（全局仅一次）
-        static bool _preErased;                                                                      // 预擦除全部 Onehanded 帧已完成（消除动画播放时剑闪回）
+        static readonly HashSet<int> _preErasedTex = new HashSet<int>();                            // 已预擦除的源纹理（按源纹理实例 ID；消除动画播放时剑闪回）
         static int _blockDiagCount;                                                                  // 材质块修复详细转储次数（限前 2 只，避免刷屏）
 
         /// <summary>sprite2(部件贴图)处理模式（由 Plugin.RemoveSwordSprite2Mode 配置）：
-        /// 0=保留原部件贴图、只靠帧擦除去剑（身体最完整，默认——整块清空会让身体变白框）；
-        /// 1=整块清空部件单元（旧方案，会致身体白框）；2=只擦亮银剑身像素（去剑+保留身体折中）。</summary>
+        /// 0=保留原部件贴图、只靠帧擦除去剑（帧擦会挖洞/残留剑柄，弃用）；
+        /// 1=整块清空部件单元（旧方案，会致身体白框，勿用）；
+        /// 2=★第十七轮（用户回退）亮银剑身擦透明：亮银(剑刃+2D盾)与 bbox 内接壤像素擦透明、身体其余保留
+        ///（剑区预期挖洞；剑柄带改身体色——第十八轮用户指定“剑柄颜色与黑矛兵身躯颜色一致”，GripBand&gt;0）。</summary>
         public static int Sprite2Mode;
 
         // ★★ UV 感知亮采样擦除（第十二轮，白框根治）：
@@ -58,6 +61,7 @@ namespace BadNorthBlackSpearman1_3
         // 解法：擦除任何"解码 UV 采样到亮(r,g,b>150)部件像素"的帧像素——白框像素无论帧色如何都被擦，暗身体不受影响。
         public static bool UVErase = true;   // 配置 RemoveSwordFrameUVErase
         public static int UVHalo = 0;        // 配置 RemoveSwordFrameUVHalo：亮像素光晕(部件像素距离)，吃持剑的手/护手
+        public static int GripFloodPx = 2;   // 配置 RemoveSwordSprite2GripBand：第十八轮默认 2（用户指定“剑柄颜色与黑矛兵身躯颜色一致”）；>0 启用“暗灰剑柄/亮灰护手改身体暗色(33,26,24)”，0=不改
 
         // ★ 部件单元像素缓存（静态共享）：供帧擦除按"UV→部件采样"判定白框像素（全黑矛兵共用一份）
         static bool _partReady;             // 部件缓存已就绪
@@ -114,10 +118,11 @@ namespace BadNorthBlackSpearman1_3
                 // ★ 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
                 if (!_dumped) { _dumped = true; DumpBodyRuntime(cur); }
 
-                // 1) 主动画帧：当前帧是 Onehanded 帧 → 只把材质块的 _MainTex 换成去剑克隆纹理
+                // 1) 主动画帧：当前帧是 Onehanded/Swordsman 帧 → 只把材质块的 _MainTex 换成去剑克隆纹理
                 //    ★ 关键修复：绝不交换 bSprite/sprite/网格 —— 实测 bSprite 交换会破坏身体渲染（躯干透明），
                 //    尽管顶点色/UV 都正常。网格 UV 本来就指向图集单元；克隆纹理与图集同尺寸，
                 //    让 _MainTex 直接采样克隆的同一单元即可渲染"去剑帧"，完全避开 sprite 对象替换。
+                //    ★ 第十七轮（用户回退）：不再有"路线A 跳过帧擦"分支——帧级擦透明恢复（与第十四轮一致）。
                 if (_eraseEnabled)
                 {
                     Texture2D erasedTex = EnsureErasedTexture(cur);
@@ -677,9 +682,10 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 清空失败: " + e); return null; }
         }
 
-        /// <summary>只擦亮银剑身（模式2，剑盾基底折中方案）：克隆部件贴图，把单元内"纯亮中性灰"像素
-        /// （r,g,b&gt;150 的剑刃金属）擦透明，再擦亮银 bbox 内的接壤像素（剑柄/护手；bbox 面积 ≤ 不透明 45% 才擦，
-        /// 防误擦盾面/身体）。暗色/肤色身体像素全部保留 → 身体完整、无白框。</summary>
+        /// <summary>★ 第十七轮（用户回退）亮银剑身擦透明（模式2，剑盾基底）：克隆部件贴图，把单元内"纯亮中性灰"像素
+        /// （r,g,b&gt;150 的剑刃金属/2D盾）与亮银 bbox 内接壤像素（bbox 面积 ≤ 不透明 45% 才允许）直接擦透明——
+        /// 用户回退到"擦除剑刃"（不要"改身体色"的黑色剑影）；剑区预期挖洞（离线验证新增 29/65 洞，可接受）。
+        /// 剑柄由 RemoveSwordSprite2GripBand 控制：&gt;0（第十八轮默认 2）时 RecolorGripToBody 把暗灰剑柄/亮灰护手改身体色（用户指定“与黑矛兵身躯颜色一致”）。</summary>
         static Sprite GetBrightErasedSprite2(Sprite s2)
         {
             int key = s2.GetInstanceID();
@@ -724,18 +730,21 @@ namespace BadNorthBlackSpearman1_3
                     BSLog.Info("[去剑] sprite2 剑盾基底无亮银像素 → 保留原部件（模式2退化为模式0）");
                     return null;
                 }
-                // ★ 第十三轮安全阀：亮银占比过高 → ETC2 增亮把身体也染亮了，擦除会伤身体 → 退化模式0
+                // ★ 第十七轮回退安全阀：恢复 35% —— 现在是"擦透明"而非"改身体色"，ETC2 增亮的身体像素被擦会挖洞，
+                //   因此亮银占比 >35% 判定贴图异常（不是正常剑盾单元），退化模式0
                 if (opaque > 0 && bright > opaque * Sprite2SafetyRatio)
                 {
                     UnityEngine.Object.Destroy(tex);
                     BSLog.Warn("[去剑] sprite2 剑盾基底亮银占比过高 " + bright + "/" + opaque +
-                        " (>35%)，疑似 ETC2 增亮身体 → 模式2退化为模式0（保留原部件，靠帧擦除+遮盾）");
+                        " (>35%)，疑似贴图异常 → 模式2退化为模式0（保留原部件，靠帧擦除）");
                     return null;
                 }
                 int bboxArea = (maxX - minX + 1) * (maxY - minY + 1);
-                bool eraseBbox = opaque > 0 && bboxArea <= opaque * 0.45f;
-                int erased = 0;
-                // 第二遍：擦亮银像素 + 亮银 bbox 内接壤像素
+                bool recolorBbox = opaque > 0 && bboxArea <= opaque * 0.45f;
+                int erased2 = 0;
+                // ★ 第十七轮（用户回退）：第二遍——亮银剑身（+bbox 内接壤像素）擦透明（恢复第十四轮行为）。
+                //   擦透明让剑区（含与剑重叠的身体像素）变洞（离线验证新增 29/65 洞），但用户明确要求"用回擦除"：
+                //   不要黑色剑影、也不要改剑柄颜色。bbox 只罩住剑区（bbox 面积 ≤ 不透明 45% 才允许接壤擦）。
                 for (int y = y0; y < y1; y++)
                 {
                     if (y < 0 || y >= h) continue;
@@ -746,28 +755,133 @@ namespace BadNorthBlackSpearman1_3
                         Color32 c = px[i];
                         if (c.a <= 8) continue;
                         bool isBright = c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin;
-                        bool inBbox = eraseBbox && x >= minX && x <= maxX && y >= minY && y <= maxY;
+                        bool inBbox = recolorBbox && x >= minX && x <= maxX && y >= minY && y <= maxY;
                         if (isBright || inBbox)
                         {
-                            px[i] = new Color32(0, 0, 0, 0);
-                            erased++;
+                            px[i] = new Color32(0, 0, 0, 0);   // 擦透明（挖剑，无黑色剑影）
+                            erased2++;
                         }
                     }
                 }
-                if (erased == 0)
+                if (erased2 == 0)
                 {
                     UnityEngine.Object.Destroy(tex);
                     return null;
                 }
+                // ★ 第十八轮：剑柄改身体色（用户指定“剑柄颜色与黑矛兵身躯颜色一致”）——GripFloodPx 默认 2。
+                //   RecolorGripToBody 把暗灰剑柄(40≤r≤100,|r-b|≤25)/亮灰护手(100<r<150 中性)改身体暗色(33,26,24)，保留 alpha 不挖洞。
+                int gripPainted = 0;
+                if (GripFloodPx > 0)
+                    gripPainted = RecolorGripToBody(px, w, h, x0, y0, x1, y1);
                 tex.SetPixels32(px); tex.Apply();
                 var spr = Sprite.Create(tex, r, s2.pivot, s2.pixelsPerUnit, 0, SpriteMeshType.FullRect, s2.border);
-                spr.name = s2.name + "_NoBright";
+                spr.name = s2.name + "_NoSword";
                 _sprite2Cache[key] = spr;
-                BSLog.Info("[去剑] sprite2 亮银剑身擦除(剑盾基底) " + s2.name + " 擦除=" + erased + "/" + opaque +
-                    " bbox=(" + minX + "," + minY + ")-(" + maxX + "," + maxY + ") 擦bbox=" + eraseBbox);
+                BSLog.Info("[去剑] sprite2 亮银剑身擦除(剑盾基底) " + s2.name + " 擦除=" + erased2 + "/" + opaque +
+                    " bbox=(" + minX + "," + minY + ")-(" + maxX + "," + maxY + ") 擦bbox=" + recolorBbox +
+                    " 剑柄改色=" + gripPainted + "px（第十八轮：改身体色，预期≈1900px 归入身体色；剑区预期挖洞）");
+                // ★ 第十四轮：剑柄残留诊断——擦完后原亮银 bbox 内仍不透明的像素统计 + 定位图（回答"剑柄/手到底剩在哪"）
+                DumpGripResidue(px, w, h, minX, maxX, minY, maxY, s2.name);
                 return spr;
             }
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 亮银擦除失败: " + e); return null; }
+        }
+
+        /// <summary>★ 第十五轮引入 / 第十八轮恢复默认启用：剑柄/护手改色融入身体（部件贴图层，模式2配套）。
+        /// 运行时探针实测：剑柄=暗灰(54,50,49)、身体=暗(33,26,24)；着色器以部件贴图为颜色源，
+        /// 把单元内"暗灰剑柄(40≤r≤100,|r-b|≤25)+亮灰护手(100<r<150 中性)"改为身体暗色(33,26,24)——
+        /// 保留原 alpha（不挖洞不白框），使胸口剑柄带与黑矛兵身躯颜色一致。由 RemoveSwordSprite2GripBand&gt;0 启用（第十八轮默认 2）。</summary>
+        static int RecolorGripToBody(Color32[] px, int w, int h, int x0, int y0, int x1, int y1)
+        {
+            if (px == null) return 0;
+            int x0c = Mathf.Clamp(x0, 0, w - 1), x1c = Mathf.Clamp(x1, 0, w);
+            int y0c = Mathf.Clamp(y0, 0, h - 1), y1c = Mathf.Clamp(y1, 0, h);
+            int painted = 0;
+            for (int y = y0c; y < y1c; y++)
+            {
+                for (int x = x0c; x < x1c; x++)
+                {
+                    int i = y * w + x;
+                    Color32 c = px[i];
+                    if (c.a <= 8) continue;                                   // 透明
+                    bool darkGray = c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25;
+                    bool lightGray = c.r > 100 && c.r < 150 &&
+                        Mathf.Abs(c.r - c.b) <= 25 && Mathf.Abs(c.g - c.b) <= 25;
+                    if (darkGray || lightGray)
+                    {
+                        px[i] = new Color32(33, 26, 24, c.a);                 // 改身体暗色，保留 alpha（防挖洞）
+                        painted++;
+                    }
+                }
+            }
+            return painted;
+        }
+
+        /// <summary>★ 第十四轮：剑柄残留诊断——亮银擦除后，原亮银 bbox 内仍不透明的像素统计与定位图。
+        /// 分类：g=暗灰(40≤r≤100,|r-b|≤25)疑似剑柄/护手、G=亮灰(100<r<150)疑似护手/盾沿、s=暖色皮肤(持剑手)、
+        /// b=身体暗色、#=亮银残(>150)、.=其他不透明。取\"暗灰最多的一行\"（剑柄带）上下各 8 行打印，定位剑柄。
+        /// ★ 第十七轮预期（用户选择不改剑柄颜色）：暗灰剑柄/亮灰护手仍 >0（剑柄带保留）；亮银残≈0；皮肤(手)保留。</summary>
+        static void DumpGripResidue(Color32[] px, int w, int h,
+            int minX, int maxX, int minY, int maxY, string name)
+        {
+            try
+            {
+                if (px == null) return;
+                int x0c = Mathf.Clamp(minX, 0, w - 1), x1c = Mathf.Clamp(maxX + 1, 0, w);
+                int y0c = Mathf.Clamp(minY, 0, h - 1), y1c = Mathf.Clamp(maxY + 1, 0, h);
+                int opaque = 0, darkGray = 0, lightGray = 0, warm = 0, bright = 0;
+                int rows = y1c - y0c;
+                if (rows <= 0) return;
+                int[] rowGray = new int[rows];
+                for (int y = y0c; y < y1c; y++)
+                {
+                    int rowIdx = y - y0c;
+                    for (int x = x0c; x < x1c; x++)
+                    {
+                        Color32 c = px[y * w + x];
+                        if (c.a <= 8) continue;
+                        opaque++;
+                        bool isDarkGray = c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25;
+                        bool isLightGray = c.r > 100 && c.r < 150 && Mathf.Abs(c.r - c.b) <= 30;
+                        if (isDarkGray) { darkGray++; rowGray[rowIdx]++; }
+                        else if (isLightGray) lightGray++;
+                        else if (c.r - c.b > 30) warm++;
+                        else if (c.r > 150 && c.g > 150 && c.b > 150) bright++;
+                    }
+                }
+                BSLog.Diag("[去剑] 剑柄残留诊断 " + name + " bbox内剩余不透明=" + opaque +
+                    " 暗灰剑柄=" + darkGray + " 亮灰护手/盾沿=" + lightGray +
+                    " 暖色皮肤(手)=" + warm + " 亮银残=" + bright +
+                    " ← 暗灰/亮灰>0 = 剑柄/护手仍在，GripBand 需加大或靠盾牌遮挡");
+                int best = 0;
+                for (int i = 1; i < rows; i++) if (rowGray[i] > rowGray[best]) best = i;
+                if (darkGray == 0) return;
+                int yTop = Mathf.Max(0, best - 8), yBot = Mathf.Min(rows - 1, best + 8);
+                BSLog.Diag("[去剑] 剑柄残留·定位图（g=暗灰 G=亮灰 s=皮肤 b=身体 #=亮银 .=其他 空格=透明，行 " +
+                    (y0c + yTop) + "~" + (y0c + yBot) + "）");
+                for (int y = yTop; y <= yBot; y++)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    for (int x = x0c; x < x1c; x++)
+                    {
+                        Color32 c = px[y * w + x];
+                        char ch = ' ';
+                        if (c.a > 8)
+                        {
+                            if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25) ch = 'g';
+                            else if (c.r > 100 && c.r < 150 && Mathf.Abs(c.r - c.b) <= 30) ch = 'G';
+                            else if (c.r - c.b > 30) ch = 's';
+                            else if (c.r > 150 && c.g > 150 && c.b > 150) ch = '#';
+                            else if (c.r < 45 && c.g < 38 && c.b < 33) ch = 'b';
+                            else ch = '.';
+                        }
+                        sb.Append(ch);
+                    }
+                    BSLog.Diag("  " + sb.ToString());
+                }
+                BSLog.Diag("[去剑] 剑柄残留·定位图结束");
+            }
+            catch (Exception e) { BSLog.Warn("[去剑] 剑柄残留诊断异常: " + e); }
         }
 
         /// <summary>模式0保留部件贴图时的单元体检：不透明数/亮银数/bbox（校准剑区，判断是否需要切模式2）。</summary>
@@ -841,8 +955,12 @@ namespace BadNorthBlackSpearman1_3
                 Texture2D tex = GetSharedClone(srcTex);
                 if (tex == null) return null;
                 // ★ 首次：一次性预擦除图集里全部 Onehanded/Swordsman 帧 → 动画播放时无"首帧剑闪回"
-                //   （返回 false=部件缓存未就绪被推迟 → _preErased 保持 false，后续帧重试）
-                if (!_preErased) { _preErased = PreEraseAllOnehanded(tex); }
+                //   第十九轮修复根因：必须传**源纹理**（sprite.texture 与源纹理 ReferenceEquals）。
+                //   旧代码误传共享克隆（GetSharedClone 产物）→ 任何 sprite 的 texture 都不等于克隆 → 帧列表恒空 →
+                //   预擦除被"空结果=完成"提前标记，全部帧退回运行时逐帧擦除 = 每帧首显剑闪回（用户所见"美术素材的闪亮"）。
+                int srcKey = srcTex.GetInstanceID();
+                if (!_preErasedTex.Contains(srcKey) && PreEraseAllOnehanded(srcTex))
+                    _preErasedTex.Add(srcKey);
                 int key = cur.GetInstanceID();
                 if (_erasedRects.Contains(key)) return tex;
                 _erasedRects.Add(key);
@@ -1061,8 +1179,9 @@ namespace BadNorthBlackSpearman1_3
         /// <summary>预擦除：把图集里所有已加载的 OnehandedXXXX/SwordsmanXXXX 帧一次性擦除，
         /// 避免动画播放时每帧"首次显示后才擦"（晚一帧 → 慢放可见的剑闪回）。所有帧共享一个像素数组，只上传一次。
         /// 第十二轮：新基底是 Swordsman 帧（旧代码只擦 Onehanded → 新基底从未预擦，剑闪回仍在）；并加部件亮采样擦除。
-        /// 返回 false = 因部件缓存未就绪推迟（调用方 _preErased 应保持 false 以便重试）。</summary>
-        static bool PreEraseAllOnehanded(Texture2D tex)
+        /// 第十九轮：入参改为**源纹理**（匹配 sprite.texture），像素读写用共享克隆（调用方 _MainTex 用的同一份）。
+        /// 返回 false = 因部件缓存未就绪推迟（调用方 _preErasedTex 不标记，以便重试）。</summary>
+        static bool PreEraseAllOnehanded(Texture2D srcTex)
         {
             try
             {
@@ -1072,7 +1191,7 @@ namespace BadNorthBlackSpearman1_3
                 {
                     var s = all[i];
                     if (s == null || s.texture == null) continue;
-                    if (!ReferenceEquals(s.texture, tex)) continue;
+                    if (!ReferenceEquals(s.texture, srcTex)) continue;
                     if (string.IsNullOrEmpty(s.name)) continue;
                     if (!s.name.StartsWith("Onehanded") && !s.name.StartsWith("Swordsman")) continue;
                     if (_erasedRects.Contains(s.GetInstanceID())) continue;
@@ -1089,9 +1208,11 @@ namespace BadNorthBlackSpearman1_3
                     return false;
                 }
 
-                Color32[] px = tex.GetPixels32();
+                Texture2D clone = GetSharedClone(srcTex);
+                if (clone == null) return false;
+                Color32[] px = clone.GetPixels32();
                 if (px == null) return true;
-                int w = tex.width, h = tex.height;
+                int w = clone.width, h = clone.height;
                 int erasedCount = 0, uvTotal = 0;
                 for (int i = 0; i < frames.Count; i++)
                 {
@@ -1169,7 +1290,7 @@ namespace BadNorthBlackSpearman1_3
                     if (erased > 0) { erasedCount++; uvTotal += uvErased + haloErased; _erasedRects.Add(frames[i].GetInstanceID()); }
                     else _erasedRects.Add(frames[i].GetInstanceID());   // 无可擦像素，也标记避免重复扫描
                 }
-                if (erasedCount > 0) { tex.SetPixels32(px); tex.Apply(); }
+                if (erasedCount > 0) { clone.SetPixels32(px); clone.Apply(); }
                 BSLog.Info("[去剑] 预擦除 Onehanded/Swordsman 帧 " + erasedCount + " 张" +
                     (uvTotal > 0 ? "（其中亮采样 " + uvTotal + "px）" : "") + "（消除动画播放时的剑闪回）");
                 return true;

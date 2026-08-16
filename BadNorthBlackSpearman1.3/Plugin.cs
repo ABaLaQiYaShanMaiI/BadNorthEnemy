@@ -45,6 +45,8 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<int> RemoveSwordSprite2Mode;
         public static ConfigEntry<bool> RemoveSwordFrameUVErase;
         public static ConfigEntry<int> RemoveSwordFrameUVHalo;
+        public static ConfigEntry<int> RemoveSwordSprite2GripBand;   // 剑柄改身体色开关（第十八轮默认 2；>0 启用 RecolorGripToBody）
+        public static ConfigEntry<bool> SpearMountToHand;            // 第十四轮：长矛挂到持剑锚点（Weapon 骨=手位）
         public static ConfigEntry<bool> EnableShield;
 
         static VikingReference _blackSpearman;
@@ -52,11 +54,12 @@ namespace BadNorthBlackSpearman1_3
         static readonly HashSet<Agent> _done = new HashSet<Agent>();
 
         // ★ Patch 生效状态（供启动总览与运行期检查）：启动日志里每一行都必须看到 OK
-        static bool _patchLevelNode, _patchRange, _patchGetAttack, _patchAttack, _patchAttackUpdate, _patchPlayAnimation;
+        static bool _patchLevelNode, _patchRange, _patchGetAttack, _patchAttack, _patchAttackUpdate, _patchPlayAnimation, _patchClashBlock;
         static readonly HashSet<Agent> _attackUpdateSeen = new HashSet<Agent>();
         static readonly int AttackAnimHash = Animator.StringToHash("Attack");
         static readonly int ClashAnimHash = Animator.StringToHash("Clash");
         static float _lastAnimLogTime = -999f;
+        static float _lastClashBlockLog = -999f;   // 第十八轮：ClashActivate 拦截日志节流
 
         /// <summary>诊断探针读取：当前已注册的新单位。</summary>
         public static VikingReference BlackSpearman => _blackSpearman;
@@ -101,6 +104,7 @@ namespace BadNorthBlackSpearman1_3
                     " Attack=" + (_patchAttack ? "OK" : "FAIL") +
                     " AttackUpdate=" + (_patchAttackUpdate ? "OK" : "FAIL") +
                     " PlayAnim=" + (_patchPlayAnimation ? "OK" : "FAIL") +
+                    " ClashBlock=" + (_patchClashBlock ? "OK" : "FAIL") +
                     " ← 全 OK 才代表长矛穿刺真正接管；Attack/AttackUpdate 任一 FAIL 则普通攻击仍是原版挥剑+跳扑");
 
                 BSLog.Info($"[BS v1.3] Ready. 新单位: {NewVikingName.Value}");
@@ -108,7 +112,8 @@ namespace BadNorthBlackSpearman1_3
                     $"SpawnChance={SpawnChance.Value} ForceFirstWave={ForceFirstWave.Value} " +
                     $"DMG={DamageMult.Value} KB={KnockbackMult.Value} Stun={StunMult.Value} Scale={ScaleMult.Value} " +
                     $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Shield={EnableShield.Value} " +
-                    $"RemoveSword={RemoveSword.Value} Sprite2Mode={RemoveSwordSprite2Mode.Value} UVErase={RemoveSwordFrameUVErase.Value} UVHalo={RemoveSwordFrameUVHalo.Value}");
+                    $"RemoveSword={RemoveSword.Value} Sprite2Mode={RemoveSwordSprite2Mode.Value} UVErase={RemoveSwordFrameUVErase.Value} UVHalo={RemoveSwordFrameUVHalo.Value} " +
+                    $"GripBand={RemoveSwordSprite2GripBand.Value} SpearMountToHand={SpearMountToHand.Value}");
             }
             catch (Exception e)
             {
@@ -144,17 +149,19 @@ namespace BadNorthBlackSpearman1_3
             EnableWeaponSwap = Config.Bind("Visual", "EnableWeaponSwap", true, "是否移除剑盾并复用我方长矛（混搭武器）。");
             // 去剑：剑烘焙在 OnehandedXXXX 动画帧里的暗红像素（R>70,G<40,B<20），由 SwordRemover 运行时擦除帧像素。
             EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲锋技能。");
-            EnableShield = Config.Bind("Skills", "EnableShield", true,
-                "是否让黑矛兵身上的盾牌具备剑盾兵格挡效果（近战正面格挡、箭矢/飞斧减伤弹开）。\n" +
-                "设为 false 则盾牌仅剩视觉、不参与格挡。");
+            EnableShield = Config.Bind("Skills", "EnableShield", false,
+                "★ 第十七轮：盾牌完全移除开关。true=保留基底剑盾兵盾牌并具备格挡效果（近战正面格挡、箭矢/飞斧减伤弹开）；\n" +
+                "false=完全移除盾牌（效果+美术均不挂载，盾牌子对象禁用）——用户指定黑矛兵不带盾。" +
+                "默认 false。");
             RemoveSword = Config.Bind("Visual", "RemoveSword", false,
                 "是否移除烘焙在身体动画帧（OnehandedXXXX）里的剑（默认关闭：颜色签名需先用日志诊断校准，" +
                 "直接开启会误擦身体暗红衣物导致身体透明）。");
             RemoveSwordSprite2Mode = Config.Bind("Visual", "RemoveSwordSprite2Mode", 2,
                 "sprite2(部件贴图)处理模式——新基底 PartTex_SwordShield 的剑/盾/身体都在部件贴图里（剑盾=亮银亮色、身体=暗色）。\n" +
-                "0=保留原部件贴图、只靠帧擦除去剑（剑盾亮色会经帧 UV 采样残留成白框，第十三轮已弃用）；\n" +
+                "0=保留原部件贴图、只靠帧擦除去剑（剑盾亮色会经帧 UV 采样残留成白框，弃用）；\n" +
                 "1=整块清空部件单元（身体一起消失会变白框，勿用）；\n" +
-                "2=只擦亮银亮色像素（剑刃+2D盾从部件贴图抹掉、暗色身体保留，第十三轮默认——白框/亮剑根治）。");
+                "2=★第十七轮（用户回退）亮银剑身擦透明：单元内亮银(剑刃+2D盾)+bbox内接壤像素擦透明、\n" +
+                "身体其余保留（剑区预期挖洞；剑柄由 RemoveSwordSprite2GripBand 改身体色——第十八轮默认启用）。");
             RemoveSwordFrameUVErase = Config.Bind("Visual", "RemoveSwordFrameUVErase", true,
                 "帧擦除是否启用\"UV 感知亮采样擦除\"（第十二轮白框根治）：任何帧像素的 R/G UV 解码采样到\n" +
                 "亮银部件像素(>150)都一并擦除——运行时 ETC2 压缩让部件贴图局部变亮，身体帧像素采样到亮像素 = 白框，\n" +
@@ -162,6 +169,15 @@ namespace BadNorthBlackSpearman1_3
             RemoveSwordFrameUVHalo = Config.Bind("Visual", "RemoveSwordFrameUVHalo", 0,
                 "UV 亮像素光晕（0~6，部件像素距离）：>0 时把\"解码 UV 落在距亮部件像素 ≤N 部件像素\"的帧像素也擦除，\n" +
                 "用于连持剑的手/护手/剑刃边缘一起删。默认 0（只擦纯亮像素=白框）；若手/剑柄仍可见，逐步加大 1→2→3。");
+            RemoveSwordSprite2GripBand = Config.Bind("Visual", "RemoveSwordSprite2GripBand", 2,
+                "★ 第十八轮：剑柄改身体色（用户指定\"剑柄颜色与黑矛兵身躯颜色一致\"），默认 2。\n" +
+                ">0 时把单元内\"暗灰剑柄(40≤r≤100,|r-b|≤25)+亮灰护手(100<r<150 中性)\"改为\n" +
+                "身体暗色(33,26,24)——着色器以部件贴图为颜色源，改色后胸口剑柄带与躯干同色（不挖洞不白框）。\n" +
+                "设 0 可回退到\"不改剑柄\"。");
+            SpearMountToHand = Config.Bind("Visual", "SpearMountToHand", true,
+                "第十四轮：长矛是否挂到持剑锚点（基底 Weapon 骨=原本持剑的手）。旧固定偏移 (0, 半径*1.4, 半径*0.6)\n" +
+                "让矛根悬在身体正中、与持剑手（偏离身体中心 ~0.2m）错位 → 观感\"持矛手脱离身躯、攻击范围异常大\"。\n" +
+                "true=矛根贴到 Weapon 锚点（手位）；false=旧固定偏移。");
         }
 
         void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
@@ -258,6 +274,10 @@ namespace BadNorthBlackSpearman1_3
 
                 // ② 视觉残留：禁用剑/武器/瞄准骨子对象（盾牌保留——剑盾兵基底的盾牌美术即黑矛兵的盾牌）
                 int removedVisuals = BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.VisualChildNameKeys);
+                // ★ 第十七轮：用户选择完全移除盾牌（效果+美术）→ 剥离模板里也禁用盾牌子对象（双保险，
+                //   VikingReference.Start() 克隆模板后 ApplyToAgent 还会再禁一次）。
+                if (EnableShield != null && !EnableShield.Value)
+                    BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.ShieldChildNameKeys);
 
                 BSLog.Info("[REGISTER] 已生成剥离模板: 删除Arsonist=" + (arsonist != null) +
                     " 删除Shield组件=" + (shieldComp != null) +
@@ -368,6 +388,20 @@ namespace BadNorthBlackSpearman1_3
                     typeof(Plugin).GetMethod("AgentPlayAnimationPrefix",
                         BindingFlags.NonPublic | BindingFlags.Static)));
             }, ref _patchPlayAnimation);
+
+            // 5) ★ 第十八轮：拦截原版挥剑 Clash 动画——黑矛兵每次命中（SpearHit/冲锋 HIT）后
+            //    Agent.DealDamage → Swordsman.ModifyAttack → clash.SetActive → ClashActivate 会播放
+            //    Swordsman_Clash（剑击滑动动画，实测 body=slide:True、clip=Swordsman_Clash），
+            //    叠加在矛刺上 = “人物抽动”的元凶之一。黑矛兵直接跳过（伤害在 DealDamage 内已结算）。
+            TryPatch("Swordsman.ClashActivate（拦截挥剑动画·治抽动）", () =>
+            {
+                var m = typeof(Swordsman).GetMethod("ClashActivate",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(m, null)) throw new Exception("ClashActivate 不存在");
+                harmony.Patch(m, prefix: new HarmonyMethod(
+                    typeof(Plugin).GetMethod("SwordsmanClashActivatePrefix",
+                        BindingFlags.NonPublic | BindingFlags.Static)));
+            }, ref _patchClashBlock);
         }
 
         // ⚠️ 雷区（Unity Mono / mscorlib 2.0）：禁止 System.Action/System.Func（TypeLoadException 使整批
@@ -419,6 +453,29 @@ namespace BadNorthBlackSpearman1_3
                 catch { }
             }
             catch { }
+        }
+
+        // 第十八轮：黑矛兵不播原版 Clash（剑击）动画。命中后 ModifyAttack→ClashActivate 会在矛刺期间
+        // 播放 Swordsman_Clash（身体滑动击打动画，见日志 clip=Swordsman_Clash / body=slide:True）=“人物抽动”。
+        // 只拦动画与音效（ClashActivate 仅播动画+设 animator bool，IL 已验证），clash 状态生命周期照旧。
+        static bool SwordsmanClashActivatePrefix(Swordsman __instance)
+        {
+            try
+            {
+                if (__instance == null || __instance.agent == null) return true;
+                if (!_done.Contains(__instance.agent)) return true;
+                if (Time.time - _lastClashBlockLog > 2f)
+                {
+                    _lastClashBlockLog = Time.time;
+                    BSLog.Info("[动画·拦截] 已拦截黑矛兵 ClashActivate（原版剑击动画，避免刺击时人物抽动）");
+                }
+                return false;   // 跳过原版 ClashActivate
+            }
+            catch (Exception e)
+            {
+                BSLog.Warn("[PATCH] ClashActivate 拦截异常: " + e);
+                return true;
+            }
         }
 
         static void SwordsmanRangePostfix(Swordsman __instance, ref float __result)
@@ -608,6 +665,8 @@ namespace BadNorthBlackSpearman1_3
 
         static void ApplyToAgent(Agent a)
         {
+            // ★ 第十四轮：长矛挂持剑锚点开关（在 Apply 前设置，MountSpear 读取）
+            BlackSpearmanWeapon.MountSpearToHand = SpearMountToHand.Value;
             if (EnableRecolor.Value)
             {
                 var vis = a.gameObject.AddComponent<BlackSpearmanVisual>();
@@ -639,11 +698,16 @@ namespace BadNorthBlackSpearman1_3
             // ★ 去剑组件：无论 RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
             var remover = a.gameObject.AddComponent<SwordRemover>();
             if (remover != null) remover.Setup(a, RemoveSword.Value);
+            // ★ 第十八轮：抽动探针（“人物抽动”诊断）——逐帧监控位置/朝向/动画/长矛/橡皮筋，异常打 [抽动] 日志
+            var probe = a.gameObject.AddComponent<TwitchProbeComponent>();
+            if (probe != null) probe.Setup(a);
             // ★ sprite2(部件贴图)处理模式：0=保留原部件(默认，避免白框) 1=整块清空(旧) 2=只擦亮银剑身
             SwordRemover.Sprite2Mode = RemoveSwordSprite2Mode.Value;
             // ★★ UV 感知亮采样擦除（白框根治）+ 光晕（吃持剑的手）：模式0下按"帧 UV→部件采样"判定白框像素
             SwordRemover.UVErase = RemoveSwordFrameUVErase.Value;
             SwordRemover.UVHalo = RemoveSwordFrameUVHalo.Value;
+            // ★ 第十四轮：部件贴图 flood 擦除半径（吃暗灰剑柄/护手/持剑手，身体暗色是屏障）
+            SwordRemover.GripFloodPx = RemoveSwordSprite2GripBand.Value;
         }
 
         static void RegisterBrainAction(Agent a, IBrainAction action)

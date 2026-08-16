@@ -64,6 +64,8 @@ namespace BadNorthBlackSpearman1_3
         readonly HashSet<Agent> _hitAgents = new HashSet<Agent>();   // 本回合已命中（去重，同目标只结算一次）
         Swordsman _swordsman;          // 近战刺击：读取 Swordsman.attack 状态
         Vector3 _spearBaseLocalPos;    // 长矛挂载基点（突刺偏移在此之上叠加）
+        Transform _handAnchor;         // ★ 第十五轮：持剑手锚点（长矛根每帧跟随，消除"持矛手脱离身躯"）
+        Vector3 _handMountOffset;      // 矛根相对手的固定本地偏移（挂载时确定）
         Vector3 _thrustOffsetLocal;    // ★ 刺击位移（本地空间：攻击开始瞬间按"对准后的身体朝向"锁定一次，整段不再重算）
         float _thrust;                 // 当前突刺量 0~1
         bool _prevAttackActive;        // 近战诊断：上一帧是否在攻击
@@ -115,6 +117,11 @@ namespace BadNorthBlackSpearman1_3
             _spearTransform = _agent.transform.Find("Spear_BlackSpearman");
             _swordsman = GetComponent<Swordsman>();
             if (_spearTransform != null) _spearBaseLocalPos = _spearTransform.localPosition;
+            // ★ 第十五轮：长矛跟随持剑手——记录"矛根相对手"的偏移；手随身体动画移动时矛根每帧同步跟随，
+            //   消除"持矛手脱离身躯"（旧版矛根固定于挂载瞬间，跑步/刺击时手与矛分离、攻击范围观感偏大）。
+            _handAnchor = BlackSpearmanWeapon.FindSwordAnchor(_agent.transform);
+            if (_handAnchor != null)
+                _handMountOffset = _spearBaseLocalPos - _agent.transform.InverseTransformPoint(_handAnchor.position);
             // ★ 去剑诊断：对前 3 只黑矛兵自动 dump 完整层级 + 所有 sprite/sprite2 详情，
             //   用于确认"剑"到底来自独立子对象 / 动画帧 / sprite2 部件贴图。
             if (_spriteDiagCount < 3)
@@ -138,6 +145,12 @@ namespace BadNorthBlackSpearman1_3
             get { return _thrustDirWorld; }
         }
 
+        /// <summary>第十八轮：当前状态机阶段名（Idle/WindUp/Charging/Retreat/Cooldown，供抽动探针诊断输出）。</summary>
+        public string PhaseLabel
+        {
+            get { return _phase.ToString(); }
+        }
+
         bool IBrainAction.MaybeAct(Brain brain)
         {
             // Brain.MaybeAct() 只在 Swordsman.IdleUpdate() 的 hz8 节拍被调用（Swordsman.cs:243），
@@ -149,6 +162,16 @@ namespace BadNorthBlackSpearman1_3
         void Update()
         {
             if (_agent == null) { Destroy(this); return; }
+
+            // ★ 第十九轮（用户指定"黑矛兵在技能释放过程中可被击杀"）：冲锋/后退不再免疫伤害 →
+            //   单位可能冲锋途中死亡 → 立即中止技能状态机（释放 exclusives、恢复速度），避免尸体继续推进 navPos。
+            if (_agent.aliveState != null && !_agent.aliveState.active)
+            {
+                if (_phase != Phase.Idle && _phase != Phase.Cooldown) AbortCharge();
+                return;
+            }
+
+            TrackSpearToHand();   // ★ 第十五轮：矛根每帧跟随持剑手（身体动画驱动），消除"持矛手脱离身躯"
 
             UpdateMeleeThrust();   // ★ 近战刺击表现：Swordsman 攻击时长矛前刺（视觉"刺"）
 
@@ -171,6 +194,51 @@ namespace BadNorthBlackSpearman1_3
                 case Phase.Retreat: DoRetreat(); break;
                 case Phase.Cooldown: UpdateCooldown(); break;
             }
+
+            // ★ 第十七轮：待机/移动时维护长矛姿态——有目标矛尖朝敌，无目标则"举矛"（矛尖朝前上方树立），
+            //   恢复"长矛始终树立"的设计（船上/未判定到敌人前不再水平持矛等待）。
+            UpdateSpearPose();
+        }
+
+        /// <summary>★ 第十七轮：无目标时把长矛抬到举矛姿态；有目标（冲锋目标/大脑目标存活）时矛尖指向目标。
+        /// 攻击/冲锋/后退期间由 UpdateMeleeThrust / DoCharging / DoRetreat 各自驱动，这里不覆盖。</summary>
+        void UpdateSpearPose()
+        {
+            if (_spearTransform == null || _agent == null) return;
+            bool chargeBusy = _phase == Phase.WindUp || _phase == Phase.Charging || _phase == Phase.Retreat;
+            bool meleeBusy = _swordsman != null && _swordsman.attack != null && _swordsman.attack.active;
+            if (chargeBusy || meleeBusy) return;
+
+            Agent t = _targetAgent;
+            if (t == null || t.aliveState == null || !t.aliveState.active)
+                t = GetBrainTarget();
+            if (t != null && t.aliveState != null && t.aliveState.active)
+            {
+                // 有敌人：矛尖指向目标（朝敌迎击）
+                if (SpearVisual.TryGetAimRotation(_agent, t.chestPos, out _spearTargetRot))
+                    _hasSpearTarget = true;
+            }
+            else
+            {
+                // 无敌人：举矛（矛尖朝前上方树立）
+                if (SpearVisual.TryGetRaisedRotation(_agent, out _spearTargetRot))
+                    _hasSpearTarget = true;
+                else
+                    _hasSpearTarget = false;
+            }
+        }
+
+        /// <summary>★ 第十五轮：长矛根部每帧跟随持剑手锚点——用"挂载时矛根相对手的偏移"叠加当前手位，
+        /// 使矛根始终贴在手上（身体动画跑/刺/待机时手在动，矛根同步动），不再悬空/脱离。</summary>
+        void TrackSpearToHand()
+        {
+            if (_spearTransform == null || _handAnchor == null || _agent == null) return;
+            try
+            {
+                Vector3 handLocal = _agent.transform.InverseTransformPoint(_handAnchor.position);
+                _spearBaseLocalPos = handLocal + _handMountOffset;
+            }
+            catch { }
         }
 
         /// <summary>
@@ -362,10 +430,47 @@ namespace BadNorthBlackSpearman1_3
             Vector3 pos = Vector3.Lerp(target.chestPos, _spearTransform.position, 0.3f);
             Attack atk = new Attack(settings, dir.normalized, pos, _swordsman, _agent.squad,
                 "Sfx/English/Spear", ScriptableObjectSingleton<PrefabManager>.instance.hitEffect);
+            // ★ 第十九轮：我方剑盾兵正面格挡（伤害×0.2 + 盾击音效/火花反馈），不再"直接死亡"
+            TryShieldBlockSpear(target, ref atk);
             target.DealDamage(atk);
             BSLog.Info("[近战] SpearHit " + target.name + " dmg=" + (settings.damage).ToString("F1") +
                 " kb=" + settings.knockback.ToString("F1") + " stun=" + settings.stun.ToString("F1") +
                 " mult=" + mult.ToString("F2") + " hitEffect=" + (atk.effect != null));
+        }
+
+        /// <summary>
+        /// 第十九轮：黑矛长矛 vs 我方剑盾兵 —— 正面格挡反馈 + 免伤。
+        /// 原版 Shield.ModifyAttack 对"长矛类"（monoAttacker is Spear）才 ×0.2；黑矛兵刺击的 monoAttacker 是
+        /// Swordsman（近战分支非 parry 不减免伤害）、冲锋/爆发是 SpearChargeComponent（原版完全不识别）
+        /// → 我方剑盾兵被黑矛兵命中时无免伤无反馈、直接死亡。这里在结算前补盾牌判定：
+        /// 盾牌正面（shield.forward 朝向来袭方向）→ 伤害 ×0.2、眩晕 ×0.4（对齐原版长矛格挡），
+        /// 播放盾击音效 + 火花特效；CloseCombatBrain 攻击时原版 Shield.ModifyAttack 会自己播反馈，只做减免避免双音效。
+        /// </summary>
+        bool TryShieldBlockSpear(Agent target, ref Attack atk)
+        {
+            try
+            {
+                if (target == null || atk.damage <= 0f) return false;
+                var shieldComp = target.GetComponent<Shield>();
+                if (shieldComp == null || shieldComp.shield == null) return false;
+                if (!target.shield) return false;   // 盾牌未举起
+                float facing = Vector3.Dot(shieldComp.shield.forward, -atk.direction.normalized);
+                if (facing <= 0.5f) return false;   // 背面/侧面命中不格挡
+                atk.damage *= 0.2f;
+                atk.stun *= 0.4f;
+                atk.soundSuffix = "Shield";
+                // 近战(Swordsman)攻击时原版 Shield.ModifyAttack 会自行播放 Deflect/Block 音效+火花；
+                // 冲锋/爆发（monoAttacker=本组件）原版不识别 → 由这里补足反馈，避免双音效。
+                if (!(atk.monoAttacker is CloseCombatBrain))
+                {
+                    try { IslandGameplayManager.RequestCombatAudio("Sfx/English/SwordShield/Block", target.gameObject); } catch { }
+                    if (shieldComp.shieldSmash != null) atk.effect = shieldComp.shieldSmash;
+                }
+                BSLog.Info("[盾牌] 黑矛长矛被格挡 target=" + target.name + " facing=" + facing.ToString("F2") +
+                    " dmg→" + atk.damage.ToString("F2") + " stun→" + atk.stun.ToString("F2"));
+                return true;
+            }
+            catch (Exception e) { BSLog.Warn("[盾牌] 格挡判定异常: " + e); return false; }
         }
 
 
@@ -489,12 +594,15 @@ namespace BadNorthBlackSpearman1_3
             _phase = Phase.WindUp;
             _phaseTimer = WindUpDuration;
             if (_chargeState != null) _chargeState.SetActive(true);
-            // 原版 PikeChargeComponent.travelling 的取值：movability=0.2, enemyMovability=0.1。
+            // ★ 第十八轮：movability 拉满（原 0.2 抄自原版 travelling，但原版 travelling 的 navPos 是走路速度
+            //   推进；本冲锋 navPos 以 ChargeSpeed=5m/s 推进，movability=0.2 把 transform 追 navPos 的速度限制在
+            //   maxSpeed×0.2≈1m/s → 实测 transform 落后 navPos 0.89~1.31m（日志 lag=），冲锋结束恢复 movability 时
+            //   角色被"弹回"到 navPos = 人物抽动。movability=1 让身体紧贴 navPos，冲锋不再橡皮筋。
             // ⚠️ 不设 maxSpeed=0：FixedUpdateAgent 末尾 speed=maxSpeed（Agent.cs:941），
             //    maxSpeed=0 会让 Body 的踏步动画追不上 navPos → 视觉"橡皮筋延迟"。
-            _agent.movability = 0.2f;
-            _agent.enemyMovability = 0.1f;
-            _agent.maxSpeed = ChargeSpeed;   // 冲锋时提速，让 Body 的移动/动画尽量跟上 navPos 推进（保留跑步动画）
+            _agent.movability = 1f;
+            _agent.enemyMovability = 1f;
+            _agent.maxSpeed = ChargeSpeed;   // 冲锋时提速，让 Body 的移动/动画跟上 navPos 推进（保留跑步动画）
             _agent.walkDir = Vector3.zero;
             RaiseSpear();
             Log("WIND-UP");
@@ -675,6 +783,7 @@ namespace BadNorthBlackSpearman1_3
             // （LateUpdate 后执行会把正确的固定插值盖掉），已删除。
             // ★ 刺击期间旋转已锁定（_thrustRotLocked）：直接 snap 到锁定朝向，不每帧 Slerp 追目标 →
             //   矛保持直线直刺（鬼畜根因之一就是刺击时还向移动中的目标做 Slerp 插值）。
+            // ★ 第十七轮：无目标时（_hasSpearTarget=false 或目标已死）抬回"举矛"姿态——长矛始终树立。
             if (_spearTransform == null) return;
             if (_thrustRotLocked && _hasSpearTarget)
             {
@@ -683,6 +792,12 @@ namespace BadNorthBlackSpearman1_3
             else if (_hasSpearTarget)
             {
                 _spearTransform.rotation = Quaternion.Slerp(_spearTransform.rotation, _spearTargetRot, Time.deltaTime * 12f);
+            }
+            else
+            {
+                Quaternion idleRot;
+                if (SpearVisual.TryGetRaisedRotation(_agent, out idleRot))
+                    _spearTransform.rotation = Quaternion.Slerp(_spearTransform.rotation, idleRot, Time.deltaTime * 12f);
             }
         }
 
@@ -733,7 +848,10 @@ namespace BadNorthBlackSpearman1_3
                     Vector3 d = _chargeDirection;   // 沿锁定冲锋方向撞飞（比"朝敌人当前位置"更稳定）
                     d.y = 0f;
                     if (d.sqrMagnitude < 0.001f) d = _agent.transform.forward;
-                    a.DealDamage(new Attack(s, d, a.transform.position, this, _squad, "Sfx/English/Spear"));
+                    // ★ 第十九轮：冲锋命中同样走盾牌格挡（我方剑盾兵正面免伤 + 盾击反馈）
+                    Attack atk = new Attack(s, d, a.transform.position, this, _squad, "Sfx/English/Spear");
+                    TryShieldBlockSpear(a, ref atk);
+                    a.DealDamage(atk);
                     _hitCount++;
                     hitAny = true;
                     // 原版 JumpAttack 同款：命中时轻微相机震动增强冲击感
@@ -767,8 +885,10 @@ namespace BadNorthBlackSpearman1_3
                     d.y = 0f;
                     if (d.sqrMagnitude < 0.001f) d = _chargeDirection;
                     Vector3 pos2 = Vector3.MoveTowards(a.transform.position, endPos, a.radius * 0.7f) + a.chestOffset;
-                    a.DealDamage(new Attack(new AttackSettings { damage = dmg, knockback = StabKnockback + 2f, launchImpulse = StabLaunch, stun = StabStun },
-                        d, pos2, this, _squad, "Sfx/English/Spear"));
+                    Attack atk2 = new Attack(new AttackSettings { damage = dmg, knockback = StabKnockback + 2f, launchImpulse = StabLaunch, stun = StabStun },
+                        d, pos2, this, _squad, "Sfx/English/Spear");
+                    TryShieldBlockSpear(a, ref atk2);   // ★ 第十九轮：抵达爆发同样走盾牌格挡
+                    a.DealDamage(atk2);
                     _hitCount++;
                     n++;
                     try { Singleton<CameraShaker>.instance.ShakeOnce(0.03f); } catch { }
@@ -780,6 +900,22 @@ namespace BadNorthBlackSpearman1_3
 
         void EndCharge()
         {
+            // ★ 第十八轮：安全网——冲锋结束 navPos 若与视觉 transform 错位（movability 修复前差 1m+），先重新锚定到
+            //   transform，避免恢复正常导航时角色"弹跳回位"（人物抽动）。movability 修复后此分支应罕见。
+            try
+            {
+                if (_agent.navPos.valid)
+                {
+                    float gap = Vector3.Distance(_agent.navPos.wPos, _agent.transform.position);
+                    if (gap > 0.3f)
+                    {
+                        BSLog.Info("[Charge] 收尾对齐: navPos-transform 差 " + gap.ToString("F2") +
+                            "m，重新锚定 navPos 到 transform 防回弹");
+                        _agent.navPos = new NavPos(_agent.navPos.navigationMesh, _agent.transform.position, true, 1f);
+                    }
+                }
+            }
+            catch { }
             float displacement = Vector3.Distance(_chargeStartPos, _agent.navPos.wPos);
             BSLog.Info("[Charge] 冲刺+后退结束 位移=" + displacement.ToString("F2") + " 命中=" + _hitCount +
                 " 终点=" + _agent.navPos.wPos.ToString("F2"));
@@ -800,11 +936,30 @@ namespace BadNorthBlackSpearman1_3
             if (_phaseTimer <= 0f) { _phase = Phase.Idle; _agent.maxSpeed = _originalSpeed; }
         }
 
-        /// <summary>借鉴原版 JumpAttack：冲锋/后退（位移冲击）期间免疫攻击。</summary>
+        /// <summary>第十九轮：单位死亡/失效时中止技能状态机（释放 exclusives、恢复速度/movability），回到 Idle。</summary>
+        void AbortCharge()
+        {
+            if (_chargeState != null) _chargeState.SetActive(false);
+            if (_agent != null)
+            {
+                _agent.maxSpeed = _originalSpeed;
+                _agent.movability = 1f;
+                _agent.enemyMovability = 1f;
+                _agent.walkDir = Vector3.zero;
+            }
+            _phase = Phase.Idle;
+            _phaseTimer = 0f;
+        }
+
+        /// <summary>
+        /// 第十九轮（用户指定）：黑矛兵在技能释放（举矛/冲锋/后退）过程中**可被击杀**（平衡性）。
+        /// 不再设置 attack.ignore 免疫——技能期间照常吃伤害（击退/眩晕/死亡正常结算，冲锋途中可能被射杀）。
+        /// 保留 IAttackResponder 注册（attackResponders 列表），若后续想回调"冲锋霸体"在这里设
+        /// `if (_phase == Phase.Charging) attack.ignore = true;` 即可。
+        /// </summary>
         void IAttackResponder.ModifyAttack(ref Attack attack)
         {
-            if (_phase == Phase.Charging || _phase == Phase.Retreat)
-                attack.ignore = true;
+            // 空实现：技能期间可被击杀（第十九轮起不再免疫）。
         }
 
         void OnDestroy()

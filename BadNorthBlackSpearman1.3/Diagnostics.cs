@@ -26,6 +26,7 @@ namespace BadNorthBlackSpearman1_3
                     DumpFull();
                     DumpBlackSpearmanRender();
                     DumpBlackSpearmanShields();
+                    DumpPrefabAnalysis();
                     BSLog.Raw("==================== 手动完整诊断结束 ====================\n");
                 }
                 if (Input.GetKeyDown(KeyCode.F9))
@@ -125,6 +126,29 @@ namespace BadNorthBlackSpearman1_3
                             " verts=" + verts + " isVisible=" + mr.isVisible +
                             " block._MainTex=" + mtName + " block._PartTex=" + ptName);
                     }
+
+                    // ★ 第十四轮：持矛手对齐诊断——矛根 vs Weapon 锚点（持剑手）间距，量化"手脱离身躯"
+                    try
+                    {
+                        Transform spearT = a.transform.Find("Spear_BlackSpearman");
+                        Transform anchor = BlackSpearmanWeapon.FindSwordAnchor(a.transform);
+                        string spearInfo = "无长矛";
+                        if (spearT != null)
+                            spearInfo = "矛根local=" + spearT.localPosition.ToString("F3") +
+                                " 世界=" + spearT.position.ToString("F2") +
+                                " active=" + spearT.gameObject.activeSelf;
+                        string anchorInfo = "无Weapon锚点";
+                        if (anchor != null)
+                            anchorInfo = "锚点local=" + anchor.localPosition.ToString("F3") +
+                                " 世界=" + anchor.position.ToString("F2") +
+                                " activeSelf=" + anchor.gameObject.activeSelf;
+                        string gap = "n/a";
+                        if (spearT != null && anchor != null)
+                            gap = Vector3.Distance(spearT.position, anchor.position).ToString("F3") +
+                                "m ← 0=矛根正好在持剑手上";
+                        BSLog.Raw("  持矛手对齐: " + spearInfo + " | " + anchorInfo + " | 矛根↔手距离=" + gap);
+                    }
+                    catch (Exception e) { BSLog.Warn("[渲染诊断] 持矛手对齐异常: " + e); }
                 }
                 BSLog.Raw("\n[渲染诊断] 共 " + n + " 个黑矛兵\n");
             }
@@ -399,6 +423,132 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[测量] 扫描 PikeChargeAbility 失败: " + e); }
 
             BSLog.Raw("========== 测量结束 ==========\n");
+        }
+
+        /// <summary>第十八轮：预制件分析（F8 触发）——注册表 VikingReference + 模板 + 运行实例的完整结构，
+        /// 回答“黑矛兵到底由哪些预制件组成、哪些动画/状态可能引发抽动”。</summary>
+        void DumpPrefabAnalysis()
+        {
+            try
+            {
+                var vr = Plugin.BlackSpearman;
+                if (vr == null) { BSLog.Raw("\n[预制件分析] BlackSpearman 未注册"); return; }
+                BSLog.Raw("\n[预制件分析] === VikingReference: type=" + vr.type + " bounty=" + vr.bounty);
+                if (vr.agent != null)
+                {
+                    BSLog.Raw("[预制件分析] --- agent(运行实例)=" + vr.agent.name +
+                        " pos=" + vr.agent.transform.position.ToString("F2") + " ---");
+                    DumpHierarchy(vr.agent.transform, 0, 6);
+                    DumpAgentPrefabDetail(vr.agent, "agent(实例)");
+                }
+                var f = typeof(VikingReference).GetField("viking",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic);
+                var viking = !ReferenceEquals(f, null) ? f.GetValue(vr) as VikingAgent : null;
+                if (viking != null)
+                {
+                    BSLog.Raw("[预制件分析] --- viking(模板)=" + viking.name + " ---");
+                    DumpHierarchy(viking.transform, 0, 6);
+                    var vAgent = viking.GetComponent<Agent>();
+                    if (vAgent != null) DumpAgentPrefabDetail(vAgent, "viking(模板)");
+                }
+                BSLog.Raw("[预制件分析] === 结束 ===\n");
+            }
+            catch (Exception e) { BSLog.Warn("[预制件分析] 失败: " + e); }
+        }
+
+        static void DumpHierarchy(Transform t, int depth, int maxDepth)
+        {
+            try
+            {
+                if (t == null || depth > maxDepth) return;
+                string indent = new string(' ', depth * 2);
+                var sb = new System.Text.StringBuilder(indent + t.name + "  [");
+                bool first = true;
+                foreach (var c in t.GetComponents<Component>())
+                {
+                    if (c == null) continue;
+                    if (!first) sb.Append(", ");
+                    first = false;
+                    sb.Append(c.GetType().Name);
+                    var sr = c as SpriteRenderer;
+                    if (sr != null) sb.Append(" sprite=" + (sr.sprite != null ? sr.sprite.name : "null"));
+                    var mr = c as MeshRenderer;
+                    if (mr != null) sb.Append(" on=" + mr.enabled + " vis=" + mr.isVisible);
+                }
+                sb.Append("]  active=" + t.gameObject.activeSelf +
+                    " localPos=" + t.localPosition.ToString("F3") +
+                    " localRot=" + t.localRotation.eulerAngles.ToString("F1"));
+                BSLog.Raw(sb.ToString());
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    try { DumpHierarchy(t.GetChild(i), depth + 1, maxDepth); }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        void DumpAgentPrefabDetail(Agent a, string label)
+        {
+            try
+            {
+                BSLog.Raw("[预制件分析] " + label + ": radius=" + a.radius.ToString("F2") +
+                    " scale=" + a.scale.ToString("F2") + " maxSpeed=" + a.maxSpeed.ToString("F2") +
+                    " movability=" + a.movability.ToString("F2") + " dangerous=" + a.dangerous +
+                    " moveAnimate=" + a.moveAnimate +
+                    " navValid=" + a.navPos.valid + " onMain=" + (a.navPos.valid ? a.navPos.onMain.ToString() : "-"));
+                if (a.animator != null)
+                {
+                    var ctrl = a.animator.runtimeAnimatorController;
+                    BSLog.Raw("[预制件分析]   Animator: controller=" + (ctrl != null ? ctrl.name : "null") +
+                        " animSpeed=" + a.animator.speed.ToString("F2") +
+                        " updateMode=" + a.animator.updateMode + " culling=" + a.animator.cullingMode);
+                    try
+                    {
+                        var clips = ctrl != null ? ctrl.animationClips : null;
+                        int clipN = clips != null ? clips.Length : -1;
+                        BSLog.Raw("[预制件分析]   动画片段数=" + clipN);
+                        var ci = a.animator.GetCurrentAnimatorClipInfo(0);
+                        if (ci != null && ci.Length > 0 && ci[0].clip != null)
+                            BSLog.Raw("[预制件分析]   当前动画=" + ci[0].clip.name);
+                    }
+                    catch { }
+                }
+                var sa = a.GetComponentInChildren<SpriteAnimator>(true);
+                if (sa != null)
+                    BSLog.Raw("[预制件分析]   SpriteAnimator: sprite=" + (sa.sprite != null ? sa.sprite.name : "null") +
+                        " sprite2=" + (sa.sprite2 != null ? sa.sprite2.name + " rect=" + sa.sprite2.textureRect.ToString() : "null") +
+                        " color=" + sa.color.ToString("F3"));
+                Transform anchor = BlackSpearmanWeapon.FindSwordAnchor(a.transform);
+                if (anchor != null)
+                    BSLog.Raw("[预制件分析]   持剑锚点(Weapon骨)=" + anchor.name +
+                        " local=" + anchor.localPosition.ToString("F3") + " active=" + anchor.gameObject.activeSelf +
+                        " 路径=" + TransformPath(anchor));
+                Transform spear = a.transform.Find("Spear_BlackSpearman");
+                if (spear != null)
+                    BSLog.Raw("[预制件分析]   长矛=" + spear.name + " active=" + spear.gameObject.activeSelf +
+                        " localPos=" + spear.localPosition.ToString("F3") +
+                        " worldRot=" + spear.rotation.eulerAngles.ToString("F1"));
+            }
+            catch (Exception e) { BSLog.Warn("[预制件分析] " + label + " 细节失败: " + e); }
+        }
+
+        static string TransformPath(Transform t)
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                Transform cur = t;
+                while (cur != null)
+                {
+                    if (sb.Length > 0) sb.Insert(0, "/");
+                    sb.Insert(0, cur.name);
+                    cur = cur.parent;
+                }
+                return sb.ToString();
+            }
+            catch { return "?"; }
         }
     }
 }

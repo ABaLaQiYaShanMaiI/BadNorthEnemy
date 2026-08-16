@@ -110,14 +110,15 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
-        /// <summary>移盾遮蔽剑柄：每帧把盾牌贴到持剑锚点（LateUpdate 在动画之后，保证覆盖 Animator 驱动）。</summary>
+        /// <summary>移盾遮蔽剑柄：每帧把盾牌贴到持剑锚点（LateUpdate 在动画之后，保证覆盖 Animator 驱动）。
+        /// 第十五轮：偏移与 RepositionShieldToSwordHand 对齐（前 0.05×r、抬 0.02×r），盾心落在手上。</summary>
         void LateUpdate()
         {
             try
             {
                 if (swordAnchor == null || shield == null || agent == null) return;
                 shield.position = swordAnchor.position +
-                    agent.transform.forward * (agent.radius * 0.25f) + Vector3.up * (agent.radius * 0.1f);
+                    agent.transform.forward * (agent.radius * 0.05f) + Vector3.up * (agent.radius * 0.02f);
                 shield.rotation = Quaternion.LookRotation(agent.transform.forward, Vector3.up);
             }
             catch { }

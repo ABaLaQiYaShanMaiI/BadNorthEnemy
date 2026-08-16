@@ -124,9 +124,9 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 | Spawn | `ForceFirstWave` | false | 强制第一波出现（便于测试） |
 | Combat | `DamageMult` / `KnockbackMult` / `StunMult` / `ScaleMult` | 1.6 / 2.5 / 1.2 / 1.05 | 数值倍率 |
 | Visual | `EnableRecolor` | true | 黑色外观 |
-| Visual | `EnableWeaponSwap` | true | 移除剑视觉 + 复用我方长矛（保留基底盾牌） |
+| Visual | `EnableWeaponSwap` | true | 移除剑视觉 + 复用我方长矛 | 
 | Skills | `EnableCharge` | true | 冲锋 |
-| Skills | `EnableShield` | true | 盾牌 = 剑盾兵真实格挡（近战正面归零、箭矢×0.05 弹开、飞斧归零、长矛×0.2）；`false` = 仅视觉 |
+| Skills | `EnableShield` | false | ★第十七轮：`false`=**完全移除盾牌**（效果+美术均不挂载，默认）；`true`=保留基底剑盾兵盾牌并具备格挡效果（近战正面归零、箭矢×0.05 弹开、飞斧归零、长矛×0.2） |
 
 ---
 
@@ -323,6 +323,80 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
   - 诊断：一次性 `身体网格详细`（每个身体渲染器的 mesh 顶点数 / isVisible / `_MainTex` **实例 ID**——终于能区分去剑克隆 vs 原始图集）；F8 渲染诊断补顶点数 + `←去剑克隆✓`（实例 ID 比对，`SwordRemover.IsSharedClone`）。
 - **构建**：0 警告 0 错误，Debug **110080B** 已部署（SHA `C14ED2F4…`）；cfg 已预写 `RemoveSwordSprite2Mode=2`。
 
+**🔧 十四次进展（2026-08-16，白框根治✅ 后实测：剩剑柄 + 持矛手脱离身躯 → flood 擦剑柄 + 矛挂手位）**：
+- **实测（用户）**：白框已消失 ✅；剩余两问题——① 剑柄依旧可见；② 黑矛兵持长矛的手脱离身躯（观感差 + 攻击范围显得异常大）。
+- **问题①根因（剑柄残留，日志三证据）**：
+  1. `[去剑] sprite2 亮银剑身擦除(剑盾基底) 擦除=833/6204 bbox=(133,0)-(191,105) 擦bbox=False`——模式2只擦"纯亮银"(r,g,b>150) 833px（剑刃+2D盾已抹），但 **bbox 接壤擦被安全阀拒绝**：剑刃与 2D 盾亮像素合流，bboxArea=59×106=6254 > 不透明×45%=2792 → `擦bbox=False` → 剑柄/护手区从未被擦；
+  2. `[去剑·PartTex探针] cand0 剑柄→Part=(54,50,49,255)` / `(173,158,148,26)`——**剑柄在运行时 ETC2 部件贴图是暗灰/半透明、不是亮银** → 纯亮阈值永远漏；
+  3. 帧级 UVHalo 的部件掩码只标记"亮>150"像素 → 暗灰剑柄不在掩码内 → 帧擦也够不着。
+  → 结论：剑柄只能在部件贴图层用"从亮银区向外 flood"吃掉（身体暗色≈(33,26,24) 是天然屏障），或靠盾牌遮挡。
+- **问题②根因（持矛手脱离身躯）**：长矛 `MountSpear` 用固定偏移 `(0, radius×1.4, radius×0.6)`——矛根在**身体正中**；基底剑盾兵"持剑的手"在 **Weapon 锚点（距身 ~0.20m、偏离身体中心）** → 矛根与手错位 → "手没握着矛、矛悬在身前"；矛长 0.6m 再叠加错位 → 有效攻击范围显得异常大。
+- **修复（日志 + 预制件）**：
+  - **`RemoveSwordSprite2GripBand`（新 cfg，默认 2）**：`GetBrightErasedSprite2` 擦完亮银后，从擦除的亮银像素出发 **BFS flood 扩散擦除"相连的非身体暗色"像素**（剑柄/护手/持剑手；身体暗色是屏障不被吃；flood≤300px 且面积≤1200 双保险，超限放弃防误擦）。日志 `剑柄flood=N（采样首/中=(r,g,b,a)）`。
+  - **`SpearMountToHand`（新 cfg，默认 true）**：矛根改挂 **Weapon 锚点（持剑手位）**，`localPos=InverseTransformPoint(anchor)+(0, radius*0.1, radius*0.15)`，矛尖朝前；找不到锚点退回旧偏移。日志 `[WEAPON] 长矛握持位: 锚点=… → 矛根localPos=…`。
+  - **盾牌前移 0.25→0.12**（`RepositionShieldToSwordHand`）：盾面贴住持剑手、真正盖剑柄；新增 `覆盖持剑手=是✓/否✗` 日志（Weapon 锚点是否落在盾 Renderer bounds 内）。
+  - **诊断**：`[去剑] 剑柄残留诊断`（bbox 内剩余 暗灰剑柄/亮灰护手/暖色皮肤/亮银残 计数）+ `剑柄残留·定位图`（g=暗灰 G=亮灰 s=皮肤 b=身体，取暗灰最多一行±8 行）；F8 渲染诊断新增 `持矛手对齐: 矛根…|锚点…|矛根↔手距离=…`（0=矛根正好在手上）。
+- **构建/部署**：0 警告 0 错误，Debug **116224B**，SHA `DCA42BCE…`；cfg 已预写 `RemoveSwordSprite2GripBand=2 / SpearMountToHand=true`。
+- **待实测**：① 剑柄是否消失（日志 `剑柄flood=N>0` + `剑柄残留诊断 暗灰剑柄≈0`；若仍在 → `RemoveSwordSprite2GripBand` 3→4 加大，或看盾牌 `覆盖持剑手`）；② 身体若被误擦出洞 → `RemoveSwordSprite2GripBand=0` 关闭改盾牌遮挡；③ 持矛手与矛根对齐（F8 `矛根↔手距离`≈0、游戏内手握着矛）；④ 矛挂手位后攻击范围观感恢复。
+
+**🔧 十五次进展（2026-08-16，问题未解决复盘 → flood 换"剑柄改色" + 矛跟手 + 盾贴手）**：
+- **实测（用户）**：问题未能解决——日志铁证 `剑柄flood=0`（flood 从头到尾一个像素都没吃到）且 `暗灰剑柄=1893` 仍残留；`覆盖持剑手=否✗`（盾还是没盖住手）。
+- **flood 为什么 0 命中（离线分析 `analyze_uv.py` / `analyze_grip_frames.py` 定案）**：
+  - 剑是**竖握**的：剑刃(亮银)在上、**剑柄(暗灰 54,50,49)横在胸口**（帧 rows17-26、部件区 rows47-88），两者之间隔着**身体暗色带** → BFS 从擦除的亮银种子出发，第一步就被身体暗色屏障拦下 → `flood=0`；
+  - 且"擦除(透明)"会把胸口剑柄带**挖成洞**（背后地面透出）或按模式1那样**变白框**——剑柄带不是"浮空残留"而是**画在身体上**的带子，不能擦、只能改色。
+- **修复①（`RemoveSwordSprite2GripBand` 语义改为"剑柄改身体色"，默认仍 2）**：
+  - 离线渲染模拟定案（`validate_grip_recolor.py`，用运行时 ETC2 贴图）：渲染=帧 R/G 编码 UV 采样部件贴图×黑染色；**把单元内暗灰(40≤r≤100,|r-b|≤25)+亮灰护手(100<r<150 中性)直接改为身体暗色(33,26,24)、保留 alpha** → 帧渲染 `剑柄色像素 1402 → 0`、身体轮廓完好（1536 身体色，洞=187 剑刃洞不变，无新增洞/白框）。
+  - `GetBrightErasedSprite2` 擦完亮银后新增 `RecolorGripToBody` 改色一遍（替代 `GripFloodErase`）；日志 `剑柄flood=` → `剑柄改色=Npx`；残留诊断预期 `暗灰剑柄≈0`（改色后归入"身体暗色"类）。
+- **修复②（矛根每帧跟手）**：`SpearChargeComponent` 新增 `TrackSpearToHand()`——Setup 记录"矛根相对 Weapon 锚点的偏移"，每帧 `_spearBaseLocalPos=当前手位+偏移`，突刺/冲锋/待机时矛根始终贴在手上（旧版矛根固定于挂载瞬间，手随身体动画一动就脱开）。`_handAnchor=null` 时退回旧行为。
+- **修复③（盾真正贴手）**：`RepositionShieldToSwordHand` 前移 0.12→**0.05**、抬高 0.1→**0.02**、放大 1.2→**1.5**（盾心落在 Weapon 锚点上）；`BlackSpearmanShield.LateUpdate` 偏移同步（旧 0.25/0.1 与挂载 0.12 不一致，每帧被 LateUpdate 覆盖成 0.25 才是覆盖失败的元凶）→ `覆盖持剑手=是✓` 应达成。
+- **构建/部署**：0 警告 0 错误，Debug **115200B**，SHA `405C2D2D…`；已部署 plugins 并哈希验证 MATCH；cfg 未新增（复用 `RemoveSwordSprite2GripBand`，>0 启用改色）。
+- **待实测**：① 游戏内剑柄带是否消失（胸口不再有暗灰横带）、身体是否完整无洞；② 日志 `剑柄改色=Npx`（N 应为几千量级）+ `剑柄残留诊断 暗灰剑柄≈0` + `亮银残=0`；③ 跑步/刺击时矛根是否始终贴手（F8 `矛根↔手距离`≈0 且移动中不变）；④ 盾牌 `覆盖持剑手=是✓`；⑤ 攻击范围观感恢复正常。
+
+**🔧 十六次进展（2026-08-16，核对 BadNorthDatabase 定案 → 走路线A"整剑改身体色"零洞方案）**：
+- **数据库核对（回答\"有没有天然剑体相分离的单位\"）**：
+  - ✅ **玩家方长矛兵（Pikeman）天然武器体分离**：反编译 `Spear.cs` 证据（数据库 09.01 §14.2-14.4）——矛是**独立 `BatchedSprite spearSprite`**（原生精灵 `Spear_0/1/2.png`），身体 SpriteAnimator 无武器；游戏官方做长矛兵就是这个架构。
+  - ✅ **帧是单位无关的**：敌人 Swordsman 帧 × 我方无剑单元 `PartTex_English`(0,0) 解码渲染**完全自洽**（头盔+圆盾+身体+腿，无剑）→ 换\"绘画\"即可换外观，逻辑零改动（敌我渲染管线相同：SpriteAnimator/sprite2/AgentTextureBaker/Unlit/ColoredCharacter）。
+  - 决策：用户选**路线A**——保留维京剑盾兵身体（含维京盔/皮甲/2D盾观感），把部件单元里的**整把剑**（亮银刃+暗灰柄+亮灰护手）改身体色，不换单元不换 rect。
+- **离线验证（`validate_routeA_recolor.py`，运行时 ETC2 贴图）**：路线A（亮银+剑柄+护手全改身体暗色、保留 alpha）→ `剑柄/护手色=0`、`亮银残=0`（无白框）、**洞=原始单元基准（158/205，零新增——原\"擦透明\"路径新增 29/65 洞）**、身体色像素最多（1431/1258）。
+- **代码改动（SwordRemover.cs + Plugin.cs）**：
+  - `GetBrightErasedSprite2`（模式2）第二遍：**亮银擦透明 → 改身体暗色(33,26,24)、保留 alpha**（bbox 内接壤像素同样改色）；日志 `擦除=` → `亮银改色=`，注释\"零洞\"。
+  - 安全阀 `Sprite2SafetyRatio` 0.35→**0.60**：改身体色无害（ETC2 增亮身体像素改回身体色=无害），仅留结构异常兜底。
+  - `LateUpdate` 新增**路线A分支**：部件已改色（`_sa.sprite2==改色克隆`）时**跳过帧擦透明**（帧像素保持不透明、采样改色部件即渲染成身体色，避免帧级挖洞），材质块仍每帧重写 `_PartTex=改色克隆`；烘焙重设 sprite2 自动退回帧擦除兜底。日志 `[去剑] 路线A生效…`。
+  - Plugin.cfg `RemoveSwordSprite2Mode` 模式2描述更新为\"整剑改身体色、零洞无白框\"。
+- **构建/部署**：0 警告 0 错误，Debug **115712B**，SHA `D00443D3…`；已部署 plugins 并哈希验证 MATCH。
+- **待实测（重点）**：① 胸口剑柄带彻底消失、**身体无洞**（这是与第十五轮的最大差异——旧擦透明有洞，现改色零洞）；② 无白框（亮银残=0）；③ 维京观感保留（角盔/皮甲/2D盾改没、3D盾在）；④ 矛根贴手 + 盾盖手（沿用十五轮修复）。
+
+**🔧 十七次进展（2026-08-16，用户实测反馈 → 回退"擦透明"、移除盾牌、修复抽动与举矛）**：
+- **用户实测反馈**：① 路线A 的"改身体色"把剑刃改成了**黑色剑影**（亮银→身体暗色后剑刃轮廓浮在身体旁），且剑柄未变色（暖色持剑手/剑柄带仍在）→ 用户明确回退："用之前的方法擦除掉剑刃，没想办法改变剑柄颜色"；② 盾牌效果+美术可删除；③ 黑矛兵存在抽动（日志证据：冲锋中 `spearWorldRot=(340.4,159.7,109.5)` 矛 180° 翻转）；④ 船上/未判定敌人前长矛未树立（一直水平持矛等待，违背"举矛"设计）；⑤ 问 `.bak_r15` 文件是什么。
+- **改动①（回退"擦透明"）**：`GetBrightErasedSprite2`（模式2）第二遍从"改身体暗色、保留 alpha"**改回"擦透明"**（亮银 + bbox 内接壤像素 → `(0,0,0,0)`），`Sprite2SafetyRatio` 0.60→**0.35**（擦透明会挖洞，需收紧防 ETC2 增亮身体被误擦）；`LateUpdate` **删除路线A跳过帧擦分支**，帧级擦透明恢复（红暗+UV亮采样照常）；`RemoveSwordSprite2GripBand` 默认 **0**（不改剑柄颜色，用户指定）。预期：剑区挖洞（离线验证新增 29/65 洞，可接受）、无黑色剑影、无白框。
+- **改动②（移除盾牌）**：`EnableShield` 默认 **false**，语义改为"**完全移除盾牌**"——剥离模板与运行时 `RemoveSword` 都按 `ShieldChildNameKeys` 禁用盾牌子对象，`MountShield` 直接 return（不挂 `BlackSpearmanShield`、不移盾遮蔽）；`true` 仍可回退到"保留盾牌美术+格挡"。
+- **改动③（修抽动=矛翻转）**：`SpearVisual.TryGetAimRotation` 目标在**前半球之外**时混合回朝前（不再 180° 翻转），roll 改用虚拟 right=`cross(up, dir)`（恒 ⊥ dir、不随身体自旋退化）——冲锋/后退/刺击全链路共用；盾牌移除后其每帧 snap 也消失。
+- **改动④（长矛始终树立）**：新增 `SpearVisual.TryGetRaisedRotation`（矛尖朝前上方 ~55°）+ `SpearChargeComponent.UpdateSpearPose()`：待机/移动/冷却时**无存活目标 → 举矛**、有目标 → 矛尖朝敌；`LateUpdate` 无目标时 Slerp 抬回举矛姿态。船上/未判定敌人前长矛保持树立（恢复设计）。
+- **改动⑤（.bak_r15 说明）**：`BadNorthBlackSpearman1.3.dll.bak_r15` 是**第十六轮部署时对第十五轮 DLL 的手动备份**（116224B，第十五轮行为：剑柄改身体色+盾牌保留）。它不是 mod 的一部分，BepInEx 不会加载它（只加载 `.dll`），**可随时删除**；本轮部署又生成了 `.bak_r16`（第十六轮 115712B），同属回滚备份。
+- **构建/部署**：0 警告 0 错误，Debug **116736B**，SHA `7D041156…`；已部署 plugins 并哈希验证 MATCH；cfg 已更新（`EnableShield=false`、`RemoveSwordSprite2GripBand=0`）。
+- **待实测**：① 剑刃被擦除（无黑剑影、无白框，剑区有洞属预期）；② 盾牌完全消失（无美术无格挡）；③ 抽动是否消除（尤其冲锋中矛不再翻转）；④ 船上/无目标时长矛树立（举矛姿态）；⑤ 维京观感（角盔/皮甲/2D盾）保留。
+
+**🔧 十八次进展（2026-08-16，用户新指令 → 剑柄改身体色、抽动双管修复+诊断、.bak 说明确认）**：
+- **用户指令**：① 剑柄需改色，和黑矛兵的身躯颜色一致；② 黑矛兵人物存在抽动、找不到原因 → 安排日志和预制件分析；③ mod 文件夹中的 `.bak_r15`/`.bak_r16` 后缀文件。
+- **改动①（剑柄改身体色，SwordRemover.cs + Plugin.cs + cfg）**：`RemoveSwordSprite2GripBand` 默认 **0→2**（`RecolorGripToBody` 恢复启用）：把部件贴图单元内"暗灰剑柄(40≤r≤100,|r-b|≤25)+亮灰护手(100<r<150 中性)"改为身体暗色 (33,26,24)、保留 alpha（不挖洞不白框）。预期日志 `剑柄改色≈1900px`、残留诊断 `暗灰剑柄≈0`。刃部仍按第十七轮"擦透明"（剑区挖洞可接受），不恢复"改刃色"的黑色剑影。
+- **改动②（抽动修复①·拦截原版挥剑 Clash 动画，Plugin.cs）**：新增 Harmony 前缀 `SwordsmanClashActivatePrefix`。**根因**：黑矛兵每次命中（SpearHit/冲锋 HIT）后 `Agent.DealDamage → Swordsman.ModifyAttack → clash.SetActive → ClashActivate` 会播放 `Swordsman_Clash`（剑击滑动动画，日志 `clip=Swordsman_Clash / body=slide:True`），叠加在矛刺上 = "人物抽动"。黑矛兵直接跳过 `ClashActivate`（IL 验证其仅播动画+设 animator bool，伤害在 DealDamage 内已结算）。启动日志新增 `ClashBlock=OK`。
+- **改动③（抽动修复②·冲锋橡皮筋，SpearChargeComponent.cs）**：WindUp 时 `movability 0.2/0.1 → 1/1`。**根因**：0.2 抄自原版 travelling，但原版 navPos 是走路速度推进，本冲锋 navPos 以 5m/s 推进 → movability=0.2 把 transform 追 navPos 限到 ~1m/s，实测 `lag=0.89~1.31m`；冲锋结束恢复 movability 时角色被"弹回"到 navPos = 抽动。另在 `EndCharge` 加安全网：navPos 与 transform 差 >0.3m 时把 navPos 重锚定到 transform 防回弹（日志 `[Charge] 收尾对齐`）。
+- **改动④（抽动诊断，TwitchProbe.cs + Diagnostics.cs）**：新增 `TwitchProbeComponent`（每个黑矛兵挂载）：逐帧监控 ①位置跳变 >0.35m/帧 ②朝向急转 >40°/帧 ③动画倒退（同 clip norm 回落 >0.3）④橡皮筋 navLag 差 >0.35m/帧 ⑤长矛本地 yaw 翻转 >90°/帧 ⑥精灵帧闪动（1s 内 ≥3 帧名且变化 ≥4 次），异常打一行 `[抽动]` 日志（含 pos/yaw/navLag/clip/norm/animSpeed/sprite/body/phase/矛姿态），每实例 0.5s 节流。F8 新增 `DumpPrefabAnalysis()`：VikingReference + 模板(viking) + 运行实例(agent) 的完整层级/组件/Animator 控制器/动画片段数/当前动画/持剑锚点路径/长矛姿态。
+- **改动⑤（.bak 说明确认）**：plugins 目录现有 `.bak_r15`（116224B，第十五轮 DLL）、`.bak_r16`（115712B，第十六轮 DLL）、本次新增 `.bak_r17`（125440B，第十七轮 DLL）。它们都是**各轮部署时对上一轮 DLL 的手动备份**，BepInEx 只加载 `.dll`，`*.bak_rNN` 永不被加载，**可随时删除**。
+- **构建/部署**：0 警告 0 错误，Debug **125440B**，SHA `86CA16B2…`；已部署 plugins 并哈希验证 MATCH；cfg 已更新（`RemoveSwordSprite2GripBand=2`，描述同步）。
+- **待实测**：① 剑柄带变身体色（胸口无暗灰横带）、身体完整无新增洞；② 刺击/冲锋命中时身体不再播 Swordsman_Clash（无剑击滑动）；③ 冲锋全程 navLag 保持小（<0.3m），冲锋结束无回弹；④ `[抽动]` 日志是否还会出现（出现则看原因编号与现场）；⑤ 无目标/船上时长矛树立（举矛姿态）。
+
+**🔧 十九次进展（2026-08-16，第十八轮实测反馈 → 盾牌格挡、技能期可击杀、"闪亮"根因）**：
+- **用户实测反馈（第十八轮日志 + 游戏内）**：① 剩余"抽动"看起来更像**美术素材的闪亮**（不是身体橡皮筋——ClashBlock/movability 修复已生效，`[Charge] 收尾对齐` 正常收尾）；② 长矛突刺/冲锋打我方**持盾单位**时直接死亡——缺"打到盾牌上的反馈和免伤"；③ 希望黑矛兵在**技能释放过程中可被击杀**（平衡性）。
+- **改动①（"闪亮"根因 = 去剑预擦除空转，SwordRemover.cs）**：`PreEraseAllOnehanded` 的入参误传**共享克隆**（`GetSharedClone` 产物）而非**源纹理**——`ReferenceEquals(sprite.texture, 克隆)` 恒 false → 帧列表恒空 → "空结果=完成"提前标记 `_preErased=true` → **所有 Swordsman/Onehanded 帧都退回运行时逐帧擦除** = 每帧"首次显示后才擦"（晚一帧、2048x1024 整图上传慢）→ 剑刃在战斗中/冲锋高帧率下持续闪回 = 用户所见"美术素材的闪亮"。修复：① 传源纹理匹配 `sprite.texture`；② 像素读写改在共享克隆上进行（与 `_MainTex` 同一份）；③ `_preErased` 单 bool → `_preErasedTex`（按源纹理实例 ID），多图集可独立预擦。预期日志：`[去剑] 预擦除 Onehanded/Swordsman 帧 N 张`（此前应为 0 张）。
+- **改动②（长矛 vs 我方剑盾兵 = 正面格挡反馈 + 免伤，SpearChargeComponent.cs）**：新增 `TryShieldBlockSpear(target, ref atk)` 并在**突刺（DealSpearDamage）/ 冲锋命中（DealChargeDamage）/ 抵达爆发（ArrivalBurst）**三处统一调用。判定对齐原版 `Shield.ModifyAttack`：目标有 `Shield` 组件 + `agent.shield` 举起 + `Dot(shield.forward, -attack.direction) > 0.5` → **伤害 ×0.2、眩晕 ×0.4**（原版"长矛×0.2"同口径）+ 盾击音效/火花（冲锋/爆发 monoAttacker 非 CloseCombatBrain，原版不识别，由本组件补反馈；突刺是 Swordsman，原版 Shield 会自己播 Deflect/Block 反馈，只做减免避免双音效）。根因：原版 Shield.ModifyAttack 只认 `monoAttacker is Spear`（我方长矛兵类），黑矛兵突刺传 `Swordsman`（近战分支非 parry 不减免）、冲锋传 `SpearChargeComponent`（完全不识别）→ 剑盾兵无免伤被秒杀。
+- **改动③（技能释放期可被击杀，SpearChargeComponent.cs）**：`IAttackResponder.ModifyAttack` 删除 `attack.ignore=true`（冲锋/后退不再免疫伤害）——技能期间照常吃箭矢/近战/眩晕/击退，可能被击杀；`Update()` 加死亡守卫：`aliveState` 失活立即 `AbortCharge()`（释放 exclusives、恢复 maxSpeed/movability、回 Idle），避免尸体继续推进 navPos。保留 IAttackResponder 注册，若想回调"冲锋霸体"只需在空实现里加一行。
+- **改动④（抽动探针去噪，TwitchProbe.cs）**：⑥精灵帧闪动只统计"静止/站桩"时的帧变化——Body.stepping、navPos↔transform 位移、上一帧位移、WindUp/Charging/Retreat 阶段一律跳过。旧口径把正常走路/跑步帧循环（1s ≥3 帧名 恒真）误报成闪动，刷屏且掩盖真异常；现在只有"站着不动但精灵帧乱跳"才报警（这才是真·闪亮）。
+- **构建/部署**：0 警告 0 错误，Debug **126976B**，SHA `73E9D5DC…`；已部署 plugins 并哈希验证 MATCH；本轮部署将上一轮（第十八轮 125440B）DLL 备份为 `.bak_r18`。
+- **待实测**：① `[去剑] 预擦除 … N 张` 应 >0（战斗/冲锋全程无剑刃闪回）；② 黑矛突刺/冲锋/爆发打我方剑盾兵 → 日志 `[盾牌] 黑矛长矛被格挡 … dmg→0.42` + 盾击音效，剑盾兵不再被秒；③ 黑矛兵 WindUp/Charging 途中被箭矢/近战可击杀，死亡后冲锋状态机干净收尾；④ `[抽动]` ⑥不再刷屏（仅静止帧乱跳报警）。
+
+
+
 
 
 ---
@@ -335,10 +409,10 @@ BadNorthBlackSpearman1.3/
 ├── Diagnostics.cs              # 运行时诊断探针（心跳 + F8 转储）
 ├── BlackSpearmanArt.cs         # 美术资源（PNG 图标）+ I2 本地化
 ├── BlackSpearmanVisual.cs      # 黑色外观（对抗纹理重烘焙）
-├── BlackSpearmanWeapon.cs      # 武器处理（移除剑视觉、保留基底盾牌、挂我方长矛）
+├── BlackSpearmanWeapon.cs      # 武器处理（移除剑视觉、可选移除盾牌、挂我方长矛）
 ├── SpearChargeComponent.cs     # 冲锋技能（IBrainAction + 近战刺击表现）
 ├── SpearVisual.cs              # 长矛朝向统一工具（冲锋/刺击/普通攻击共用举矛公式）
-├── BlackSpearmanShield.cs      # 盾牌格挡效果（复刻 Shield.ModifyAttack，EnableShield 可关）
+├── BlackSpearmanShield.cs      # 盾牌格挡效果（复刻 Shield.ModifyAttack，EnableShield=true 才挂载）
 ├── SwordRemover.cs             # 去剑组件（运行时擦除 Onehanded 动画帧里的剑像素）
 ├── Resources/
 │   └── black_spearman_icon.png # 美术图标（可选）
