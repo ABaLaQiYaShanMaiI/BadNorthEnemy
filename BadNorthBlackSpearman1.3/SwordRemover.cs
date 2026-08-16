@@ -41,6 +41,11 @@ namespace BadNorthBlackSpearman1_3
         // ★ 第二十四轮（头盔保护）：PartTex_SwordShield 单元（64x126）的头部/头盔在单元 y<45（含亮银冠饰 y20-44，
         //   剑刃在 y45-69、胸甲在 y45-89、手/盾在 y94+）。帧擦除的"亮采样"掩码跳过头盔区，避免把头盔冠饰擦透明。
         const int HelmetMaxY = 45;
+        // ★ 第三十三轮（头盔恢复 v2）：帧头盔带(帧y10-30)采样的单元颜色源 = y47-88 的暗灰 + y44-59 的暖棕
+        //   （反向 UV 映射实测：帧剑刃/盾(y45-70)采样单元 y20-24 亮银 → 亮银必须压黑；
+        //    单元 y21-47 暖棕被帧躯干带(y30-55)大量采样 → 必须压黑；y47-88 的暗灰/暖棕才是头盔专属源）。
+        const int HelmSrcY0 = 47;
+        const int HelmSrcY1 = 88;
 
         static readonly Dictionary<int, Texture2D> _textureCache = new Dictionary<int, Texture2D>();  // 源纹理 → 去剑克隆
         static readonly Dictionary<int, Sprite> _frameCache = new Dictionary<int, Sprite>();          // 源帧精灵 → 去剑精灵
@@ -1016,19 +1021,33 @@ namespace BadNorthBlackSpearman1_3
                 int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
                 int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
                 int darkStrong = 0, darkMid = 0, darkBright = 0;
-                int midUpper = 0, midLower = 0;     // 第三十一轮：头盔区(rect 上半)/肩甲胸甲区(下半) 的暗灰像素数
+                int helmKeep = 0;     // 第三十三轮：头盔源(y47-88)暗灰/暖棕 保留原色像素数
                 long sSum = 0; int sN = 0, sMax = 0;   // 躯干/亮银 压暗后 max 通道亮度统计（LERP b=0.02 → 屏幕色≈克隆色）
-                long mSum = 0; int mN = 0, mMax = 0;   // 头盔灰(×0.8) 压暗后 max 通道亮度统计
-                int cellH = y1 - y0;
+                long mSum = 0; int mN = 0, mMax = 0;   // 肩胸灰(×0.8) 压暗后 max 通道亮度统计
+                long hSum = 0; int hN = 0, hMax = 0;   // 头盔保留区 max 通道亮度统计（验证头盔可见性）
                 for (int y = y0; y < y1; y++)
                 {
                     if (y < 0 || y >= h) continue;
+                    int cy = y - y0;   // 单元相对 y
                     for (int x = x0; x < x1; x++)
                     {
                         if (x < 0 || x >= w) continue;
                         int i = y * w + x;
                         Color32 c = px[i];
                         if (c.a <= 8) continue;
+                        if (cy >= HelmSrcY0 && cy < HelmSrcY1 &&
+                            !(c.r - c.b > 25 && c.r > 130) &&
+                            ((c.r > 100 && c.g > 90 && c.b > 70) ||
+                             (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)))
+                        {
+                            // ★ 第三十三轮（头盔恢复 v2）：头盔源 = 单元 y47-88 的暗灰/暖棕（帧头盔带 y10-30 采样），
+                            //   保留原色 → 头盔显示原版灰/暖褐。亮银一律不保留（单元 y20-24 亮银是帧剑刃/盾源，
+                            //   第三十二轮误提亮它 → 剑柄显现）；单元 y21-47 暖棕是帧躯干源，仍 ×0.15 压黑。
+                            helmKeep++;
+                            int b0 = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+                            hSum += b0; hN++; if (b0 > hMax) hMax = b0;
+                            continue;
+                        }
                         if (c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin)
                         {
                             // ★ 第二十六轮（闪白根治）：亮银（剑刃/盾/冠饰）不再保留——其近白像素(189,190,189)
@@ -1043,12 +1062,10 @@ namespace BadNorthBlackSpearman1_3
                         }
                         if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
                         {
-                            // ★ 第三十轮（头盔可见）：暗灰 ×0.45 → ×0.8——着色器是 LERP（b=0.02 时屏幕色≈克隆色），
-                            //   ×0.45 的灰(16-45)与黑躯(25)对比太小 → 头盔观感纯黑。×0.8 → 头盔/肩甲呈可见暗灰(32-80)。
+                            // ★ 第三十二轮：非头盔区暗灰（肩甲 y45-69 / 胸甲 y70-89）×0.8 可见暗灰；头盔区已在上方独立保留。
                             Color32 d2 = new Color32((byte)(c.r * 0.8f), (byte)(c.g * 0.8f), (byte)(c.b * 0.8f), c.a);
                             px[i] = d2;
                             darkMid++;
-                            if (cellH > 0 && (y - y0) * 2 >= cellH) midUpper++; else midLower++;
                             int b2 = Mathf.Max(d2.r, Mathf.Max(d2.g, d2.b));
                             mSum += b2; mN++; if (b2 > mMax) mMax = b2;
                         }
@@ -1080,11 +1097,12 @@ namespace BadNorthBlackSpearman1_3
                 spr.name = s2.name + "_NoSword";
                 _sprite2Cache[key] = spr;
                 BSLog.Info("[去剑] sprite2 分区压暗(剑盾基底) " + s2.name + " 重压=" + darkStrong +
-                    " 中压(头盔灰×0.8)=" + darkMid + " 亮银压暗=" + darkBright + " 残留亮银=" + remainBright +
-                    "px（第三十轮：头盔/肩甲可见暗灰、躯干/手/脸烘黑；残留=0）" +
+                    " 中压(暗灰×0.8)=" + darkMid + " 亮银压暗=" + darkBright + " 头盔源保留=" + helmKeep +
+                    " 残留亮银=" + remainBright +
+                    "px（第三十三轮：头盔源(y47-88)暗灰/暖棕保留原色、剑刃/盾/躯干/手/脸烘黑；残留=0）" +
                     " ｜ 压暗后max通道亮度（屏幕色≈克隆色）：躯干avg=" + (sN > 0 ? sSum / sN : 0) + "(max=" + sMax +
-                    ") 头盔灰avg=" + (mN > 0 ? mSum / mN : 0) + "(max=" + mMax + ") 头盔区(上半)=" + midUpper +
-                    "px 肩胸区(下半)=" + midLower + "px");
+                    ") 暗灰avg=" + (mN > 0 ? mSum / mN : 0) + "(max=" + mMax + ") 头盔源avg=" +
+                    (hN > 0 ? hSum / hN : 0) + "(max=" + hMax + ")");
                 return spr;
             }
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 压暗失败: " + e); return null; }
