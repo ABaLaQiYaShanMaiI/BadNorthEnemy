@@ -184,7 +184,12 @@ namespace BadNorthBlackSpearman1_3
                     {
                         Color32 c = px[i];
                         if (c.a <= 8) continue;
-                        if (c.r - c.b > 25 && c.r > 130)   // 暖肤 = 手
+                        // ★ 第三十轮（蓝手修复）：我方 Pikeman 长矛精灵的手部除了暖肤，还有一条蓝色竖带
+                        //   （实测 R 41-87 / G 81-119 / B 99-123，x~17-31 y6-13）。暖肤阈值压不到蓝色 → 手仍蓝。
+                        //   现在暖肤 OR 蓝系都重度压暗 → 整只手变黑，与黑身融合后"脱开/橡皮筋"不可见。
+                        bool isSkin = c.r - c.b > 25 && c.r > 130;
+                        bool isBlue = c.b > 80 && c.b > c.r && c.b > c.g;
+                        if (isSkin || isBlue)
                         {
                             px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
                             n++;

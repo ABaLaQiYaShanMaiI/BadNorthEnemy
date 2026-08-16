@@ -995,9 +995,9 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>★ 第二十六轮（模式2）：部件贴图**分区压暗**——不擦不涂，按颜色分类压暗：
-        /// 亮银(#，>150) ×0.15（**不再保留**——近白像素(189,190,189)经未擦除帧渲染即白闪，第二十六轮根治）；
-        /// 暗灰(g，40≤r≤100 中性) ×0.45（头盔/肩甲/胸甲保留暗灰轮廓，不全黑）；
-        /// 暖棕/暖肤/其它 ×0.15（躯干/手臂/手/脸 烘黑）。顶点色 B 恒 0.02 时身体=克隆色（黑躯+可见暗灰头盔）。
+        /// 亮银(#，>150) ×0.15（近白像素经未擦除帧会白闪，但白闪根因=身体透明已修复，这里仍压暗防剑刃/盾显形）；
+        /// 暗灰(g，40≤r≤100 中性) ×0.8（头盔/肩甲/胸甲可见暗灰——第三十轮从 ×0.45 调高，让头盔样式不被染黑）；
+        /// 暖棕/暖肤/其它 ×0.15（躯干/手臂/手/脸 烘黑）。着色器为 LERP：b=0.02 时屏幕色≈克隆色（黑躯+可见暗灰头盔）。
         /// 由 Sprite2Mode=2（RemoveSwordSprite2Mode）启用。</summary>
         static Sprite GetBrightErasedSprite2(Sprite s2)
         {
@@ -1036,8 +1036,9 @@ namespace BadNorthBlackSpearman1_3
                         }
                         if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
                         {
-                            // 暗灰（头盔/肩甲/胸甲带）：中度压暗 → 保留轮廓，不全黑
-                            px[i] = new Color32((byte)(c.r * 0.45f), (byte)(c.g * 0.45f), (byte)(c.b * 0.45f), c.a);
+                            // ★ 第三十轮（头盔可见）：暗灰 ×0.45 → ×0.8——着色器是 LERP（b=0.02 时屏幕色≈克隆色），
+                            //   ×0.45 的灰(16-45)与黑躯(25)对比太小 → 头盔观感纯黑。×0.8 → 头盔/肩甲呈可见暗灰(32-80)。
+                            px[i] = new Color32((byte)(c.r * 0.8f), (byte)(c.g * 0.8f), (byte)(c.b * 0.8f), c.a);
                             darkMid++;
                         }
                         else
@@ -1065,8 +1066,8 @@ namespace BadNorthBlackSpearman1_3
                 spr.name = s2.name + "_NoSword";
                 _sprite2Cache[key] = spr;
                 BSLog.Info("[去剑] sprite2 分区压暗(剑盾基底) " + s2.name + " 重压=" + darkStrong +
-                    " 中压=" + darkMid + " 亮银压暗=" + darkBright + " 残留亮银=" + remainBright +
-                    "px（第二十六轮：亮银全部压暗消除白闪源；残留=0 即根治）");
+                    " 中压(头盔灰×0.8)=" + darkMid + " 亮银压暗=" + darkBright + " 残留亮银=" + remainBright +
+                    "px（第三十轮：头盔/肩甲可见暗灰、躯干/手/脸烘黑；残留=0）");
                 return spr;
             }
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 压暗失败: " + e); return null; }
