@@ -705,8 +705,8 @@ namespace BadNorthBlackSpearman1_3
             // ★★ UV 感知亮采样擦除（白框根治）+ 光晕（吃持剑的手）：模式0下按"帧 UV→部件采样"判定白框像素
             SwordRemover.UVErase = RemoveSwordFrameUVErase.Value;
             SwordRemover.UVHalo = RemoveSwordFrameUVHalo.Value;
-            // ★ 第十四轮：部件贴图 flood 擦除半径（吃暗灰剑柄/护手/持剑手，身体暗色是屏障）
-            SwordRemover.GripFloodPx = RemoveSwordSprite2GripBand.Value;
+            // ★ 第二十四轮：RemoveSwordSprite2GripBand（剑柄改色）已不再生效（GripFloodPx 已删）——
+            //   剑柄改色会误涂肩甲/胸甲/头盔同色像素，且顶点色 B 恒 0.02 时剑柄本就是黑色剪影。
         }
 
         static void RegisterBrainAction(Agent a, IBrainAction action)

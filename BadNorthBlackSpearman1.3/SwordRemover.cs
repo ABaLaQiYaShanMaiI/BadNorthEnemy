@@ -37,6 +37,9 @@ namespace BadNorthBlackSpearman1_3
         const int SilverAlphaMin = 128;      // 只擦实心像素，忽略半透明边缘
         const float Sprite2SafetyRatio = 0.35f; // ★ 第十七轮回退：恢复“擦透明”方案，ETC2 增亮身体像素被擦会挖洞 → 收紧到 35% 防误擦（>35% 亮判定贴图异常）
         const int SwordBrightMin = 150;      // "纯亮"阈值：剑刃金属（r,g,b>150 中性亮色）。亮银擦除只用它，绝不碰暗色/肤色身体。
+        // ★ 第二十四轮（头盔保护）：PartTex_SwordShield 单元（64x126）的头部/头盔在单元 y<45（含亮银冠饰 y20-44，
+        //   剑刃在 y45-69、胸甲在 y45-89、手/盾在 y94+）。帧擦除的"亮采样"掩码跳过头盔区，避免把头盔冠饰擦透明。
+        const int HelmetMaxY = 45;
 
         static readonly Dictionary<int, Texture2D> _textureCache = new Dictionary<int, Texture2D>();  // 源纹理 → 去剑克隆
         static readonly Dictionary<int, Sprite> _frameCache = new Dictionary<int, Sprite>();          // 源帧精灵 → 去剑精灵
@@ -61,7 +64,8 @@ namespace BadNorthBlackSpearman1_3
         // 解法：擦除任何"解码 UV 采样到亮(r,g,b>150)部件像素"的帧像素——白框像素无论帧色如何都被擦，暗身体不受影响。
         public static bool UVErase = true;   // 配置 RemoveSwordFrameUVErase
         public static int UVHalo = 0;        // 配置 RemoveSwordFrameUVHalo：亮像素光晕(部件像素距离)，吃持剑的手/护手
-        public static int GripFloodPx = 2;   // 配置 RemoveSwordSprite2GripBand：第十八轮默认 2（用户指定“剑柄颜色与黑矛兵身躯颜色一致”）；>0 启用“暗灰剑柄/亮灰护手改身体暗色(33,26,24)”，0=不改
+        // ★ 第二十四轮：GripFloodPx（RemoveSwordSprite2GripBand 剑柄改色）已删除——剑柄改色会误涂肩甲/胸甲/头盔同色像素，
+        //   且顶点色 B 恒 0.02 时剑柄本就是黑色剪影，无需改色。配置项保留但不再生效（见 Plugin）。
 
         // ★ 部件单元像素缓存（静态共享）：供帧擦除按"UV→部件采样"判定白框像素（全黑矛兵共用一份）
         static bool _partReady;             // 部件缓存已就绪
@@ -91,6 +95,13 @@ namespace BadNorthBlackSpearman1_3
                                      //   运行时 sprite2 会换成去剑/改色克隆（剑区透明）；掩码必须永远按原件构建，
                                      //   否则换成克隆后掩码变空、UV 亮采样擦除失效。
         int _partDiagFrame = -1;     // ★ 第二十一轮：sprite2 应用诊断的延迟帧（克隆上块后等 5 帧再判读稳态）
+        // ★ 第二十四轮：渲染状态周期诊断（定位"黑色身躯闪白"）——每 2s 打印 4 个身体渲染器的块状态 +
+        //   顶点色 B/alpha + 当前帧 + 生命值。若 _PartTex 周期变 null（→ 着色器默认白 = 闪白）会在这里现形。
+        float _renderDiagTimer;
+        static int _renderDiagCount;   // 限前 2 只黑矛兵，避免刷屏
+        float _bSpikeTimer;            // ★ 第二十七轮：受击白闪（顶点色B尖峰）追踪节流（0.2s）
+        bool _wasAlive = true;         // ★ 第二十七轮：上一帧存活状态（死亡瞬间转储用）
+        bool _deathDumped;             // 死亡转储已输出（每个黑矛兵一次）
 
         public void Setup(Agent agent, bool eraseEnabled)
         {
@@ -125,6 +136,19 @@ namespace BadNorthBlackSpearman1_3
             //   覆盖 _MainTex 为去剑克隆，两者始终匹配。旧代码 LateUpdate 直接用 _sa.sprite（动画在 Update→LateUpdate 之间
             //   已推进到下一帧）→ 去剑纹理(新帧) vs 网格 UV(旧帧) 错位一帧 = 每次换动画帧都闪一下。
             if (_sa != null && _sa.sprite != null) _frameSprite = _sa.sprite;
+
+            // ★ 第二十七轮：死亡瞬间渲染器转储（抓"击杀分裂"）——aliveState 由活→死时，打印 4 个身体渲染器的
+            //   位置/网格UV/材质块，确认分裂是"渲染器各奔东西"还是"纹理/uv 错位"。
+            if (_agent != null && _agent.aliveState != null)
+            {
+                bool aliveNow = _agent.aliveState.active;
+                if (_wasAlive && !aliveNow && !_deathDumped)
+                {
+                    _deathDumped = true;
+                    DumpDeathSplit();
+                }
+                _wasAlive = aliveNow;
+            }
         }
 
         void LateUpdate()
@@ -216,6 +240,137 @@ namespace BadNorthBlackSpearman1_3
                 }
                 catch (Exception e) { BSLog.Warn("[去剑] sprite2 应用诊断异常: " + e); }
             }
+
+            // ★ 第二十六轮：渲染状态高频异常检测（闪白定位）——每 0.5s 采样、**持续**（不再限 3 次），
+            //   仅当发现异常才打印（WARN）：_PartTex=NULL（→着色器默认白=闪白直接来源）/_MainTex 非克隆（剑闪回）/顶点色 B>0.3。
+            _renderDiagTimer -= Time.deltaTime;
+            if (_renderDiagTimer <= 0f)
+            {
+                _renderDiagTimer = 0.5f;
+                DumpRenderState();
+            }
+
+            // ★ 第二十七轮：受击白闪追踪——_sa.color.b 是游戏 UpdateColor(Agent.cs:829) 每帧写入的受击值
+            //   （=1-healthFraction，健康=0、掉血→1；我们的 LateUpdate 随后压回 0.02）。若此处 b>0.05 说明
+            //   该帧正处于受击白闪窗口：与 [像素采样] 时间戳关联即可判定闪白是否=受击白闪。
+            _bSpikeTimer -= Time.deltaTime;
+            if (_bSpikeTimer <= 0f)
+            {
+                _bSpikeTimer = 0.2f;
+                if (_sa != null && _sa.color.b > 0.05f)
+                {
+                    float hf = _agent != null ? _agent.health / Mathf.Max(0.0001f, _agent.maxHealth) : -1f;
+                    BSLog.Warn("[B尖峰] 受击白闪窗口 顶点色B=" + _sa.color.b.ToString("F3") +
+                        " healthFraction=" + hf.ToString("F2") + " 帧=" +
+                        (_sa.sprite != null ? _sa.sprite.name : "?"));
+                }
+            }
+        }
+
+        /// <summary>高频采样 4 个身体渲染器的块状态 + 顶点色 B。**仅当发现异常才打印**（防刷屏且能抓到瞬态白闪）：
+        /// _PartTex=NULL → 着色器默认白 = 闪白直接来源；_MainTex 非克隆 → 剑闪回来源；顶点色 B>0.3 → 受击白闪。</summary>
+        void DumpRenderState()
+        {
+            try
+            {
+                _renderDiagCount++;
+                string frame = "?";
+                try { if (_sa != null && _sa.sprite != null) frame = _sa.sprite.name; } catch { }
+                float colorB = -1f;
+                float colorA = -1f;
+                try { if (_sa != null) { colorB = _sa.color.b; colorA = _sa.color.a; } } catch { }
+                string health = "?";
+                try { if (_agent != null) health = (_agent.health / Mathf.Max(0.0001f, _agent.maxHealth)).ToString("F2"); } catch { }
+                var mrs = _sa != null ? _sa.GetComponentsInChildren<MeshRenderer>(true) : null;
+                if (mrs == null) return;
+                int mainClone = 0, partClone = 0, partNull = 0, total = 0;
+                string anomaly = "";
+                Texture2D erasedTex = null;
+                try
+                {
+                    var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
+                    if (cur != null) erasedTex = EnsureErasedTexture(cur);
+                }
+                catch { }
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                    if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                    total++;
+                    var block = new MaterialPropertyBlock();
+                    try { mr.GetPropertyBlock(block); } catch { }
+                    Texture mt = null, pt = null;
+                    try { mt = block.GetTexture("_MainTex"); } catch { }
+                    try { pt = block.GetTexture("_PartTex"); } catch { }
+                    bool mIsClone = erasedTex != null && mt != null && mt.GetInstanceID() == erasedTex.GetInstanceID();
+                    bool pIsClone = _sa != null && _sa.sprite2 != null && _sa.sprite2.texture != null &&
+                        pt != null && pt.GetInstanceID() == _sa.sprite2.texture.GetInstanceID();
+                    if (mIsClone) mainClone++;
+                    if (pIsClone) partClone++;
+                    if (pt == null) partNull++;
+                    if (!mIsClone || !pIsClone)
+                        anomaly += "[" + mr.gameObject.name + " _MainTex=" +
+                            (mt != null ? (mIsClone ? "✓" : "✗原图集") : "NULL") + " _PartTex=" +
+                            (pt != null ? (pIsClone ? "✓" : "✗") : "NULL") + "]";
+                }
+                bool bAnomaly = colorB > 0.3f;
+                bool aAnomaly = colorA >= 0f && colorA < 0.9f;   // ★ 第二十八轮：身体顶点 alpha<0.9 = 半透明/透明 = 闪白源
+                bool any = partNull > 0 || mainClone < total || partClone < total || bAnomaly || aAnomaly;
+                if (!any) return;   // 一切正常：不打印（防刷屏）
+                BSLog.Warn("[渲染诊断⚠️] 帧=" + frame + " 顶点B=" + colorB.ToString("F3") +
+                    "/a=" + colorA.ToString("F2") + " healthFraction=" + health +
+                    " sprite2=" + (_sa != null && _sa.sprite2 != null ? _sa.sprite2.name : "null") +
+                    " 渲染器 " + total + "：_MainTex克隆=" + mainClone + " _PartTex克隆=" + partClone +
+                    " _PartTex=NULL=" + partNull +
+                    (bAnomaly ? " ⚠️顶点色B异常(受击白闪)" : "") +
+                    (aAnomaly ? " ⚠️顶点alpha<0.9(身体透明=闪白源)" : "") + anomaly);
+            }
+            catch (Exception e) { BSLog.Warn("[渲染诊断] 异常: " + e); }
+        }
+
+        /// <summary>★ 第二十七轮：死亡瞬间渲染器转储——打印 4 个身体渲染器的位置/网格UV/材质块 + Ragdoller 状态，
+        /// 确认"击杀分裂"是渲染器各奔东西 / 纹理或 UV 错位 / 还是原版 ragdoll 的正常解体。</summary>
+        void DumpDeathSplit()
+        {
+            try
+            {
+                BSLog.Warn("[死亡分裂] " + (_agent != null ? _agent.name : "?") +
+                    " pos=" + (_agent != null ? _agent.transform.position.ToString("F2") : "?") +
+                    " ragdoll=" + (_agent != null && _agent.ragdoller != null ? _agent.ragdoller.enabled.ToString() : "无ragdoller") +
+                    " sprite=" + (_sa != null && _sa.sprite != null ? _sa.sprite.name : "?"));
+                var mrs = _sa != null ? _sa.GetComponentsInChildren<MeshRenderer>(true) : null;
+                if (mrs == null) return;
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                    if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                    string uv0 = "?";
+                    string verts = "?";
+                    var mf = mr.GetComponent<MeshFilter>();
+                    if (mf != null && mf.sharedMesh != null)
+                    {
+                        verts = mf.sharedMesh.vertexCount.ToString();
+                        var uv = mf.sharedMesh.uv;
+                        if (uv != null && uv.Length > 0) uv0 = uv[0].ToString("F3");
+                    }
+                    var block = new MaterialPropertyBlock();
+                    try { mr.GetPropertyBlock(block); } catch { }
+                    Texture mt = null, pt = null;
+                    try { mt = block.GetTexture("_MainTex"); } catch { }
+                    try { pt = block.GetTexture("_PartTex"); } catch { }
+                    BSLog.Warn("  · " + mr.gameObject.name +
+                        " worldPos=" + mr.transform.position.ToString("F2") +
+                        " 顶点=" + verts + " UV0=" + uv0 +
+                        " _MainTex=" + (mt != null ? mt.name : "NULL") +
+                        " _PartTex=" + (pt != null ? pt.name : "NULL") +
+                        " isVisible=" + mr.isVisible);
+                }
+            }
+            catch (Exception e) { BSLog.Warn("[死亡分裂] 转储异常: " + e); }
         }
 
         /// <summary>sprite2（部件贴图）处理：旧基底 PartTex_Sword → 亮银剑柄擦除；新基底 PartTex_SwordShield → 按 Sprite2Mode：
@@ -765,10 +920,11 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 清空失败: " + e); return null; }
         }
 
-        /// <summary>★ 第十七轮（用户回退）亮银剑身擦透明（模式2，剑盾基底）：克隆部件贴图，把单元内"纯亮中性灰"像素
-        /// （r,g,b&gt;150 的剑刃金属/2D盾）与亮银 bbox 内接壤像素（bbox 面积 ≤ 不透明 45% 才允许）直接擦透明——
-        /// 用户回退到"擦除剑刃"（不要"改身体色"的黑色剑影）；剑区预期挖洞（离线验证新增 29/65 洞，可接受）。
-        /// 剑柄由 RemoveSwordSprite2GripBand 控制：&gt;0（第十八轮默认 2）时 RecolorGripToBody 把暗灰剑柄/亮灰护手改身体色（用户指定“与黑矛兵身躯颜色一致”）。</summary>
+        /// <summary>★ 第二十六轮（模式2）：部件贴图**分区压暗**——不擦不涂，按颜色分类压暗：
+        /// 亮银(#，>150) ×0.15（**不再保留**——近白像素(189,190,189)经未擦除帧渲染即白闪，第二十六轮根治）；
+        /// 暗灰(g，40≤r≤100 中性) ×0.45（头盔/肩甲/胸甲保留暗灰轮廓，不全黑）；
+        /// 暖棕/暖肤/其它 ×0.15（躯干/手臂/手/脸 烘黑）。顶点色 B 恒 0.02 时身体=克隆色（黑躯+可见暗灰头盔）。
+        /// 由 Sprite2Mode=2（RemoveSwordSprite2Mode）启用。</summary>
         static Sprite GetBrightErasedSprite2(Sprite s2)
         {
             int key = s2.GetInstanceID();
@@ -785,237 +941,64 @@ namespace BadNorthBlackSpearman1_3
                 int w = tex.width, h = tex.height;
                 int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
                 int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
-                int opaque = 0, bright = 0;
-                int minX = 999999, maxX = -1, minY = 999999, maxY = -1;
-                // 第一遍：统计不透明数与亮银剑身 bbox
+                int darkStrong = 0, darkMid = 0, darkBright = 0;
                 for (int y = y0; y < y1; y++)
                 {
                     if (y < 0 || y >= h) continue;
                     for (int x = x0; x < x1; x++)
                     {
                         if (x < 0 || x >= w) continue;
-                        Color32 c = px[y * w + x];
+                        int i = y * w + x;
+                        Color32 c = px[i];
                         if (c.a <= 8) continue;
-                        opaque++;
                         if (c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin)
                         {
-                            bright++;
-                            if (x < minX) minX = x;
-                            if (x > maxX) maxX = x;
-                            if (y < minY) minY = y;
-                            if (y > maxY) maxY = y;
+                            // ★ 第二十六轮（闪白根治）：亮银（剑刃/盾/冠饰）不再保留——其近白像素(189,190,189)
+                            //   一旦经"帧擦除覆盖不到的帧像素"渲染出来就是白闪（用户实测：身体快速变白又恢复）。
+                            //   全部重度压暗 ×0.15 → 克隆内不再有近白像素，白闪源头彻底消除。
+                            px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                            darkBright++;
+                            continue;
                         }
-                    }
-                }
-                if (bright == 0)
-                {
-                    UnityEngine.Object.Destroy(tex);
-                    BSLog.Info("[去剑] sprite2 剑盾基底无亮银像素 → 保留原部件（模式2退化为模式0）");
-                    return null;
-                }
-                // ★ 第十七轮回退安全阀：恢复 35% —— 现在是"擦透明"而非"改身体色"，ETC2 增亮的身体像素被擦会挖洞，
-                //   因此亮银占比 >35% 判定贴图异常（不是正常剑盾单元），退化模式0
-                if (opaque > 0 && bright > opaque * Sprite2SafetyRatio)
-                {
-                    UnityEngine.Object.Destroy(tex);
-                    BSLog.Warn("[去剑] sprite2 剑盾基底亮银占比过高 " + bright + "/" + opaque +
-                        " (>35%)，疑似贴图异常 → 模式2退化为模式0（保留原部件，靠帧擦除）");
-                    return null;
-                }
-                int bboxArea = (maxX - minX + 1) * (maxY - minY + 1);
-                bool recolorBbox = opaque > 0 && bboxArea <= opaque * 0.45f;
-                int erased2 = 0;
-                // ★ 第十七轮（用户回退）：第二遍——亮银剑身（+bbox 内接壤像素）擦透明（恢复第十四轮行为）。
-                //   擦透明让剑区（含与剑重叠的身体像素）变洞（离线验证新增 29/65 洞），但用户明确要求"用回擦除"：
-                //   不要黑色剑影、也不要改剑柄颜色。bbox 只罩住剑区（bbox 面积 ≤ 不透明 45% 才允许接壤擦）。
-                for (int y = y0; y < y1; y++)
-                {
-                    if (y < 0 || y >= h) continue;
-                    for (int x = x0; x < x1; x++)
-                    {
-                        if (x < 0 || x >= w) continue;
-                        int i = y * w + x;
-                        Color32 c = px[i];
-                        if (c.a <= 8) continue;
-                        bool isBright = c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin;
-                        bool inBbox = recolorBbox && x >= minX && x <= maxX && y >= minY && y <= maxY;
-                        if (isBright || inBbox)
+                        if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
                         {
-                            px[i] = new Color32(0, 0, 0, 0);   // 擦透明（挖剑，无黑色剑影）
-                            erased2++;
+                            // 暗灰（头盔/肩甲/胸甲带）：中度压暗 → 保留轮廓，不全黑
+                            px[i] = new Color32((byte)(c.r * 0.45f), (byte)(c.g * 0.45f), (byte)(c.b * 0.45f), c.a);
+                            darkMid++;
                         }
-                    }
-                }
-                if (erased2 == 0)
-                {
-                    UnityEngine.Object.Destroy(tex);
-                    return null;
-                }
-                // ★ 第十四轮：剑柄残留诊断——擦完后原亮银 bbox 内仍不透明的像素统计 + 定位图（回答"剑柄/手到底剩在哪"）
-                //   ★ 第二十三轮：放在改色/压暗之前执行（否则统一压暗后分类计数全部归零，诊断失真）。
-                DumpGripResidue(px, w, h, minX, maxX, minY, maxY, s2.name);
-                // ★ 第十八轮：剑柄改身体色（用户指定“剑柄颜色与黑矛兵身躯颜色一致”）——GripFloodPx 默认 2。
-                //   RecolorGripToBody 第二十三轮起改为“就近取身体像素色”（邻域复制），保留 alpha 不挖洞。
-                int gripPainted = 0;
-                if (GripFloodPx > 0)
-                    gripPainted = RecolorGripToBody(px, w, h, x0, y0, x1, y1);
-                // ★ 第二十三轮（身体颜色根治）：部件贴图整体压暗（烘黑身体）——不再依赖顶点色 B 通道做黑
-                //   （游戏内该乘算可能被重置/未生效 → 身体显示原色暖棕、剑柄深色带可见 = “颜色不对劲+闪烁”）。
-                //   剑柄已按就近取身体色填充，压暗后与身体完全一致 → 剑柄带消失。顶点色 B 由 BlackSpearmanVisual 恢复 1.0。
-                int darkened = 0;
-                for (int y = y0; y < y1; y++)
-                {
-                    if (y < 0 || y >= h) continue;
-                    for (int x = x0; x < x1; x++)
-                    {
-                        if (x < 0 || x >= w) continue;
-                        int i = y * w + x;
-                        Color32 c = px[i];
-                        if (c.a <= 8) continue;
-                        px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
-                        darkened++;
+                        else
+                        {
+                            // 暖棕/暖肤/其它：重度压暗 → 躯干/手/脸 烘黑
+                            px[i] = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
+                            darkStrong++;
+                        }
                     }
                 }
                 tex.SetPixels32(px); tex.Apply();
+                // ★ 第二十六轮：校验**单元 rect 内**（不是整个图集！其他格子的亮像素与黑矛兵无关）不再有近白像素
+                int remainBright = 0;
+                for (int y = y0; y < y1; y++)
+                {
+                    if (y < 0 || y >= h) continue;
+                    for (int x = x0; x < x1; x++)
+                    {
+                        if (x < 0 || x >= w) continue;
+                        Color32 c = px[y * w + x];
+                        if (c.a > 8 && c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin) remainBright++;
+                    }
+                }
                 var spr = Sprite.Create(tex, r, s2.pivot, s2.pixelsPerUnit, 0, SpriteMeshType.FullRect, s2.border);
                 spr.name = s2.name + "_NoSword";
                 _sprite2Cache[key] = spr;
-                BSLog.Info("[去剑] sprite2 亮银剑身擦除(剑盾基底) " + s2.name + " 擦除=" + erased2 + "/" + opaque +
-                    " bbox=(" + minX + "," + minY + ")-(" + maxX + "," + maxY + ") 擦bbox=" + recolorBbox +
-                    " 剑柄改色=" + gripPainted + "px 压暗=" + darkened + "px（第二十三轮：就近取身体色+整体烘黑，剑柄带融入身体）");
+                BSLog.Info("[去剑] sprite2 分区压暗(剑盾基底) " + s2.name + " 重压=" + darkStrong +
+                    " 中压=" + darkMid + " 亮银压暗=" + darkBright + " 残留亮银=" + remainBright +
+                    "px（第二十六轮：亮银全部压暗消除白闪源；残留=0 即根治）");
                 return spr;
             }
-            catch (Exception e) { BSLog.Warn("[去剑] sprite2 亮银擦除失败: " + e); return null; }
+            catch (Exception e) { BSLog.Warn("[去剑] sprite2 压暗失败: " + e); return null; }
         }
 
-        /// <summary>★ 第二十三轮：剑柄/护手改色 = 就近取身体像素色（邻域复制），再整体压暗（烘黑身体）。
-        /// 旧版填固定暗色 (33,26,24)（离线采样的身体暗部/阴影色）——运行时身体亮部实为 (170,146,115)，
-        /// 深色带在暖棕身体上清晰可见 = 用户所见"剑柄颜色未改"。新版：每个剑柄像素向外环搜索最近的
-        /// 非剑柄灰/非透明像素并取该像素色 → 剑柄与紧邻身体天然同色，压暗后完全融入。保留 alpha（不挖洞）。</summary>
-        static int RecolorGripToBody(Color32[] px, int w, int h, int x0, int y0, int x1, int y1)
-        {
-            if (px == null) return 0;
-            int x0c = Mathf.Clamp(x0, 0, w - 1), x1c = Mathf.Clamp(x1, 0, w);
-            int y0c = Mathf.Clamp(y0, 0, h - 1), y1c = Mathf.Clamp(y1, 0, h);
-            int painted = 0;
-            const int SearchRadius = 20;   // 邻域搜索半径（px）
-            for (int y = y0c; y < y1c; y++)
-            {
-                for (int x = x0c; x < x1c; x++)
-                {
-                    int i = y * w + x;
-                    Color32 c = px[i];
-                    if (c.a <= 8) continue;                                   // 透明
-                    if (!IsGripGray(c)) continue;
-                    Color32 body = FindNearestBodyColor(px, w, h, x, y, x0c, y0c, x1c, y1c, SearchRadius);
-                    px[i] = new Color32(body.r, body.g, body.b, c.a);         // 就近取身体色，保留 alpha（防挖洞）
-                    painted++;
-                }
-            }
-            return painted;
-        }
-
-        /// <summary>剑柄/护手灰判定（与原版阈值一致）：暗灰(40≤r≤100,|r-b|≤25) 或 亮灰(100<r<150 中性)。</summary>
-        static bool IsGripGray(Color32 c)
-        {
-            bool darkGray = c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25;
-            bool lightGray = c.r > 100 && c.r < 150 &&
-                Mathf.Abs(c.r - c.b) <= 25 && Mathf.Abs(c.g - c.b) <= 25;
-            return darkGray || lightGray;
-        }
-
-        /// <summary>以 (cx,cy) 为中心向外扩展方环，返回最近的非剑柄灰、非透明像素色（八邻域方向全覆盖）。</summary>
-        static Color32 FindNearestBodyColor(Color32[] px, int w, int h, int cx, int cy,
-            int x0, int y0, int x1, int y1, int maxRadius)
-        {
-            for (int r = 1; r <= maxRadius; r++)
-            {
-                for (int dy = -r; dy <= r; dy++)
-                {
-                    for (int dx = -r; dx <= r; dx++)
-                    {
-                        if (Mathf.Abs(dx) != r && Mathf.Abs(dy) != r) continue;   // 只扫方环边缘
-                        int x = cx + dx, y = cy + dy;
-                        if (x < x0 || x >= x1 || y < y0 || y >= y1) continue;
-                        int i = y * w + x;
-                        Color32 c = px[i];
-                        if (c.a <= 8) continue;
-                        if (IsGripGray(c)) continue;   // 跳过同类剑柄灰，防止"以灰填灰"
-                        return c;
-                    }
-                }
-            }
-            return new Color32(20, 18, 16, 255);   // 兜底（搜索失败极少见）
-        }
-
-        /// <summary>★ 第十四轮：剑柄残留诊断——亮银擦除后，原亮银 bbox 内仍不透明的像素统计与定位图。
-        /// 分类：g=暗灰(40≤r≤100,|r-b|≤25)疑似剑柄/护手、G=亮灰(100<r<150)疑似护手/盾沿、s=暖色皮肤(持剑手)、
-        /// b=身体暗色、#=亮银残(>150)、.=其他不透明。取\"暗灰最多的一行\"（剑柄带）上下各 8 行打印，定位剑柄。
-        /// ★ 第十七轮预期（用户选择不改剑柄颜色）：暗灰剑柄/亮灰护手仍 >0（剑柄带保留）；亮银残≈0；皮肤(手)保留。</summary>
-        static void DumpGripResidue(Color32[] px, int w, int h,
-            int minX, int maxX, int minY, int maxY, string name)
-        {
-            try
-            {
-                if (px == null) return;
-                int x0c = Mathf.Clamp(minX, 0, w - 1), x1c = Mathf.Clamp(maxX + 1, 0, w);
-                int y0c = Mathf.Clamp(minY, 0, h - 1), y1c = Mathf.Clamp(maxY + 1, 0, h);
-                int opaque = 0, darkGray = 0, lightGray = 0, warm = 0, bright = 0;
-                int rows = y1c - y0c;
-                if (rows <= 0) return;
-                int[] rowGray = new int[rows];
-                for (int y = y0c; y < y1c; y++)
-                {
-                    int rowIdx = y - y0c;
-                    for (int x = x0c; x < x1c; x++)
-                    {
-                        Color32 c = px[y * w + x];
-                        if (c.a <= 8) continue;
-                        opaque++;
-                        bool isDarkGray = c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25;
-                        bool isLightGray = c.r > 100 && c.r < 150 && Mathf.Abs(c.r - c.b) <= 30;
-                        if (isDarkGray) { darkGray++; rowGray[rowIdx]++; }
-                        else if (isLightGray) lightGray++;
-                        else if (c.r - c.b > 30) warm++;
-                        else if (c.r > 150 && c.g > 150 && c.b > 150) bright++;
-                    }
-                }
-                BSLog.Diag("[去剑] 剑柄残留诊断 " + name + " bbox内剩余不透明=" + opaque +
-                    " 暗灰剑柄=" + darkGray + " 亮灰护手/盾沿=" + lightGray +
-                    " 暖色皮肤(手)=" + warm + " 亮银残=" + bright +
-                    " ← 暗灰/亮灰>0 = 剑柄/护手仍在，GripBand 需加大或靠盾牌遮挡");
-                int best = 0;
-                for (int i = 1; i < rows; i++) if (rowGray[i] > rowGray[best]) best = i;
-                if (darkGray == 0) return;
-                int yTop = Mathf.Max(0, best - 8), yBot = Mathf.Min(rows - 1, best + 8);
-                BSLog.Diag("[去剑] 剑柄残留·定位图（g=暗灰 G=亮灰 s=皮肤 b=身体 #=亮银 .=其他 空格=透明，行 " +
-                    (y0c + yTop) + "~" + (y0c + yBot) + "）");
-                for (int y = yTop; y <= yBot; y++)
-                {
-                    var sb = new System.Text.StringBuilder();
-                    for (int x = x0c; x < x1c; x++)
-                    {
-                        Color32 c = px[y * w + x];
-                        char ch = ' ';
-                        if (c.a > 8)
-                        {
-                            if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25) ch = 'g';
-                            else if (c.r > 100 && c.r < 150 && Mathf.Abs(c.r - c.b) <= 30) ch = 'G';
-                            else if (c.r - c.b > 30) ch = 's';
-                            else if (c.r > 150 && c.g > 150 && c.b > 150) ch = '#';
-                            else if (c.r < 45 && c.g < 38 && c.b < 33) ch = 'b';
-                            else ch = '.';
-                        }
-                        sb.Append(ch);
-                    }
-                    BSLog.Diag("  " + sb.ToString());
-                }
-                BSLog.Diag("[去剑] 剑柄残留·定位图结束");
-            }
-            catch (Exception e) { BSLog.Warn("[去剑] 剑柄残留诊断异常: " + e); }
-        }
-
-        /// <summary>模式0保留部件贴图时的单元体检：不透明数/亮银数/bbox（校准剑区，判断是否需要切模式2）。</summary>
+/// <summary>模式0保留部件贴图时的单元体检：不透明数/亮银数/bbox（校准剑区，判断是否需要切模式2）。</summary>
         static void LogPartCellStats(Sprite s2)
         {
             try
@@ -1166,6 +1149,9 @@ namespace BadNorthBlackSpearman1_3
             List<int> brightIdx = null;
             for (int y = 0; y < ch; y++)
             {
+                // ★ 第二十四轮（头盔保护）：单元 y<HelmetMaxY 是头/头盔区（含亮银冠饰），不参与亮采样擦除掩码，
+                //   否则帧擦除会把头盔冠饰一起擦透明（用户实测"头盔部分材质透明"）。
+                if (y < HelmetMaxY) continue;
                 for (int x = 0; x < cw; x++)
                 {
                     int ax = x0 + x, ay = y0 + y;
