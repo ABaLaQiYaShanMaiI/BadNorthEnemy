@@ -7,9 +7,11 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 去剑组件：原版 Viking 的"剑"（剑刃+剑柄）烘焙在 OnehandedXXXX 动画帧里。
-    /// 原理：把材质块 _MainTex 换成"擦除剑像素"的克隆纹理（与图集同尺寸，UV 不变，绝不动 bSprite/网格）。
-    /// 剑刃 = 暗红像素（R>70,G<40,B<20）；剑柄与身体同色、无法像素分离（已知遗留，盾牌遮挡）。
+    /// 去剑组件：原版 Viking 的"剑"烘焙位置随基底不同——
+    ///   旧基底 Viking_Sword = OnehandedXXXX 动画帧里的暗红剑刃（R>70,G<40,B<20）+ sprite2 PartTex_Sword 亮银剑柄；
+    ///   新基底 Viking_SwordShield = SwordsmanXXXX 帧 + sprite2 PartTex_SwordShield（剑+盾 2D 部件）。
+    /// 原理：帧内剑刃 → 把材质块 _MainTex 换成"擦除剑像素"的克隆纹理；部件贴图 → sprite2 换为去剑克隆
+    /// （旧基底亮银擦除；新基底整块清空——黑矛兵持矛+3D盾，2D 剑盾部件全不要）。
     /// ⚠️ 安全阀：单帧擦除占比超阈值判定误擦并跳过；帧纹理是共享图集，只擦当前帧 rect。
     /// </summary>
     public class SwordRemover : MonoBehaviour
@@ -45,7 +47,7 @@ namespace BadNorthBlackSpearman1_3
 
         Agent _agent;
         SpriteAnimator _sa;
-        bool _sprite2Done;
+        Sprite _blankSprite2;   // 新基底整块清空后的 sprite2（烘焙重置时可重应用）
         bool _eraseEnabled;
         bool _dumped;      // 运行时诊断已输出（处理第一帧时）
 
@@ -54,17 +56,17 @@ namespace BadNorthBlackSpearman1_3
             _agent = agent;
             _eraseEnabled = eraseEnabled;
             if (_agent == null) { Destroy(this); return; }
-            // 找到身体 SpriteAnimator：当前帧精灵名以 Onehanded 开头（Viking_Sword 基底动画帧）
+            // 找到身体 SpriteAnimator：旧基底 Viking_Sword 用 Onehanded 帧，新基底 Viking_SwordShield 用 Swordsman 帧
             var sas = agent.GetComponentsInChildren<SpriteAnimator>(true);
             for (int i = 0; i < sas.Length; i++)
             {
                 var sa = sas[i];
                 if (sa == null) continue;
-                if (IsOnehandedSprite(sa.sprite)) { _sa = sa; break; }
+                if (IsSwordFrameSprite(sa.sprite)) { _sa = sa; break; }
             }
             if (_sa == null)
             {
-                BSLog.Warn("[去剑] 未找到 Onehanded 帧的 SpriteAnimator（可能基底不是 Viking_SwordShield），组件停用");
+                BSLog.Warn("[去剑] 未找到剑帧 SpriteAnimator（Onehanded/Swordsman 帧都没有），组件停用");
                 Destroy(this);
             }
         }
@@ -74,7 +76,7 @@ namespace BadNorthBlackSpearman1_3
             if (_sa == null) return;
 
             var cur = _sa.sprite;
-            if (cur != null && cur.texture != null && IsOnehandedSprite(cur))
+            if (cur != null && cur.texture != null && IsSwordFrameSprite(cur))
             {
                 // ★ 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
                 if (!_dumped) { _dumped = true; DumpBodyRuntime(cur); }
@@ -94,13 +96,28 @@ namespace BadNorthBlackSpearman1_3
                 }
             }
 
-            // 2) sprite2（部件贴图）：只处理一次；若含剑红像素则替换为去剑版本
-            if (_eraseEnabled && !_sprite2Done && _sa.sprite2 != null && _sa.sprite2.texture != null)
+            // 2) sprite2（部件贴图）：新基底 PartTex_SwordShield → 整块清空（黑矛兵持矛+3D盾，
+            //    2D 剑盾部件全不要）；旧基底 PartTex_Sword → 亮银剑柄擦除。可重入：烘焙若重置 sprite2 会再次处理。
+            if (_eraseEnabled && _sa.sprite2 != null && _sa.sprite2.texture != null)
             {
-                _sprite2Done = true;
-                Sprite erased2 = GetErasedSprite2(_sa.sprite2);
-                if (erased2 != null && !ReferenceEquals(_sa.sprite2, erased2))
-                    _sa.SetSprite2(erased2);   // 同步更新 part 纹理 + RG 图集编码
+                if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
+                {
+                    bool swordShieldPart =
+                        (_sa.sprite2.name != null && _sa.sprite2.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0) ||
+                        (_sa.sprite2.texture != null && _sa.sprite2.texture.name != null &&
+                         _sa.sprite2.texture.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0);
+                    if (swordShieldPart)
+                    {
+                        _blankSprite2 = GetBlankSprite2(_sa.sprite2);
+                        if (_blankSprite2 != null) _sa.SetSprite2(_blankSprite2);
+                    }
+                    else
+                    {
+                        Sprite erased2 = GetErasedSprite2(_sa.sprite2);
+                        if (erased2 != null && !ReferenceEquals(_sa.sprite2, erased2))
+                            _sa.SetSprite2(erased2);   // 同步更新 part 纹理 + RG 图集编码
+                    }
+                }
             }
         }
 
@@ -309,6 +326,23 @@ namespace BadNorthBlackSpearman1_3
             return false;
         }
 
+        /// <summary>新旧基底都认：Viking_Sword=Onehanded 帧，Viking_SwordShield=Swordsman 帧。</summary>
+        static bool IsSwordFrameSprite(Sprite s)
+        {
+            if (s == null) return false;
+            if (s.name != null)
+            {
+                if (s.name.StartsWith("Onehanded", StringComparison.Ordinal)) return true;
+                if (s.name.StartsWith("Swordsman", StringComparison.Ordinal)) return true;
+            }
+            if (s.texture != null && s.texture.name != null)
+            {
+                if (s.texture.name.StartsWith("Onehanded", StringComparison.Ordinal)) return true;
+                if (s.texture.name.StartsWith("Swordsman", StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
         static Sprite GetErasedFrame(Sprite src)
         {
             int key = src.GetInstanceID();
@@ -380,6 +414,46 @@ namespace BadNorthBlackSpearman1_3
                 return spr;
             }
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 擦除失败: " + e); return null; }
+        }
+
+        /// <summary>整块清空 sprite2 部件贴图单元（新基底 PartTex_SwordShield：剑+盾 2D 部件全部不要）。
+        /// 黑矛兵视觉 = 身体帧 + 3D 盾网格 + 长矛。空单元精灵按源 sprite2 缓存复用（所有黑矛兵共享一份）。</summary>
+        static Sprite GetBlankSprite2(Sprite s2)
+        {
+            int key = s2.GetInstanceID();
+            Sprite cached;
+            if (_sprite2Cache.TryGetValue(key, out cached)) return cached;
+            try
+            {
+                var srcTex = s2.texture as Texture2D;
+                if (srcTex == null) return null;
+                Texture2D tex = CloneTexture(srcTex);
+                if (tex == null) return null;
+                Rect r = s2.textureRect;
+                Color32[] px = tex.GetPixels32();
+                int w = tex.width, h = tex.height;
+                int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
+                int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
+                int erased = 0;
+                for (int y = y0; y < y1; y++)
+                {
+                    if (y < 0 || y >= h) continue;
+                    for (int x = x0; x < x1; x++)
+                    {
+                        if (x < 0 || x >= w) continue;
+                        int i = y * w + x;
+                        if (px[i].a > 8) { px[i] = new Color32(0, 0, 0, 0); erased++; }
+                    }
+                }
+                if (erased == 0) { UnityEngine.Object.Destroy(tex); return null; }
+                tex.SetPixels32(px); tex.Apply();
+                var spr = Sprite.Create(tex, r, s2.pivot, s2.pixelsPerUnit, 0, SpriteMeshType.FullRect, s2.border);
+                spr.name = s2.name + "_Blank";
+                _sprite2Cache[key] = spr;
+                BSLog.Info("[去剑] sprite2 整块清空(剑盾基底) " + s2.name + " 清空=" + erased + "px");
+                return spr;
+            }
+            catch (Exception e) { BSLog.Warn("[去剑] sprite2 清空失败: " + e); return null; }
         }
 
         /// <summary>共享克隆：同一源纹理只克隆一次（不整图擦除——擦除按帧 rect 单独进行 + 安全阀）。</summary>

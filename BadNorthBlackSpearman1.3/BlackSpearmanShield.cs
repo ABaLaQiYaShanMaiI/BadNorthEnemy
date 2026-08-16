@@ -17,6 +17,7 @@ namespace BadNorthBlackSpearman1_3
         public Agent agent;
         public Transform shield;
         public bool enabledByCfg = true;
+        public Transform swordAnchor;   // 持剑锚点（移盾遮蔽剑柄）：每帧把盾牌贴到该位置，覆盖 Animator 的盾位驱动
 
         string blockSound = "Sfx/English/SwordShield/Block";
         string arrowBounceSound = "Sfx/English/SwordShield/DeflectArrow";
@@ -107,6 +108,19 @@ namespace BadNorthBlackSpearman1_3
                 BlockSpear++;
                 BSLog.Info("[盾牌] 格挡长矛 " + (attack.monoAttacker != null ? attack.monoAttacker.name : "?") + " dmg→" + attack.damage.ToString("F2"));
             }
+        }
+
+        /// <summary>移盾遮蔽剑柄：每帧把盾牌贴到持剑锚点（LateUpdate 在动画之后，保证覆盖 Animator 驱动）。</summary>
+        void LateUpdate()
+        {
+            try
+            {
+                if (swordAnchor == null || shield == null || agent == null) return;
+                shield.position = swordAnchor.position +
+                    agent.transform.forward * (agent.radius * 0.25f) + Vector3.up * (agent.radius * 0.1f);
+                shield.rotation = Quaternion.LookRotation(agent.transform.forward, Vector3.up);
+            }
+            catch { }
         }
 
         /// <summary>定期输出盾牌\"实际效果\"体检（每 30s；仅状态变化或不可见时输出，避免刷屏）。</summary>

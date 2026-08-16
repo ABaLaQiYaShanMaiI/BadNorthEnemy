@@ -18,6 +18,7 @@ namespace BadNorthBlackSpearman1_3
         static Transform _spearTemplate;
         static float _lastNoSpearLog = -999f;
         static float _lastNoShieldLog = -999f;
+        static int _postMoveDumps;   // 移盾后完整体检次数（限前 2 只，避免刷屏）
 
         /// <summary>按名称关键字禁用的剑视觉子对象表（不含盾牌——盾牌要保留），供预制体剥离与运行时移除共用。</summary>
         public static readonly string[] VisualChildNameKeys = { "sword", "weapon", "aimer", "剑" };
@@ -61,6 +62,26 @@ namespace BadNorthBlackSpearman1_3
 
                 // ⑤ 姿态退化自愈（scale≈0 / 陷入身体 → 重置到身左侧默认姿态）
                 FixDegeneratePose(a, shieldTf);
+
+                // ⑥ 移盾遮蔽剑柄（用户方案）：盾牌贴到基底 Weapon 锚点（原本持剑处），每帧跟随身体动画；
+                //    保持朝前——格挡判定 Dot(shield.forward, -攻击方向) 不受影响。
+                var anchor = FindSwordAnchor(a.transform);
+                if (anchor != null && comp != null)
+                {
+                    comp.swordAnchor = anchor;
+                    RepositionShieldToSwordHand(a, shieldTf, anchor);
+                }
+                else
+                {
+                    BSLog.Info("[盾牌·美术资源] 未找到持剑锚点(Weapon)，盾牌保持默认姿态（无移盾遮蔽）");
+                }
+
+                // ⑦ 移盾后复检（前 2 只黑矛兵输出完整两维体检，避免刷屏）
+                if (_postMoveDumps < 2)
+                {
+                    _postMoveDumps++;
+                    DumpShieldHealth(a, "[盾牌·美术资源] 移盾后");
+                }
             }
             catch (Exception e) { BSLog.Warn("[盾牌·美术资源] 挂载盾牌异常: " + e); }
         }
@@ -145,6 +166,40 @@ namespace BadNorthBlackSpearman1_3
             return null;
         }
 
+        /// <summary>找持剑锚点：基底剑盾兵的 Weapon/Sword 子对象（现已被禁用，但变换仍在——即"原本持剑处"）。</summary>
+        static Transform FindSwordAnchor(Transform root)
+        {
+            if (root == null) return null;
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null || t.gameObject == root.gameObject) continue;
+                string n = t.name.ToLowerInvariant();
+                if (n.Contains("shield") || n.Contains("盾")) continue;
+                if (n.Contains("weapon") || n.Contains("sword") || n.Contains("剑"))
+                    return t;
+            }
+            return null;
+        }
+
+        /// <summary>把盾牌移到"原本持剑的位置"遮蔽剑柄残留（用户方案）：以基底 Weapon 锚点为基准，
+        /// 略向前/上偏移，保持朝前（格挡判定依赖 shield.forward）；每帧由 BlackSpearmanShield.swordAnchor 持续跟随。</summary>
+        static void RepositionShieldToSwordHand(Agent a, Transform shieldTf, Transform anchor)
+        {
+            try
+            {
+                if (a == null || shieldTf == null || anchor == null) return;
+                Vector3 target = anchor.position + a.transform.forward * (a.radius * 0.25f) + Vector3.up * (a.radius * 0.1f);
+                float oldDist = Vector3.Distance(shieldTf.position, a.transform.position);
+                shieldTf.position = target;
+                shieldTf.rotation = Quaternion.LookRotation(a.transform.forward, Vector3.up);
+                float newDist = Vector3.Distance(shieldTf.position, a.transform.position);
+                BSLog.Info("[盾牌·美术资源] 盾牌移到持剑位遮蔽剑柄: 锚点=" + anchor.name +
+                    " 距身 " + oldDist.ToString("F2") + "m → " + newDist.ToString("F2") + "m" +
+                    " 朝外Dot=" + Vector3.Dot(shieldTf.forward, a.transform.forward).ToString("F2"));
+            }
+            catch (Exception e) { BSLog.Warn("[盾牌·美术资源] 移盾到持剑位失败: " + e); }
+        }
+
         /// <summary>盾牌两维体检（美术资源 + 实际效果），供挂载时与 F8 诊断复用。</summary>
         public static void DumpShieldHealth(Agent a, string tag)
         {
@@ -190,8 +245,23 @@ namespace BadNorthBlackSpearman1_3
                     BSLog.Raw("  · " + r.gameObject.name + " [" + kind + "] enabled=" + r.enabled +
                         " 资源=" + asset + " 材质=" + mat + (ok ? " ✓" : " ✗"));
                 }
-                BSLog.Raw("· 渲染管线组件: LevelMesh=" + (shieldTf.GetComponent<LevelMesh>() != null) +
-                    " BodyColoredMesh=" + (shieldTf.GetComponent<BodyColoredMesh>() != null));
+                BSLog.Raw("· 渲染管线组件: LevelMesh=" + (shieldTf.GetComponentInChildren<LevelMesh>(true) != null) +
+                    " BodyColoredMesh=" + (shieldTf.GetComponentInChildren<BodyColoredMesh>(true) != null));
+                // 白框排查：Palette 材质按网格顶点色采样色板；顶点色缺失/纯白 → 可能渲染成白框
+                var srf = shieldTf.GetComponentInChildren<MeshRenderer>(true);
+                if (srf != null)
+                {
+                    var srfMf = srf.GetComponent<MeshFilter>();
+                    if (srfMf != null && srfMf.sharedMesh != null)
+                    {
+                        var vc = srfMf.sharedMesh.colors32;
+                        if (vc != null && vc.Length > 0)
+                            BSLog.Raw("· 网格顶点色[0]=" + vc[0] + (vc[0].r >= 250 && vc[0].g >= 250 && vc[0].b >= 250
+                                ? " ← 纯白顶点色（Palette 可能渲染成白框）" : ""));
+                        else
+                            BSLog.Raw("· 网格无顶点色 ← Palette 材质可能渲染为纯白（白框）");
+                    }
+                }
                 BSLog.Raw("· 外观判定: " + (anyValid ? "具备可渲染资源，盾牌应有可见外观" : "无有效渲染资源 → 盾牌必然不可见!"));
 
                 BSLog.Raw("[实际效果]（运行期动态）");
