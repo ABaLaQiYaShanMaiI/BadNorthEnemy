@@ -15,19 +15,20 @@
 > 最新的开发记录见 [`BadNorthBlackSpearman1.3/README.md`](BadNorthBlackSpearman1.3/README.md) 与
 > [`BadNorthBlackSpearman1.3/困惑清单与调试记录.md`](BadNorthBlackSpearman1.3/困惑清单与调试记录.md)。
 
-### ⚠️ 当前状态（2026-08-16，第三十轮：两遗留问题已实施待实测）
+### ⚠️ 当前状态（2026-08-17：v1.3 定稿 + 地形/建筑感知冲锋）
 
 **技能与外观已定稿**：登岛触发 + 长矛突击 + 可躲高收益、盾牌格挡、技能期可被击杀、10s 冷却。
-**闪白已根治**（根因 = 身体顶点 alpha 恒 0 致身体透明露背景；修复 = 强制 alpha=1）。冲锋/近战橡皮筋、死亡白尸均已修复。
+**闪白已根治**（根因 = 身体顶点 alpha 恒 0 致身体透明露背景；修复 = 强制 alpha=1）。冲锋/近战橡皮筋、死亡白尸、重影均已修复。
 
-**✅ 第三十轮（休息后继续）**：
-1. **蓝手/脱开**：精确分析长矛精灵手部 = 暖肤 + **蓝色竖带**（R 41-87 / G 81-119 / B 99-123）；`DarkenSpearHand` 加蓝系阈值后整只手压黑，与黑身融合脱开不可见。**已实施待实测**。
-2. **头盔染黑**：着色器为 LERP（b=0.02 时屏幕色≈克隆色）；暗灰区 ×0.45 → **×0.8**，头盔/肩甲呈可见暗灰，躯干仍黑。**已实施待实测**。
+**✅ 最新新需求（地形/建筑感知冲锋，2026-08-17）**：
+- 冲刺**受地形与建筑约束**：直线被水面/悬崖/房屋（含烧毁残骸）遮挡时不释放技能；
+- 目标背靠海面时终点夹回岸上（不再冲出海岸）；途中遇到不可通过地形被阻拦停住；
+- 可走性判定使用游戏权威 `NavPos.MoveTo`（IL 确认返回 `bestDist==0`），配二分细化 + 内收余量。
 
 > 📍 最新完整记录见 [`BadNorthBlackSpearman1.3/README.md`](BadNorthBlackSpearman1.3/README.md) 与
-> [`BadNorthBlackSpearman1.3/困惑清单与调试记录.md`](BadNorthBlackSpearman1.3/困惑清单与调试记录.md)（含"阶段小结·遗留 2 项"）。
+> [`BadNorthBlackSpearman1.3/困惑清单与调试记录.md`](BadNorthBlackSpearman1.3/困惑清单与调试记录.md)。
 
-> ⚠️ 本文档下方"功能概述/冲刺技能详解"等章节为历史版本（v1.8）遗留内容，仅作参考，实际以 1.3 目录内文档为准。
+> ⚠️ 本文档下方"功能概述/冲刺技能详解/技术架构"等章节为历史版本（v1.8 及更早）遗留内容，仅作参考，实际以 1.3 目录内文档为准。
 
 ### 功能概述
 
@@ -96,7 +97,7 @@
 
 ### 编译步骤
 
-1. 修改 `BadNorthBlackSpearman/BadNorthBlackSpearman.csproj` 中的引用路径：
+1. 修改 `BadNorthBlackSpearman1.3/BadNorthBlackSpearman1.3.csproj` 中的引用路径为**本机游戏路径**：
 
    ```xml
    <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\Assembly-CSharp.dll</HintPath>
@@ -109,10 +110,10 @@
 
 2. 编译：
    ```bash
-   dotnet build BadNorthBlackSpearman/BadNorthBlackSpearman.csproj -c Release
+   dotnet build BadNorthBlackSpearman1.3/BadNorthBlackSpearman1.3.csproj -c Release
    ```
 
-3. 将 `bin/Release/net472/BadNorthBlackSpearman.dll` 复制到 `BepInEx/plugins/`
+3. 将 `bin/Release/net472/BadNorthBlackSpearman1.3.dll` 复制到 `BepInEx/plugins/`
 
 ---
 
@@ -158,18 +159,29 @@ SwordShield Agent 生成
 ## 文件结构
 
 ```
-├── BadNorthBlackSpearman/
-│   ├── BadNorthBlackSpearman.csproj
-│   ├── BadNorthBlackSpearman.sln
-│   ├── Plugin.cs                   # BepInEx 入口、转化逻辑、武器替换
-│   ├── SpearChargeComponent.cs     # 冲刺技能状态机 + 伤害系统
-│   ├── global.json
-│   └── Properties/
-├── tmpfix/                         # 辅助工具：修复 Assembly-CSharp 引用
-├── BlackSpearman整改清单.md        # 待修复/观察项
-├── README.md
-└── .gitignore
+├── README.md                                  # 本总览文档（历史章节仅作参考）
+├── .gitignore
+└── BadNorthBlackSpearman1.3/                  # ★ 当前维护版本（v1.3）
+    ├── BadNorthBlackSpearman1.3.csproj        # 项目文件（游戏 DLL 引用路径按本机调整）
+    ├── Plugin.cs                              # BepInEx 入口：注册 VikingReference + 生成池注入 + cfg 配置
+    ├── BSLog.cs                               # 统一日志系统（控制台 + 文件 + 全局异常捕获）
+    ├── Diagnostics.cs                         # 运行时诊断探针（心跳 + F8 完整转储）
+    ├── BlackSpearmanArt.cs                    # 美术资源（PNG 图标）+ I2 本地化
+    ├── BlackSpearmanVisual.cs                 # 黑色外观（对抗纹理重烘焙 / 闪白）
+    ├── BlackSpearmanWeapon.cs                 # 武器处理（去剑视觉 + 挂我方长矛）
+    ├── BlackSpearmanShield.cs                 # 盾牌格挡效果
+    ├── SpearChargeComponent.cs                # 冲锋技能（IBrainAction + 近战刺击 + 地形/建筑感知）
+    ├── SpearVisual.cs                         # 长矛朝向统一工具
+    ├── SwordRemover.cs                        # 去剑组件（运行时擦除动画帧剑像素）
+    ├── BlackSpearmanDiagProbe.cs              # 死亡/影分身专项诊断探针
+    ├── Resources/
+    │   └── black_spearman_icon.png            # 美术图标
+    ├── README.md                              # v1.3 开发记录（当前状态）
+    ├── 困惑清单与调试记录.md                  # 问题排查记录
+    └── 技术方案_技能复现与残留清理.md          # 技术方案
 ```
+
+> ℹ️ 历史版本（v1.0 / v1.1 / v1.2）、临时分析工具（`tmpfix/`）、一次性 Python 分析脚本与调试截图已随 v1.3 定稿清理删除，git 历史仍可完整追溯。
 
 ---
 
@@ -202,7 +214,8 @@ SwordShield Agent 生成
 
 ## 已知问题
 
-详见 [`BlackSpearman整改清单.md`](BlackSpearman整改清单.md)
+详见 [`BadNorthBlackSpearman1.3/README.md`](BadNorthBlackSpearman1.3/README.md) 与
+[`BadNorthBlackSpearman1.3/困惑清单与调试记录.md`](BadNorthBlackSpearman1.3/困惑清单与调试记录.md)。
 
 ---
 
