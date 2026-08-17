@@ -7,16 +7,9 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 针对性诊断探针（问题②：死亡腾空影分身 / 受击两重分身）。
-    /// 三个职责：
-    /// 1. 死亡→落地每 ~5 帧紧凑记录：身体位置/抬升/网格塌缩状态/材质块状态/第二身体渲染器偏移（腾空轨迹）；
-    /// 2. 钩住 CorpseManager.AddCorpse：静态尸体烘焙时刻 vs 飞行身体位置 → 偏移>0.1m 且身体还在腾空 =
-    /// "飞行身体 + 地上静态尸体 = 双尸"实锤（落地后 agent 被 Destroy，只剩静态尸 = 用户所见"落地后只有一具"）；
-    /// 3. 受击/平时探测"两重分身"三类候选来源：
-    /// a) _MIRROR_ON 镜像渲染器被游戏重新启用（翻面+偏移=双影）；
-    /// b) 两个主身体 MeshRenderer 世界位置离位（应恒同位，parent-child local(0,0,0)）；
-    /// c) BodySprite 的 SpriteRenderer(原始帧) 与黑色克隆 MeshRenderer 同时启用 = 双重渲染。
-    /// 全部输出按 BSLog.DeathTrace / BSLog.HitDoubleTrace 门控。
+    /// 死亡腾空/受击双影诊断探针：①死亡→落地紧凑轨迹；②钩 CorpseManager.AddCorpse 判双尸
+    /// （静态尸体烘焙 vs 飞行身体偏移）；③探测分身三类来源（镜像复启用/主身离位/SpriteRenderer 双重渲染）。
+    /// 按 BSLog.DeathTrace / BSLog.HitDoubleTrace 门控。
     /// </summary>
     public class BlackSpearmanDiagProbe : MonoBehaviour
     {

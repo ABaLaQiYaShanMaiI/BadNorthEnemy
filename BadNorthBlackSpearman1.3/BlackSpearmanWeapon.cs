@@ -5,14 +5,9 @@ using Voxels.TowerDefense;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 黑矛兵武器处理（基底 Viking_SwordShield）：
-    /// 1. 移除剑视觉（按名称禁用剑/武器/瞄准骨子对象）；
-    /// 2. 复用我方 Pikeman 的长矛（Spear.spearAim 骨上的 BatchedSprite），克隆挂到黑矛兵身上；
-    /// 3. EnableShield=false（默认）时完全移除盾牌（效果+美术均不挂载，盾牌子对象禁用）；
-    /// true 时才保留盾牌美术并挂 BlackSpearmanShield（剑盾兵格挡效果）。
-    /// 盾牌日志固定分两个维度（判断\"盾牌存在\"必须同时看两者，缺一不可）：
-    /// [盾牌·美术资源] 静态检查：子对象是否存在、Renderer/Mesh/Sprite/材质是否齐备有效、LevelMesh/BodyColoredMesh 渲染管线组件；
-    /// [盾牌·实际效果] 运行期检查：是否真的上屏(isVisible)、姿态/距身/朝外、格挡是否真的触发(计数)。
+    /// 黑矛兵武器处理（基底 Viking_SwordShield）：移除剑视觉 + 挂我方长矛 +
+    /// 盾牌（默认完全移除；EnableShield=true 保留美术并挂 BlackSpearmanShield 格挡）。
+    /// 盾牌体检分两维：美术资源（子对象/渲染管线静态检查）与实际效果（上屏/姿态/格挡计数）。
     /// </summary>
     public static class BlackSpearmanWeapon
     {

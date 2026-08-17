@@ -8,12 +8,9 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 去剑组件：原版 Viking 的"剑"烘焙位置随基底不同——
-    /// 旧基底 Viking_Sword = OnehandedXXXX 动画帧里的暗红剑刃（R>70,G<40,B<20）+ sprite2 PartTex_Sword 亮银剑柄；
-    /// 新基底 Viking_SwordShield = SwordsmanXXXX 帧 + sprite2 PartTex_SwordShield（剑+盾 2D 部件）。
-    /// 原理：sprite2(部件贴图) → 换"分区压暗"克隆（模式2：亮银/躯干烘黑、暗灰头盔保留，不擦不涂零洞）；帧内剑刃 →
-    /// 材质块 _MainTex 换去剑克隆（帧级红暗 + UV 亮采样擦除照常执行）。绝不动 bSprite（交换会破坏身体渲染）。
-    /// ⚠️ 安全阀：单帧擦除占比超阈值判定误擦并跳过；帧纹理是共享图集，只擦当前帧 rect。
+    /// 去剑组件：剑烘焙在动画帧（旧基底 Onehanded 红暗剑刃 / 新基底 Swordsman 帧 + sprite2 剑盾部件）。
+    /// 原理：sprite2 换"分区压暗"克隆 + 帧内材质块 _MainTex 换去剑克隆（红暗 + UV 亮采样擦除）。
+    /// ⚠️ 绝不动 bSprite（交换会破坏身体渲染）；安全阀：单帧擦除占比超阈值判误擦跳过，帧纹理是共享图集只擦当前 rect。
     /// </summary>
     public class SwordRemover : MonoBehaviour
     {
@@ -1077,12 +1074,9 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] 网格块诊断异常: " + e); }
         }
 
-        /// <summary>把去剑克隆 + 部件贴图强制写入全部身体 MeshRenderer 的材质块。
-        /// 实测现象：身体 SpriteAnimator 下 4 个 MeshRenderer 里前 2 个 block._MainTex/_PartTex 全为 null
-        ///（Unlit/ColoredCharacter 对 null 纹理默认采样白色 → 若其网格有几何就渲染成白框/白板）；
-        /// 且游戏每帧会用原图集重写 block，去剑克隆必须每帧重写才能上屏。
-        /// GetPropertyBlock 会把渲染器当前全部属性拷进新块，我们只覆盖 _MainTex/_PartTex，
-        /// 其余属性（_BloodTex/_Mirror 开关等）原样保留。</summary>
+        /// <summary>把去剑克隆 + 部件贴图写入全部身体渲染器的材质块。
+        /// 实测前 2 个块 _MainTex/_PartTex 为 null（着色器默认白=白框），且游戏每帧用原图集重写 → 必须每帧补写。
+        /// GetPropertyBlock 拷入全部属性，只覆盖 _MainTex/_PartTex，其余（_BloodTex/_Mirror 等）原样保留。</summary>
         void RepairBodyMaterialBlocks(Texture2D erasedTex)
         {
             try
@@ -1558,12 +1552,8 @@ namespace BadNorthBlackSpearman1_3
             List<int> brightIdx = null;
             for (int y = 0; y < ch; y++)
             {
-                // 单元 y<HelmetMaxY 是头/头盔区（含亮银冠饰），不参与亮采样擦除掩码，
-                // 否则帧擦除会把头盔冠饰一起擦透明（用户实测"头盔部分材质透明"）。
-                // 恢复头盔源（单元 y47-88 保留原色）后，该区混有 ~257 个
-                // >150 近白像素（银饰/暖棕高光，max=190），其 y≥45 不在 HelmetMaxY 保护内 → 被纳入擦除掩码 →
-                // 解码 UV 采样到它们的头部帧像素被擦透明 → 动画换帧时头部时擦时显 = 头部闪白/抽搐。
-                // 修复：擦除掩码同时跳过头盔源 y≥HelmSrcY0，让头部帧像素永不被亮采样擦除（剑刃仍走红暗擦除，不受影响）。
+                // 头盔保护：擦除掩码跳过头盔区（y<HelmetMaxY）与头盔源（y≥HelmSrcY0），
+                // 避免把头盔冠饰/银饰擦透明 → 头部帧像素永不被亮采样擦除（剑刃仍走红暗擦除）。
                 if (y < HelmetMaxY || y >= HelmSrcY0) continue;
                 for (int x = 0; x < cw; x++)
                 {

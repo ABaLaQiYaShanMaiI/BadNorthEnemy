@@ -294,12 +294,8 @@ namespace BadNorthBlackSpearman1_3
                 try { _agent.SetDirection(_thrustDirWorld); } catch { }
                 _thrustOffsetLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld) * ThrustDistance;
 
-                // 稳定刺击朝向（2026-08-15 修复"小的抽动"）：虚拟 right = cross(worldUp, dir) 恒 ⊥ dir、
-                // 永不退化 —— 避免旧版 LookRotation(dir, agent.right) 在目标位于角色侧向时
-                // roll 翻转 180°（矛精灵上下颠倒，刺击瞬间最刺眼的一种抽动）。
-                // agent 正对目标时 cross(up, dir) ≡ agent.right → 观感与旧版零差异。
-                // ⚠️ 首版误写 cross(dir, up)（符号反了，= −agent.right）→ 刺击 roll 恒差 180°，
-                // 实测日志 spearWorldRot=(0,X,180)（冲锋/原版举矛是 (0,X,0)）暴露，已改为 cross(up, dir)。
+                // 稳定刺击朝向：虚拟 right = cross(up, dir) 恒 ⊥ dir 永不退化（避免侧向目标时
+                // LookRotation(dir, agent.right) roll 翻转 180°）；正对目标时 ≡ 旧式。⚠️ 符号别写反（cross(dir,up)=−right）。
                 Vector3 stableRight = Vector3.Cross(Vector3.up, _thrustDirWorld);
                 if (stableRight.sqrMagnitude > 0.001f)
                 {
@@ -439,12 +435,9 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>
-        /// 黑矛长矛 vs 我方剑盾兵 —— 正面格挡反馈 + 免伤。
-        /// 原版 Shield.ModifyAttack 对"长矛类"（monoAttacker is Spear）才 ×0.2；黑矛兵刺击的 monoAttacker 是
-        /// Swordsman（近战分支非 parry 不减免伤害）、冲锋/爆发是 SpearChargeComponent（原版完全不识别）
-        /// → 我方剑盾兵被黑矛兵命中时无免伤无反馈、直接死亡。这里在结算前补盾牌判定：
-        /// 盾牌正面（shield.forward 朝向来袭方向）→ 伤害 ×0.2、眩晕 ×0.4（对齐原版长矛格挡），
-        /// 播放盾击音效 + 火花特效；CloseCombatBrain 攻击时原版 Shield.ModifyAttack 会自己播反馈，只做减免避免双音效。
+        /// 黑矛长矛 vs 我方剑盾兵：原版 Shield.ModifyAttack 只认 Spear 类攻击者，黑矛兵刺击/冲锋的攻击者
+        /// 是 Swordsman/本组件（原版不识别）→ 无免伤无反馈。这里在结算前补正面盾牌判定
+        /// （伤害 ×0.2、眩晕 ×0.4、盾击音效）；CloseCombatBrain 攻击时原版会自己播反馈，只做减免避免双音效。
         /// </summary>
         bool TryShieldBlockSpear(Agent target, ref Attack atk)
         {
@@ -849,13 +842,8 @@ namespace BadNorthBlackSpearman1_3
                 }
             }
 
-            // 举矛/放矛旋转插值。
-            // 冲锋位移推进见 Update → DoCharging（固定起点插值 + navPos 整体赋值），这里不再重复推进：
-            // 旧版曾在此用 transform.position + dir*speed*dt 增量推进，与 DoCharging 的固定插值每帧互相覆盖
-            // （LateUpdate 后执行会把正确的固定插值盖掉），已删除。
-            // 刺击期间旋转已锁定（_thrustRotLocked）：直接 snap 到锁定朝向，不每帧 Slerp 追目标 →
-            // 矛保持直线直刺（鬼畜根因之一就是刺击时还向移动中的目标做 Slerp 插值）。
-            // 无目标时（_hasSpearTarget=false 或目标已死）抬回"举矛"姿态——长矛始终树立。
+            // 举矛/放矛旋转插值（位移推进在 DoCharging 完成，不在此重复）。
+            // 刺击期旋转已锁 → 直接 snap 到锁定朝向（不追移动目标，矛保持直线直刺）；无目标时抬回举矛姿态。
             if (_spearTransform == null) return;
             if (_thrustRotLocked && _hasSpearTarget)
             {

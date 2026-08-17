@@ -8,14 +8,9 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// 黑矛兵黑色外观：每帧在 LateUpdate 强制顶点色 B 通道。
-    /// 原版 `Agent.aliveAndGrounded.OnUpdate += UpdateColor`（Agent.cs:418）每帧把
-    /// `spriteAnimator.color.b = 1 - healthFraction` —— B 通道是游戏的"受击白闪"通道。旧版周期写 B=0.01
-    /// （60/30 帧间隔）打不过它：受击时 b→1 → 身体闪白/暖色 = 用户所见"颜色不对劲+闪烁"。
-    /// 现在每帧在 LateUpdate 重写（渲染前最后阶段，必然赢）：
-    /// - 身体（SpriteAnimator）：b 强制 0.02 → 恒黑，抑制受击白闪；
-    /// - 长矛/阴影（普通 BatchedSprite）：b 强制 1.0 → 保持原色（长矛可见、阴影正常）。
-    /// 黑色本体由 SwordRemover 烘进部件贴图克隆（整体压暗 ×0.15），双保险。
+    /// 黑矛兵黑色外观：每帧在 LateUpdate 强制顶点色 B。B 是游戏的"受击白闪"通道
+    /// （原版 UpdateColor，Agent.cs:418，每帧写 b=1-healthFraction），LateUpdate 最后重写必然赢：
+    /// 身体 b=0.02 恒黑、长矛/阴影 b=1.0 保原色。黑色本体另由 SwordRemover 部件贴图分区压暗双保险。
     /// </summary>
     public class BlackSpearmanVisual : MonoBehaviour
     {
