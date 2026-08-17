@@ -71,7 +71,7 @@
 - 新增 `tmpfix/reverse_uvmap.py` / `frame_bands.py` 做**反向 UV 映射**：帧剑刃/盾→单元 y20-24 亮银（压黑）、帧躯干→单元 y21-47 暖棕（压黑）、帧头盔→单元 **y47-88 暗灰+暖棕**（保留原色）。
 - `GetBrightErasedSprite2` 只保留头盔源 y47-88 的暗灰/暖棕（`HelmSrcY0=47/Y1=88`），其余压黑。**头盔颜色恢复正常**。
 
-### 🔴 待解决（第三十四轮）
+### ✅ 第三十四轮：头部闪白/抽搐 + 死亡腾空影分身（已找到根源）
 - ① **头部闪白/抽搐**：头盔源保留区含 257 个 >150 近白像素（max=190）进入帧擦除掩码 → 头部帧像素被擦透明交替。方向：近白像素压暗到 <150（首选）。
 - ② **死亡腾空影分身**：死亡瞬间 `_MainTex/_PartTex` 被清空 → 主+镜像渲染器渲染默认白 + ragdoll 偏移 → 腾空双影，落地 30 帧补块后才单尸。方向：死亡当帧补块 / 禁用镜像渲染器。
 
@@ -167,7 +167,9 @@ GameSetup.Awake()                          ← MMHOOK ① 在这里新建并注�
    冲锋（`SpearChargeComponent`）技能；近战攻击由 `Swordsman.Attack` 穿刺补丁接管。
 
 4. **美术资源**（特质 Mod 风格）：
-   从插件目录 `Resources/black_spearman_icon.png` 加载图标（无 PNG 时回退程序化图标），
+   头像图标**已内嵌 DLL**（改色版剑盾兵头像：黑身+暗灰头盔，v1.3 局内配色同款）；
+   如需自定义，将同名 `black_spearman_icon.png` 放到插件 DLL 同目录或其 `Resources/` 子目录可覆盖；
+   加载顺序：外部 PNG → 内嵌资源 → 程序化占位图标。
    并注册 I2 本地化名称/描述。
 
 5. **武器混搭**（复用我方素材）：
@@ -197,7 +199,7 @@ dotnet build BadNorthBlackSpearman1.3.csproj -c Release
 ```
 
 3. 将 `bin/Release/net472/BadNorthBlackSpearman1.3.dll` 复制到 `BepInEx/plugins/`。
-4. 将 `Resources/black_spearman_icon.png` 复制到插件 DLL 同目录（可选，缺失时会自动生成占位图标）。
+4. 将 `Resources/black_spearman_icon.png` 复制到插件 DLL 同目录（**可选**——头像已内嵌 DLL；放外部 PNG 可覆盖默认改色头像，缺失时也不会回退占位图标）。
 
 > ⚠️ **.NET 3.5 运行时兼容（重要）**：
 > 本游戏是 Unity 2018 的老 Mono 运行时（CLR 2.0 ≈ .NET 3.5），而本项目必须编译为 `net472` 才能引用游戏/BepInEx/MMHOOK 的 DLL。

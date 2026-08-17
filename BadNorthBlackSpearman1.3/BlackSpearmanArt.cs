@@ -28,23 +28,50 @@ namespace BadNorthBlackSpearman1_3
         {
             try
             {
+                byte[] data = null;
+                string src = null;
+
+                // ① 外部 PNG（插件目录，可覆盖内嵌资源，便于自定义）
                 string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                // 兼容两种部署：平级目录 或 Resources/ 子目录
                 var candidates = new[]
                 {
                     Path.Combine(dir, ICON_FILE),
                     Path.Combine(Path.Combine(dir, "Resources"), ICON_FILE)
                 };
-
-                string path = null;
                 foreach (var p in candidates)
-                    if (File.Exists(p)) { path = p; break; }
-                if (path == null) return null;
+                {
+                    if (File.Exists(p)) { data = File.ReadAllBytes(p); src = p; break; }
+                }
+
+                // ② 内嵌资源（随 DLL 一起编译，仅部署 DLL 也能显示改色版头像）
+                if (data == null)
+                {
+                    try
+                    {
+                        var asm = Assembly.GetExecutingAssembly();
+                        foreach (var name in asm.GetManifestResourceNames())
+                        {
+                            if (name.IndexOf(ICON_FILE, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                            using (var s = asm.GetManifestResourceStream(name))
+                            {
+                                if (s == null) continue;
+                                data = new byte[s.Length];
+                                s.Read(data, 0, data.Length);
+                            }
+                            src = "(embedded:" + name + ")";
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (data == null) return null;
 
                 var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (!ImageConversion.LoadImage(tex, File.ReadAllBytes(path))) return null;
+                if (!ImageConversion.LoadImage(tex, data)) return null;
                 tex.filterMode = FilterMode.Bilinear;
                 tex.wrapMode = TextureWrapMode.Clamp;
+                BSLog.Info("[ART] 头像图标已加载: " + src + " (" + tex.width + "x" + tex.height + ")");
                 return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
             }
             catch (Exception e)

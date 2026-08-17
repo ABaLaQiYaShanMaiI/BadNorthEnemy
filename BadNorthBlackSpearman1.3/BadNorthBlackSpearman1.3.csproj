@@ -50,5 +50,7 @@
     <None Include="Resources\black_spearman_icon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- ★ 头像内嵌资源：仅部署 DLL 也能显示改色版头像（外部 PNG 可覆盖） -->
+    <EmbeddedResource Include="Resources\black_spearman_icon.png" />
   </ItemGroup>
 </Project>
