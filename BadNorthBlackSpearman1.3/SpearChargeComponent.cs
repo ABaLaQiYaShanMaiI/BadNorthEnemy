@@ -32,6 +32,9 @@ namespace BadNorthBlackSpearman1_3
         const float ThrustRiseTime = 0.06f;   // 刺出速度（快）
         const float ThrustHoldTime = 0.12f;   // 刺出到位后短暂保持（命中窗口），再收回
         const float ThrustFallTime = 0.28f;   // 收回速度（慢）
+        const float WalkableStep = 0.5f;       // ★ 地形可行性采样步长（m）：直线路径逐点采样间隔
+        const float WalkableEndMargin = 0.2f;  // ★ 终点内收余量（m）：夹回后的终点再往内陆内收，避免踩在海岸线上
+        const float BuildingBlockRadius = 0.4f;// ★ 建筑遮挡检测半径（m）：采样点与 House 碰撞体距离小于该值即判定被建筑遮挡
 
         enum Phase { Idle, WindUp, Charging, Retreat, Cooldown }
 
@@ -44,6 +47,8 @@ namespace BadNorthBlackSpearman1_3
         Vector3 _chargeDirection;
         float _originalSpeed;
         readonly Collider[] _hitBuffer = new Collider[16];
+        static readonly List<House> _houseCache = new List<House>();   // ★ 建筑缓存：残骸遮挡兜底（遍历 House.bounds）
+        static float _houseCacheTime = -999f;
         float _lastLogTime = -999f;
         AgentState _chargeState;
         Transform _spearTransform;
@@ -549,6 +554,19 @@ namespace BadNorthBlackSpearman1_3
                 if (log) Log("触发拦截: 无大脑目标且 6m 内无扫描目标（详见 FindNearestEnemy 诊断）");
                 return false;
             }
+            // ★ 建筑/地形遮挡拦截（新需求）：目标锁定格与自身之间的直线必须全程位于主岛可走导航网格上，
+            //   且直线中段不被房屋/残骸（House，含已烧毁）占据。水面/悬崖/建筑遮挡 → 本次不发起冲锋
+            //   （技能保留，交给普通 AI 绕路/近战，隔 0.25s 再重新评估）。
+            if (nearest == null || !nearest.navPos.valid)
+            {
+                if (log) Log("触发拦截: 目标 navPos 无效，不发起冲锋");
+                return false;
+            }
+            if (!IsStraightPathWalkable(_agent.navPos.wPos, nearest.navPos.wPos))
+            {
+                if (log) Log("触发拦截: 直线路径被建筑/地形遮挡(目标=" + nearest.name + ")，不发起冲锋");
+                return false;
+            }
             _chargeDirection = dir.normalized;
             _targetAgent = nearest;   // ★ 记住目标（冲刺完成后转身后退迎击）
             StartWindUp();
@@ -621,6 +639,17 @@ namespace BadNorthBlackSpearman1_3
                     _chargeTargetPos = _chargeStartPos + _chargeDirection * 3f;   // 目标已消失则冲一段
                 // ★ 冲锋距离 = 到锁定格 + 矛长 + 穿透余量(1.5m)：穿透敌阵、冲击阵营，命中也冲完整段
                 _chargeDistance = Mathf.Max(0.5f, Vector3.Distance(_chargeStartPos, _chargeTargetPos) + SpearLength + ChargeOvershoot);
+                // ★ 终点夹回（新需求）：名义终点可能超出主岛可走网格（目标背靠海/悬崖/建筑时，矛长+穿透余量
+                //   会把终点送出岛外或撞进建筑 → 模型浮在海面/穿墙）。把冲锋距离截短到直线最远可走处：
+                //   至少到达目标锁定格，穿透段被夹回岸上/建筑前。
+                float distToLockedCell = Vector3.Distance(_chargeStartPos, _chargeTargetPos);
+                float walkableEnd = MaxWalkableDistAlongRay(_chargeStartPos, _chargeDirection, _chargeDistance, distToLockedCell);
+                if (walkableEnd < _chargeDistance - 0.01f)
+                {
+                    BSLog.Info("[Charge] 终点夹回: 名义终点=" + _chargeDistance.ToString("F2") +
+                        "m > 最远可走=" + walkableEnd.ToString("F2") + "m，终点夹回岸上/建筑前");
+                    _chargeDistance = Mathf.Max(0.5f, walkableEnd);
+                }
                 _chargeDuration = _chargeDistance / ChargeSpeed;
                 _phaseTimer = _chargeDuration;
                 _posLogTimer = 0f;
@@ -645,6 +674,21 @@ namespace BadNorthBlackSpearman1_3
             float elapsed = Mathf.Max(0f, _chargeDuration - _phaseTimer);
             float t = Mathf.Clamp01(elapsed / dur);   // 0→1
             Vector3 target = _chargeStartPos + _chargeDirection * (_chargeDistance * t);
+
+            // ★ 新需求·冲锋被阻拦：当前直线点若已落在不可通过地形（NavPos.MoveTo 判定不可达/不在主岛），
+            //   立即停止冲锋进入冷却；越过锁定目标格（含建筑余量）之后被房屋/残骸占据同样被阻拦——
+            //   冲锋不穿墙、不穿水、不穿悬崖（目标格近旁的建筑不算，避免"贴墙打"误判）。
+            float distFromStart = Vector3.Distance(_chargeStartPos, target);
+            float distToLockedCell = Vector3.Distance(_chargeStartPos, _chargeTargetPos);
+            if (!IsPointWalkable(target) ||
+                (distFromStart > BuildingBlockRadius && distFromStart > distToLockedCell + BuildingBlockRadius &&
+                 IsPointBlockedByHouse(target)))
+            {
+                BSLog.Info("[Charge] 被阻拦: 冲锋途中遇到不可通过地形/建筑，停在 " + target.ToString("F2"));
+                EndCharge();
+                return;
+            }
+
             NavPos np = _agent.navPos;
             if (np.valid)
             {
@@ -1061,6 +1105,125 @@ namespace BadNorthBlackSpearman1_3
             dir = (target.transform.position - _agent.transform.position).normalized;
             dir.y = 0f;
             return true;
+        }
+
+        /// <summary>★ 新需求·地形可走性：判断世界点是否位于主岛可走导航网格上。
+        /// 用游戏权威判定 NavPos.MoveTo（NavPos 是 struct，副本调用不影响真实 navPos）：
+        /// 反编译 IL 确认 MoveTo 返回 (bestDist == 0f)——目标点真正落在可走三角形内才为 true；
+        /// 落在网格外（水面/悬崖等）时返回 false。彻底避免旧"贴回网格偏移容差"对岸边点失效的问题。</summary>
+        bool IsPointWalkable(Vector3 p)
+        {
+            if (_agent == null || !_agent.navPos.valid || !_agent.navPos.onMain) return false;
+            NavPos np = _agent.navPos;   // struct 副本，测试不影响真实 navPos
+            if (np.transform == null) return false;
+            Vector3 local;
+            try { local = np.transform.InverseTransformPoint(p); }
+            catch { return false; }
+            try { return np.MoveTo(local); }
+            catch { return false; }
+        }
+
+        /// <summary>★ 新需求·建筑遮挡：世界点周围 BuildingBlockRadius 内是否有房屋（完好/燃烧中/已烧毁残骸均算）。
+        /// 碰撞体检测为主，兜底用 House.bounds（Setup 时由碰撞体角点算出的世界包围盒，保留原占地）
+        /// 覆盖"烧毁后碰撞体被禁用"的残骸情况。</summary>
+        bool IsPointBlockedByHouse(Vector3 p)
+        {
+            // ① 物理碰撞体：完好/燃烧中/已烧毁（若碰撞体仍启用）的房屋都算遮挡。
+            if (_hitBuffer != null)
+            {
+                int n = Physics.OverlapSphereNonAlloc(p, BuildingBlockRadius, _hitBuffer, ~0, QueryTriggerInteraction.Collide);
+                for (int i = 0; i < n; i++)
+                {
+                    Collider c = _hitBuffer[i];
+                    if (c == null) continue;
+                    if (c.GetComponentInParent<House>() != null) return true;
+                }
+            }
+            // ② 兜底：遍历场景内所有 House 的世界包围盒（XZ 平面 + BuildingBlockRadius 膨胀）——
+            //    烧毁后残骸同样视为遮挡（排除预制件资产与其零包围盒，避免原点误判）。
+            if (Time.time - _houseCacheTime > 2f)
+            {
+                _houseCacheTime = Time.time;
+                _houseCache.Clear();
+                try
+                {
+                    House[] all = Resources.FindObjectsOfTypeAll<House>();
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        House h = all[i];
+                        if (h == null || !h.gameObject.scene.IsValid()) continue;   // 排除预制件资产
+                        if (h.bounds.size.sqrMagnitude < 0.001f) continue;           // 排除无效包围盒
+                        _houseCache.Add(h);
+                    }
+                }
+                catch { }
+            }
+            for (int i = 0; i < _houseCache.Count; i++)
+            {
+                House h = _houseCache[i];
+                if (h == null) continue;
+                Vector3 c = h.bounds.center;
+                Vector3 e = h.bounds.extents;
+                if (Mathf.Abs(p.x - c.x) <= e.x + BuildingBlockRadius &&
+                    Mathf.Abs(p.z - c.z) <= e.z + BuildingBlockRadius)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>★ 新需求·建筑/地形遮挡检查：起点到终点锁定格的直线必须全程位于主岛可走导航网格上；
+        /// 直线中段（起终点各留 BuildingBlockRadius 余量，避免"贴墙站/贴墙打"误判）被房屋/残骸占据
+        /// 同样判定遮挡。用于发起冲锋前的拦截：单位在建筑或不可接触地形后面 → 不释放技能。</summary>
+        bool IsStraightPathWalkable(Vector3 from, Vector3 to)
+        {
+            Vector3 dir = to - from;
+            dir.y = 0f;
+            float total = dir.magnitude;
+            if (total < 0.01f) return true;
+            dir /= total;
+            for (float d = 0f; d <= total + WalkableStep * 0.5f; d += WalkableStep)
+            {
+                Vector3 p = from + dir * d;
+                if (!IsPointWalkable(p)) return false;
+                if (d > BuildingBlockRadius && total - d > BuildingBlockRadius && IsPointBlockedByHouse(p)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>★ 新需求·终点夹回：沿 dir 方向从 from 起逐点采样，返回最后一个可走的距离。
+        /// 地形（IsPointWalkable）全程生效，边界处二分细化并用 WalkableEndMargin 内收，确保终点
+        /// 稳稳落在岸上而非踩线/出海；建筑只对越过锁定目标格（targetDist）之后的穿透段判定，
+        /// 起终点附近各留 BuildingBlockRadius 余量。至少保证冲锋能到达目标锁定格。</summary>
+        float MaxWalkableDistAlongRay(Vector3 from, Vector3 dir, float maxDist, float targetDist)
+        {
+            if (dir.sqrMagnitude < 0.0001f) return maxDist;
+            float last = 0f;
+            float firstBad = -1f;
+            bool terrainBreak = false;
+            for (float d = 0f; d <= maxDist + WalkableStep * 0.5f; d += WalkableStep)
+            {
+                Vector3 p = from + dir * d;
+                if (!IsPointWalkable(p)) { firstBad = d; terrainBreak = true; break; }
+                if (d > BuildingBlockRadius && d > targetDist + BuildingBlockRadius && IsPointBlockedByHouse(p)) { firstBad = d; break; }
+                last = d;
+            }
+            if (firstBad < 0f) return Mathf.Max(last, targetDist);   // 全程可走，无需夹回
+            float edge = last;
+            if (terrainBreak)
+            {
+                // 二分细化：在 [last, firstBad] 间找精确的可走/不可走交界
+                float lo = last, hi = firstBad;
+                for (int k = 0; k < 6; k++)
+                {
+                    float mid = (lo + hi) * 0.5f;
+                    if (IsPointWalkable(from + dir * mid)) lo = mid; else hi = mid;
+                }
+                edge = lo;
+            }
+            float end = terrainBreak ? edge - WalkableEndMargin : last;   // 地形→岸上内收；建筑→检测边界前
+            if (firstBad <= targetDist + BuildingBlockRadius)
+                return Mathf.Max(0.5f, end);       // 边界在目标格之前（防御：冲锋被中途阻拦）
+            return Mathf.Max(targetDist, end);     // 至少到达目标，穿透段夹回岸上/建筑前
         }
 
         void Log(string msg)
