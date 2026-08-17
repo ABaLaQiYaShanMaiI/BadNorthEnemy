@@ -218,8 +218,9 @@ namespace BadNorthBlackSpearman1_3
             DiagSingleBodyMode = Config.Bind("Diag", "SingleBodyMode", 2,
                 "★ 第四十四轮（重影根治实验）：身体渲染器去重影模式。\n" +
                 "0=默认（保留 2主+2镜像，游戏原样，重影存在）；\n" +
-                "1=禁用 2 个 _MIRROR_ON 镜像渲染器（ColoredCharacter 着色器是 Cull Off，主身永远绘制，禁镜像不会让背对时角色消失）→ 消除镜像重影；\n" +
-                "2=★第四十五轮实测后默认：再禁用第 2 个主身 MeshRenderer，**只留 1 个身体渲染器** → 彻底消除多层叠加重影。\n" +
+                "1=禁用 2 个 _MIRROR_ON 镜像渲染器（ColoredCharacter 着色器是 Cull Off，主身永远绘制，禁镜像不会让背对时角色消失）；\n" +
+                "2=★默认：只保留 1 个身体渲染器——**保留动画主身（UV 随帧更新=律动源），禁用静态主身+2镜像**\n" +
+                "  → 无重影且保留待机律动（第四十六轮：前主身 UV 恒 0.152=Swordsman0001 静态帧，后主身随帧变化=动画源）。\n" +
                 "改完重启游戏生效。若发现身体局部消失/朝向异常，改回 1 或 0。");
         }
 

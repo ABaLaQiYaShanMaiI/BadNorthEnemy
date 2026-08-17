@@ -84,7 +84,12 @@ namespace BadNorthBlackSpearman1_3
                 if (mirrorEnabled && mainEnabled)
                     BSLog.Warn("[单身] ⚠️ 改造前 主身与镜像渲染器同时启用（Cull Off → 多副本同绘 = 重影来源）主身=" + mains + " 镜像=" + mirrors);
 
+                // ★ 第四十六轮（律动保留）：主身渲染器有"静态"与"动画"两份——
+                //   [死亡分裂] 实测：前面的主身 UV0 恒 (0.152,0.384)=Swordsman0001 静态帧（不随动画更新），
+                //   最后一个主身 UV0 随帧变化 = 动画/律动渲染器。Mode2 必须**保留最后一个主身**（动画源），
+                //   禁用前面的静态主身 → 单渲染器无重影 + 动画律动保留。
                 int mainKept = 0;
+                string keptInfo = "";
                 for (int i = 0; i < mrs.Length; i++)
                 {
                     var mr = mrs[i];
@@ -101,12 +106,22 @@ namespace BadNorthBlackSpearman1_3
                     if (_singleBodyMode >= 2 && !isMirror)
                     {
                         mainKept++;
-                        if (mainKept > 1 && mr.enabled) { mr.enabled = false; disabled++; }
+                        if (mainKept < mains)
+                        {
+                            if (mr.enabled) { mr.enabled = false; disabled++; }
+                        }
+                        else if (mr.enabled)
+                        {
+                            var mf = mr.GetComponent<MeshFilter>();
+                            string uv0 = (mf != null && mf.sharedMesh != null && mf.sharedMesh.uv != null && mf.sharedMesh.uv.Length > 0)
+                                ? mf.sharedMesh.uv[0].ToString("F3") : "?";
+                            keptInfo = nm + " uv0=" + uv0;
+                        }
                     }
                 }
                 if (disabled > 0)
                     BSLog.Warn("[单身] 已按 SingleBodyMode=" + _singleBodyMode + " 禁用 " + disabled +
-                        " 个身体渲染器（主身=" + mains + " 镜像=" + mirrors + "）→ 重影应消失；若发现朝向/背对异常请改回 cfg=0");
+                        " 个身体渲染器（主身=" + mains + " 镜像=" + mirrors + "），保留动画主身[" + keptInfo + "] → 无重影且律动保留；若朝向/背对异常请改回 cfg=0");
             }
             catch { }
         }
@@ -119,6 +134,16 @@ namespace BadNorthBlackSpearman1_3
                 if (_singleBodyMode <= 0 || _sa == null) return;
                 var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
                 if (mrs == null) return;
+                int mains = 0;
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                    if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                    string nm = mr.gameObject.name != null ? mr.gameObject.name : "?";
+                    if (nm.IndexOf("_MIRROR_ON", StringComparison.Ordinal) < 0) mains++;
+                }
                 int mainKept = 0;
                 for (int i = 0; i < mrs.Length; i++)
                 {
@@ -136,7 +161,7 @@ namespace BadNorthBlackSpearman1_3
                     if (_singleBodyMode >= 2 && !isMirror)
                     {
                         mainKept++;
-                        if (mainKept > 1 && mr.enabled) mr.enabled = false;
+                        if (mainKept < mains && mr.enabled) mr.enabled = false;
                     }
                 }
             }
