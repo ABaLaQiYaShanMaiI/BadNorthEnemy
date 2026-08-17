@@ -48,6 +48,16 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<int> RemoveSwordSprite2GripBand;   // 剑柄改身体色开关（第十八轮默认 2；>0 启用 RecolorGripToBody）
         public static ConfigEntry<bool> SpearMountToHand;            // 第十四轮：长矛挂到持剑锚点（Weapon 骨=手位）
         public static ConfigEntry<bool> EnableShield;
+        // ★ 第四十二轮（日志整理）：Diag 诊断开关段
+        public static ConfigEntry<bool> DiagVerboseDumps;
+        public static ConfigEntry<bool> DiagHeadTrace;
+        public static ConfigEntry<bool> DiagDeathTrace;
+        public static ConfigEntry<bool> DiagHitDoubleTrace;
+        // ★ 第四十四轮（重影根治实验）：SingleBodyMode
+        //   0=默认（保留 2主+2镜像 全部身体渲染器，游戏原样）；
+        //   1=Setup 时禁用 2 个 _MIRROR_ON 镜像渲染器（ColoredCharacter 是 Cull Off，主身永远绘制，禁镜像不破朝向）→ 消除镜像重影；
+        //   2=再禁用第 2 个主身 MeshRenderer（只留 1 个身体渲染器）→ 最大去重影。
+        public static ConfigEntry<int> DiagSingleBodyMode;
 
         static VikingReference _blackSpearman;
         static VikingAgent _sourceViking;
@@ -56,6 +66,7 @@ namespace BadNorthBlackSpearman1_3
         // ★ Patch 生效状态（供启动总览与运行期检查）：启动日志里每一行都必须看到 OK
         static bool _patchLevelNode, _patchRange, _patchGetAttack, _patchAttack, _patchAttackUpdate, _patchPlayAnimation, _patchClashBlock;
         static readonly HashSet<Agent> _attackUpdateSeen = new HashSet<Agent>();
+        static int _lastDictCount = -1;   // ★ 第四十二轮：REGISTER 等待日志只在 dict 条目数变化时打（注册重试不刷屏）
         static readonly int AttackAnimHash = Animator.StringToHash("Attack");
         static readonly int ClashAnimHash = Animator.StringToHash("Clash");
         static float _lastAnimLogTime = -999f;
@@ -73,6 +84,16 @@ namespace BadNorthBlackSpearman1_3
             try
             {
                 BindConfig();
+
+                // ★ 第四十二轮（日志整理）：把 cfg Diag 段写入 BSLog 静态开关（各诊断组件读取）
+                try
+                {
+                    BSLog.VerboseDumps = DiagVerboseDumps.Value;
+                    BSLog.HeadTrace = DiagHeadTrace.Value;
+                    BSLog.DeathTrace = DiagDeathTrace.Value;
+                    BSLog.HitDoubleTrace = DiagHitDoubleTrace.Value;
+                }
+                catch { }
 
                 // 初始化日志系统（控制台 + 文件 + 全局异常捕获）+ 诊断探针
                 string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -178,12 +199,36 @@ namespace BadNorthBlackSpearman1_3
                 "第十四轮：长矛是否挂到持剑锚点（基底 Weapon 骨=原本持剑的手）。旧固定偏移 (0, 半径*1.4, 半径*0.6)\n" +
                 "让矛根悬在身体正中、与持剑手（偏离身体中心 ~0.2m）错位 → 观感\"持矛手脱离身躯、攻击范围异常大\"。\n" +
                 "true=矛根贴到 Weapon 锚点（手位）；false=旧固定偏移。");
+
+            // ★ 第四十二轮（日志整理）：诊断开关——本 Mod 的日志目标从"什么都打"改为"按问题分类可开关"。
+            //   P0 头部闪白/抽搐 → DiagHeadTrace（头盔逐帧采样+帧擦除追踪）；
+            //   P1 死亡腾空影分身/受击两重分身 → DiagDeathTrace + DiagHitDoubleTrace（腾空轨迹+尸体烘焙钩子+镜像复启用探测）。
+            DiagVerboseDumps = Config.Bind("Diag", "VerboseDumps", false,
+                "巨型转储开关（默认关，配合 F8 手动完整诊断用）：去剑 ASCII 像素图 / transform 层级 / SPAWN 首例完整 dump / [头部采样] 逐帧行。\n" +
+                "开启会刷屏（每黑矛兵几 KB），平时保持 false；需要贴细节日志时再开。");
+            DiagHeadTrace = Config.Bind("Diag", "HeadTrace", true,
+                "头部采样追踪（问题①头部闪白/抽搐）：帧末采盔顶实际渲染色 + 窗口统计 [头盔统计]。\n" +
+                "采样点已修正为 Sprite 真实盔顶（旧 chestPos+up*0.45 常落空采到背景）。窗口含\"暗↔亮交替\"计数=闪白实锤。");
+            DiagDeathTrace = Config.Bind("Diag", "DeathTrace", true,
+                "死亡腾空紧凑追踪（问题②死亡影分身/腾空分裂）：死亡→落地每 ~5 帧打一行身体位置/网格/块状态；\n" +
+                "另钩住 CorpseManager.AddCorpse（静态尸体烘焙时刻），与飞行身体对比偏移=双尸证据。");
+            DiagHitDoubleTrace = Config.Bind("Diag", "HitDoubleTrace", true,
+                "受击两重分身探针（问题②受击双影）：探测 _MIRROR_ON 镜像渲染器被游戏重新启用 / 两个身体 MeshRenderer 离位 /\n" +
+                "BodySprite 的 SpriteRenderer(原始帧)与 MeshRenderer(黑色克隆) 同时启用=双重渲染。");
+            DiagSingleBodyMode = Config.Bind("Diag", "SingleBodyMode", 2,
+                "★ 第四十四轮（重影根治实验）：身体渲染器去重影模式。\n" +
+                "0=默认（保留 2主+2镜像，游戏原样，重影存在）；\n" +
+                "1=禁用 2 个 _MIRROR_ON 镜像渲染器（ColoredCharacter 着色器是 Cull Off，主身永远绘制，禁镜像不会让背对时角色消失）→ 消除镜像重影；\n" +
+                "2=★第四十五轮实测后默认：再禁用第 2 个主身 MeshRenderer，**只留 1 个身体渲染器** → 彻底消除多层叠加重影。\n" +
+                "改完重启游戏生效。若发现身体局部消失/朝向异常，改回 1 或 0。");
         }
 
         void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
         {
             orig(self);
-            BSLog.Info($"[BOOT] GameSetup.Awake 完成，dict 现有 {LevelStateObjectReferences.dict.Count} 个条目: {BSLog.Join(LevelStateObjectReferences.dict.Keys)}");
+            // ★ 第四十二轮（日志整理）：dict 键列表（很长）归入 VerboseDumps；平时只报条数
+            BSLog.Info("[BOOT] GameSetup.Awake 完成，dict 现有 " + LevelStateObjectReferences.dict.Count + " 个条目" +
+                (BSLog.VerboseDumps ? ": " + BSLog.Join(LevelStateObjectReferences.dict.Keys) : ""));
             EnsureBlackSpearmanRegistered();
         }
 
@@ -193,7 +238,13 @@ namespace BadNorthBlackSpearman1_3
             if (_blackSpearman != null) return true;
             if (!LevelStateObjectReferences.dict.TryGetValue(SourceVikingName.Value, out var srcObj))
             {
-                BSLog.Info($"[REGISTER] 等待源单位 {SourceVikingName.Value} 注册（当前 dict 条目 {LevelStateObjectReferences.dict.Count}），稍后重试");
+                // ★ 第四十二轮：等待日志只在 dict 条目数变化时打（GameSetup.Awake 会重试多次，旧版每次都刷一行）
+                int cnt = LevelStateObjectReferences.dict.Count;
+                if (cnt != _lastDictCount)
+                {
+                    _lastDictCount = cnt;
+                    BSLog.Info($"[REGISTER] 等待源单位 {SourceVikingName.Value} 注册（当前 dict 条目 {cnt}），稍后重试");
+                }
                 return false;
             }
             var src = srcObj as VikingReference;
@@ -657,8 +708,11 @@ namespace BadNorthBlackSpearman1_3
 
             if (applied > 0)
             {
+                BSLog.Section("SPAWN 黑矛兵");
                 BSLog.Info($"[SPAWN] 本艘敌舰生成黑矛兵 {applied} 个（累计 {_done.Count}）");
-                if (first != null) DiagnosticsComponent.DumpAgent(first, "SPAWN·黑矛兵首例");
+                // ★ 第四十二轮（日志整理）：首例完整 dump（层级/组件/SpriteRenderer）归入 VerboseDumps；平时按 F8
+                if (first != null && BSLog.VerboseDumps)
+                    DiagnosticsComponent.DumpAgent(first, "SPAWN·黑矛兵首例");
             }
             return ship;
         }
@@ -707,6 +761,9 @@ namespace BadNorthBlackSpearman1_3
             SwordRemover.UVHalo = RemoveSwordFrameUVHalo.Value;
             // ★ 第二十四轮：RemoveSwordSprite2GripBand（剑柄改色）已不再生效（GripFloodPx 已删）——
             //   剑柄改色会误涂肩甲/胸甲/头盔同色像素，且顶点色 B 恒 0.02 时剑柄本就是黑色剪影。
+            // ★ 第四十二轮（日志整理）：针对性诊断探针——死亡腾空轨迹 / 静态尸体烘焙钩子 / 受击两重分身探测
+            var probe = a.gameObject.AddComponent<BlackSpearmanDiagProbe>();
+            if (probe != null) probe.Setup(a);
         }
 
         static void RegisterBrainAction(Agent a, IBrainAction action)

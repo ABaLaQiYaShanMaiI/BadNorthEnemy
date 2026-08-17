@@ -17,6 +17,28 @@ namespace BadNorthBlackSpearman1_3
 
         public static string LogPath => _logPath;
 
+        // ============ 诊断开关（第四十二轮·日志整理：由 Plugin 从 cfg Diag 段写入） ============
+        // 巨型转储（去剑 ASCII / transform 层级 / SPAWN 首例完整 dump / [头部采样] 逐帧行）→ 默认关，F8 或显式开启
+        public static bool VerboseDumps = false;
+        // 头部采样追踪（问题①"头部闪白/抽搐"）——保留窗口统计 [头盔统计] 与异常告警，逐帧行见 VerboseDumps
+        public static bool HeadTrace = true;
+        // 死亡腾空紧凑追踪 + 尸体烘焙探针（问题②"死亡影分身/腾空分裂"）
+        public static bool DeathTrace = true;
+        // 受击两重分身探针（镜像复启用 / 身体离位 / SpriteRenderer 双重渲染）
+        public static bool HitDoubleTrace = true;
+
+        /// <summary>日志分区横幅：把一轮会话内的不同阶段（启动/生成/战斗/死亡）用分隔线组织起来，方便检索。</summary>
+        public static void Section(string title)
+        {
+            try
+            {
+                Append("\n" + new string('-', 72));
+                Append("== " + title + "  (" + DateTime.Now.ToString("HH:mm:ss.fff") + ") ==");
+                Append(new string('-', 72));
+            }
+            catch { }
+        }
+
         public static void Init(string dir)
         {
             try

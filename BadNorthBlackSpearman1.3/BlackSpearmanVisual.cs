@@ -39,7 +39,8 @@ namespace BadNorthBlackSpearman1_3
             Recolor();
             // ★ 第二十七轮（修正）：屏幕像素回读诊断——**只在登岛(onMain)后采样**（敌舰上身体 alpha=0 透明，采到的是海水；
             //   上轮 20 次采样全浪费在登岛前）。每 0.5s 采样第一只登岛黑矛兵的胸口实际渲染色，直到 30 次。
-            if (_pixelSampleCount < 30)
+            // ★ 第四十二轮：归入 VerboseDumps 门控（该采样点常被英文兵/背景遮挡误报"整条偏亮"，默认不再刷）
+            if (BSLog.VerboseDumps && _pixelSampleCount < 30)
             {
                 bool onMain = _agent != null && _agent.navPos.valid && _agent.navPos.onMain;
                 if (onMain)
@@ -56,7 +57,8 @@ namespace BadNorthBlackSpearman1_3
             // ★ 第三十四轮（头部闪白定位）：高频头部亮度采样——每 0.016s（≈每帧）采盔顶实际渲染色，
             //   记录亮度时间序列 + 相邻跳变（>0.25）+ 屏坐标跳动（>5px），把"头部闪白/抽搐"量化成可判读的曲线。
             // ★ 第三十六轮：间隔 0.1s→0.03s；★ 第四十轮：0.03s→0.016s（抓 60Hz 高频闪动），限 150 次 ≈ 2.5s。
-            if (_headSampleCount < 600)
+            // ★ 第四十二轮：由 cfg Diag.HeadTrace 门控（日志整理：默认开，但逐帧行只在你开 VerboseDumps 时打）
+            if (BSLog.HeadTrace && _headSampleCount < 600)
             {
                 bool onMain = _agent != null && _agent.navPos.valid && _agent.navPos.onMain;
                 if (onMain)
@@ -85,6 +87,19 @@ namespace BadNorthBlackSpearman1_3
         int _hWinBJumps;                // 窗口内亮度跳变数
         int _hWinPJumps;                // 窗口内位移跳变数
         float _hWinBrightSum;           // 窗口内亮度累加（平均亮度）
+        // ★ 第四十二轮（问题①头部闪白/抽搐·诊断修正）：暗/亮像素计数 + 暗↔亮交替计数
+        int _hWinDark;                  // 窗口内"暗盔"判定次数
+        int _hWinBrightN;               // 窗口内"亮盔/露背景"判定次数
+        int _hWinAlt;                   // 窗口内 暗↔亮 交替次数（≥3 = 闪白实锤）
+        bool _prevHeadDarkValid;
+        bool _prevHeadDark;
+        // ★ 第四十三轮（日志判读修正）：垂直条带最暗点统计——顶点全零=正常 billboard，之前"网格塌缩"误报。
+        //   条带最暗点 ≤0.35 = 头部某高度有黑盔（单点 0.78 落在透明 padding 的恒亮是采样落空）；
+        //   整条 >0.55 = 头部真亮。
+        float _hWinDarkestSum;          // 窗口内"最暗采样点"亮度累加
+        int _hWinDarkestN;              // 窗口内有效最暗点采样数
+        float _lastDarkestPt = -1f;     // 最近一次最暗点亮度
+        string _lastDarkestRel = "?";   // 最近一次最暗点相对高度
 
         /// <summary>帧末读屏幕：采样黑矛兵脚→盔顶垂直条 5 点（各 3x3），输出最暗/最亮点亮度。
         /// 最暗≤0.35=黑身正常渲染（✓）；整条>0.35=被英文兵遮挡或身体透明（✗=闪白回归信号）。
@@ -150,8 +165,11 @@ namespace BadNorthBlackSpearman1_3
             catch { }
         }
 
-        /// <summary>★ 第三十四轮：帧末采盔顶实际渲染色（3x3），记录亮度 + 当前动画帧名 + 相邻跳变，
-        /// 用于把"头部闪白/抽搐"量化（亮度忽高忽低=闪白；帧名对应动画位置，判断是否只在某些帧闪）。</summary>
+        /// <summary>★ 第四十二轮（问题①头部闪白/抽搐·诊断修正）：
+        /// 头盔采样点改用 **Sprite 真实盔顶**（sprite.bounds 顶部 86% 高度、水平 3 点 × 3x3），
+        /// 旧 chestPos+up*0.45 实测常落空采到背景（恒 0.62~0.97），永远测不到头盔。
+        /// 窗口统计新增：暗/亮判定 + 暗↔亮交替计数（≥3=闪白实锤：头盔在"黑盔↔透明露背景"间逐帧切换）。
+        /// 逐帧 [头部采样] 行由 BSLog.VerboseDumps 门控（默认关，防刷屏）。</summary>
         IEnumerator SampleHeadBrightness()
         {
             yield return new WaitForEndOfFrame();
@@ -165,30 +183,99 @@ namespace BadNorthBlackSpearman1_3
                     if (cams != null && cams.Length > 0) cam = cams[0];
                 }
                 if (ReferenceEquals(cam, null)) yield break;
-                Vector3 head = _agent.chestPos + Vector3.up * 0.45f;
-                Vector3 sp = cam.WorldToScreenPoint(head);
+
+                // 头盔条带：SpriteAnimator 局部包围盒底→顶，取 5 个相对高度做垂直采样
+                //（0.45=脸/盔下沿，0.60/0.72=盔带，0.84/0.95=盔顶/头顶透明 padding）
+                // ★ 第四十三轮：旧单点 0.78 若落在头顶透明 padding 会恒亮误报；条带最暗点可区分"头盔真亮"与"采样落空"。
+                // ★ 第四十五轮（判读修正）：R44 已确认"身体渲染黑"（死亡窗口扫描 暗身px=1760），但条带仍恒亮
+                //   → 条带点全部落在身体上方透明 padding/地面 = 采样落空。**改用窗口扫描最暗点**（同死亡扫描思路）。
+                Vector3 head = _agent.chestPos + Vector3.up * 0.45f;   // 兜底（找不到 sprite 时）
+                bool usedSprite = false;
+                Transform saT = null;
+                Bounds sb = default(Bounds);
+                try
+                {
+                    var sa = _agent.GetComponentInChildren<SpriteAnimator>();
+                    if (sa != null && sa.sprite != null)
+                    {
+                        Bounds b = sa.sprite.bounds;
+                        if (b.size.sqrMagnitude > 0.0001f)
+                        {
+                            sb = b; saT = sa.transform; usedSprite = true;
+                        }
+                    }
+                }
+                catch { }
+
+                Vector3 WorldAt(float rel)
+                {
+                    if (saT != null)
+                        return saT.TransformPoint(new Vector3(0f, sb.min.y + sb.size.y * rel, (sb.min.z + sb.max.z) * 0.5f));
+                    return _agent.chestPos + Vector3.up * (0.45f * rel / 0.78f);
+                }
+
+                // 参考点（0.78）用于屏坐标跳动检测
+                Vector3 sp = cam.WorldToScreenPoint(WorldAt(0.78f));
                 if (sp.z <= 0f || sp.x < 3 || sp.y < 3 || sp.x > Screen.width - 4 || sp.y > Screen.height - 4)
                     yield break;
                 int sx = Mathf.Clamp(Mathf.RoundToInt(sp.x), 3, Screen.width - 4);
                 int sy = Mathf.Clamp(Mathf.RoundToInt(sp.y), 3, Screen.height - 4);
-                var tex = new Texture2D(3, 3, TextureFormat.RGBA32, false);
-                tex.ReadPixels(new Rect(sx - 1, sy - 1, 3, 3), 0, 0);
+
+                // ★ 第四十五轮：窗口扫描（60x90，以参考点为中心向上偏 15px 罩住头/肩）——
+                //   找出窗口内 3x3 平均最暗的点 + 统计暗像素数。身体渲染黑 → 窗口必有大量暗像素。
+                int ww = 60, wh = 90;
+                int wx0 = Mathf.Clamp(sx - ww / 2, 0, Screen.width - ww);
+                int wy0 = Mathf.Clamp(sy - wh / 2 - 15, 0, Screen.height - wh);
+                var tex = new Texture2D(ww, wh, TextureFormat.RGBA32, false);
+                tex.ReadPixels(new Rect(wx0, wy0, ww, wh), 0, 0);
                 tex.Apply();
-                Color[] cs = tex.GetPixels();
-                float sum = 0f;
-                for (int i = 0; i < cs.Length; i++) sum += cs[i].r + cs[i].g + cs[i].b;
-                float br = sum / (cs.Length * 3f);
+                Color[] cpx = tex.GetPixels();
                 UnityEngine.Object.Destroy(tex);
-                // ★ 第四十一轮：统计窗口累计（真实秒），供频率/慢放对比
+                float sum = 0f; int n = 0, darkN = 0, brightN = 0;
+                float darkestPt = 99f; string darkestRel = "?";
+                // 3x3 平均扫一遍（步长 1 太慢，用步长 2）
+                for (int y = 1; y < wh - 2; y += 2)
+                {
+                    for (int x = 1; x < ww - 2; x += 2)
+                    {
+                        float s3 = 0f;
+                        for (int dy = -1; dy <= 1; dy++)
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                Color c = cpx[(y + dy) * ww + (x + dx)];
+                                s3 += c.r + c.g + c.b;
+                            }
+                        float b3 = s3 / 27f;
+                        sum += b3; n++;
+                        if (b3 <= 0.35f) darkN++;
+                        else if (b3 > 0.55f) brightN++;
+                        if (b3 < darkestPt)
+                        {
+                            darkestPt = b3;
+                            darkestRel = "(" + (wx0 + x - sx) + "," + (wy0 + y - sy) + ")px";
+                        }
+                    }
+                }
+                float avg = n > 0 ? sum / n : 0f;
+                // isDark：窗口内暗像素占比高 = 身体/头确实在渲染黑
+                bool isDark = darkN >= n * 0.10f;      // ≥10% 像素 ≤0.35 = 有大块黑（身体）
+                bool isBright = darkN == 0 && brightN >= n * 0.5f;   // 完全无暗 = 身体没在窗口/不黑
+                _lastDarkestPt = darkestPt; _lastDarkestRel = darkestRel;
                 if (_hWinStart <= 0f) _hWinStart = Time.realtimeSinceStartup;
                 _hWinSamples++;
-                _hWinBrightSum += br;
+                _hWinBrightSum += avg;
+                if (isDark) _hWinDark++;        // 窗口有大块黑 = 黑身可见
+                if (isBright) _hWinBrightN++;
+                _hWinDarkestSum += darkestPt; _hWinDarkestN++;
+                bool headDark = isDark;
+                if (_prevHeadDarkValid && headDark != _prevHeadDark) _hWinAlt++;
+                _prevHeadDark = headDark; _prevHeadDarkValid = true;
                 string jump = "";
                 bool bJump = false;
-                if (_prevHeadBright >= 0f && Mathf.Abs(br - _prevHeadBright) > 0.25f)
+                if (_prevHeadBright >= 0f && Mathf.Abs(avg - _prevHeadBright) > 0.25f)
                 {
                     bJump = true;
-                    jump = " ⚠️跳变" + (br > _prevHeadBright ? "↑变亮" : "↓变暗");
+                    jump = " ⚠️跳变" + (avg > _prevHeadBright ? "↑变亮" : "↓变暗");
                 }
                 string frame = "?";
                 try
@@ -205,22 +292,43 @@ namespace BadNorthBlackSpearman1_3
                     pJump = true;
                     posJump = " ⚠️跳动";
                 }
-                BSLog.Info("[头部采样#" + _unitId + "] 亮度=" + br.ToString("F2") + jump + posJump + " 帧=" + frame +
-                    " 屏=(" + sx + "," + sy + ") ts=" + Time.timeScale.ToString("F2"));
-                _prevHeadBright = br;
+                // ★ 第四十二轮：逐帧行默认关（刷屏源之一）；开 BSLog.VerboseDumps 才打
+                if (BSLog.VerboseDumps)
+                {
+                    BSLog.Info("[头部采样#" + _unitId + "] 亮度=" + avg.ToString("F2") + jump + posJump +
+                        " 帧=" + frame + " 屏=(" + sx + "," + sy + ") ts=" + Time.timeScale.ToString("F2") +
+                        (usedSprite ? " 点=sprite盔顶" : " 点=chest+up(兜底)"));
+                }
+                _prevHeadBright = avg;
                 _prevHeadSX = sx; _prevHeadSY = sy;
                 if (bJump) _hWinBJumps++;
                 if (pJump) _hWinPJumps++;
                 if (_hWinSamples >= 30)
                 {
                     float realSec = Mathf.Max(0.0001f, Time.realtimeSinceStartup - _hWinStart);
+                    float avgWin = _hWinBrightSum / _hWinSamples;
+                    float darkestWin = _hWinDarkestN > 0 ? _hWinDarkestSum / _hWinDarkestN : 99f;
+                    string verdict = "";
+                    if (_hWinAlt >= 3)
+                        verdict = " ⚠️黑身↔背景交替=" + _hWinAlt + "次(≥3)=闪白实锤";
+                    else if (_hWinDark > 0)
+                        verdict = " ✓窗口内有大块黑(暗窗=" + _hWinDark + "/" + _hWinSamples + ") 黑身可见 最暗=" + darkestWin.ToString("F2") + "@" + _lastDarkestRel;
+                    else if (darkestWin > 0.35f)
+                        verdict = " ⚠️窗口完全无暗(最暗=" + darkestWin.ToString("F2") + ") 身体不在窗口或未渲染黑";
+                    else
+                        verdict = " ✓黑盔稳定";
                     BSLog.Info("[头盔统计#" + _unitId + "] 真实秒=" + realSec.ToString("F2") +
                         " ts=" + Time.timeScale.ToString("F2") + " 采样=" + _hWinSamples +
+                        " 暗=" + _hWinDark + " 亮=" + _hWinBrightN + " 交替=" + _hWinAlt +
+                        " 最暗点=" + darkestWin.ToString("F2") + "@h" + _lastDarkestRel +
                         " 亮度跳变=" + _hWinBJumps + "(" + (_hWinBJumps / realSec).ToString("F1") + "/真实秒)" +
                         " 位移跳变=" + _hWinPJumps + "(" + (_hWinPJumps / realSec).ToString("F1") + "/真实秒)" +
-                        " 平均亮度=" + (_hWinBrightSum / _hWinSamples).ToString("F2") +
+                        " 平均亮度=" + avgWin.ToString("F2") +
+                        " 采样点=" + (usedSprite ? "sprite条带" : "chest+up") +
+                        verdict +
                         " → 慢放对比: 频率随ts降=动画/游戏时间驱动; 频率不降=每帧渲染层变动");
                     _hWinStart = 0f; _hWinSamples = 0; _hWinBJumps = 0; _hWinPJumps = 0; _hWinBrightSum = 0f;
+                    _hWinDark = 0; _hWinBrightN = 0; _hWinAlt = 0; _hWinDarkestSum = 0f; _hWinDarkestN = 0;
                 }
             }
             catch { }

@@ -109,6 +109,13 @@ namespace BadNorthBlackSpearman1_3
         bool _wasAlive = true;         // ★ 第二十七轮：上一帧存活状态（死亡瞬间转储用）
         bool _deathDumped;             // 死亡转储已输出（每个黑矛兵一次）
         bool _preRenderLogged;         // ★ 第三十五轮：onPreRender 渲染前补块首次触发日志
+        // ★ 第四十二轮（问题①头部闪白/抽搐）：头部带逐帧擦除追踪（非屏幕、动画帧级）+ 白帧转换检测
+        int _lastHeadErase = -1;       // 上一帧头部带"将被擦除"像素数
+        string _lastHeadEraseFrame;    // 上一帧名
+        int _headEraseFlips;           // 头部擦除 0↔N 交替翻转计数
+        bool _headEraseWarned;         // 闪白实锤告警已输出（每黑矛兵一次）
+        bool _whiteFrameActive;        // 当前是否处于"空块或网格塌缩"白帧状态
+        int _whiteFrameScanTick;       // 白帧检测节流（隔帧扫描）
 
         public void Setup(Agent agent, bool eraseEnabled)
         {
@@ -206,10 +213,16 @@ namespace BadNorthBlackSpearman1_3
                 Vector3 sp = cam.WorldToScreenPoint(_agent.transform.position);
                 if (sp.z <= 0f) yield break;
                 int cx = Mathf.RoundToInt(sp.x), cy = Mathf.RoundToInt(sp.y);
+                // ★ 第四十三轮：尸体出屏/贴屏边时读屏不可靠（旧日志"暗身px=0"多是尸体在屏幕边缘采到背景），跳过
+                if (cx < 80 || cx > Screen.width - 80 || cy < 80 || cy > Screen.height - 80)
+                {
+                    BSLog.Warn("[击杀头盔计数] 尸体出屏/贴边(屏=(" + cx + "," + cy + "))，跳过读屏（防误报）");
+                    yield break;
+                }
                 int x0 = Mathf.Clamp(cx - 160, 0, Screen.width - 1), x1 = Mathf.Clamp(cx + 160, 0, Screen.width - 1);
                 int y0 = Mathf.Clamp(cy - 200, 0, Screen.height - 1), y1 = Mathf.Clamp(cy + 200, 0, Screen.height - 1);
                 int w = x1 - x0 + 1, h = y1 - y0 + 1;
-                if (w < 20 || h < 20) yield break;
+                if (w < 250 || h < 380) yield break;   // ±160/±200 窗口被屏幕边大幅夹断 → 不可靠
 
                 var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
                 tex.ReadPixels(new Rect(x0, y0, w, h), 0, 0);
@@ -239,33 +252,36 @@ namespace BadNorthBlackSpearman1_3
                     }
                 }
 
-                List<int[]> dBlobs = new List<int[]>();
-                List<int[]> hBlobs = new List<int[]>();
-                List<int[]> wBlobs = new List<int[]>();
+                List<int[]> dBlobs = new List<int[]>();   // 暗身团块（R45：身体已确认渲染黑 → 以暗身团块为唯一判据）
+                List<int[]> hBlobs = new List<int[]>();   // 头盔灰（岛屿中灰背景污染，仅留计数参考）
+                List<int[]> wBlobs = new List<int[]>();   // 亮白（海面/沙地/英文兵背景，仅留计数参考）
                 int dCnt = CountScreenBlobs(dark, w, h, 60, dBlobs);
                 int hCnt = CountScreenBlobs(helm, w, h, 20, hBlobs);
                 int wCnt = CountScreenBlobs(white, w, h, 100, wBlobs);
                 string verdict;
-                if (dCnt >= 2 || hCnt >= 2)
-                    verdict = "⚠️异常: 多身影/多头盔=影分身实锤";
-                else if (dCnt == 0 && wCnt == 0)
-                    verdict = "⚠️异常: 无暗身无白影=身体未渲染/网格塌缩";
-                else if (dCnt == 1 && wCnt == 0)
-                    verdict = "单尸=正常";
+                if (dCnt >= 2)
+                    verdict = "⚠️异常: ≥2 个暗身团块=真复制/影分身";
+                else if (dCnt == 1)
+                    verdict = "单尸=正常（黑身已渲染）";
                 else
-                    verdict = "⚠️观察: 暗身=" + dCnt + " 亮白=" + wCnt + "（可能有白影）";
+                    verdict = "⚠️观察: 无暗身团块（身体未渲染/出屏/被遮挡）";
                 BSLog.Warn("[击杀头盔计数] 尸体屏=(" + cx + "," + cy + ") 窗口=" + w + "x" + h +
-                    " 暗身px=" + darkN + " 团块=" + dCnt + " 头盔灰px=" + helmN + " 团块=" + hCnt +
+                    " 暗身px=" + darkN + " 团块=" + dCnt +
+                    " 头盔灰px=" + helmN + " 团块=" + hCnt +
                     " 亮白px=" + whiteN + " 团块=" + wCnt + " → " + verdict);
-                for (int i = 0; i < dBlobs.Count; i++)
-                    BSLog.Warn("  [暗身团块] bbox=(" + (x0 + dBlobs[i][0]) + "," + (y0 + dBlobs[i][1]) + ")-(" +
-                        (x0 + dBlobs[i][2]) + "," + (y0 + dBlobs[i][3]) + ") 面积=" + dBlobs[i][4]);
-                for (int i = 0; i < hBlobs.Count; i++)
-                    BSLog.Warn("  [头盔团块] bbox=(" + (x0 + hBlobs[i][0]) + "," + (y0 + hBlobs[i][1]) + ")-(" +
-                        (x0 + hBlobs[i][2]) + "," + (y0 + hBlobs[i][3]) + ") 面积=" + hBlobs[i][4]);
+                // ★ 第四十五轮：团块明细（刷屏源）归入 VerboseDumps；平时只留一行结论
+                if (BSLog.VerboseDumps)
+                {
+                    for (int i = 0; i < dBlobs.Count; i++)
+                        BSLog.Warn("  [暗身团块] bbox=(" + (x0 + dBlobs[i][0]) + "," + (y0 + dBlobs[i][1]) + ")-(" +
+                            (x0 + dBlobs[i][2]) + "," + (y0 + dBlobs[i][3]) + ") 面积=" + dBlobs[i][4]);
+                    for (int i = 0; i < hBlobs.Count; i++)
+                        BSLog.Warn("  [头盔团块] bbox=(" + (x0 + hBlobs[i][0]) + "," + (y0 + hBlobs[i][1]) + ")-(" +
+                            (x0 + hBlobs[i][2]) + "," + (y0 + hBlobs[i][3]) + ") 面积=" + hBlobs[i][4]);
                 for (int i = 0; i < wBlobs.Count; i++)
                     BSLog.Warn("  [亮白团块] bbox=(" + (x0 + wBlobs[i][0]) + "," + (y0 + wBlobs[i][1]) + ")-(" +
                         (x0 + wBlobs[i][2]) + "," + (y0 + wBlobs[i][3]) + ") 面积=" + wBlobs[i][4]);
+                }   // ★ 第四十五轮：VerboseDumps 团块明细结束
             }
             catch { }
         }
@@ -318,7 +334,8 @@ namespace BadNorthBlackSpearman1_3
             if (cur != null && cur.texture != null && IsSwordFrameSprite(cur))
             {
                 // ★ 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
-                if (!_dumped) { _dumped = true; DumpBodyRuntime(cur); }
+                // ★ 第四十二轮（日志整理）：该 ASCII 转储每黑矛兵 ~2KB，归入 VerboseDumps 门控；平时想校准剑签名按 F8 即可
+                if (!_dumped && BSLog.VerboseDumps) { _dumped = true; DumpBodyRuntime(cur); }
 
                 // 1) 主动画帧：当前帧是 Onehanded/Swordsman 帧 → 只把材质块的 _MainTex 换成去剑克隆纹理
                 //    ★ 关键修复：绝不交换 bSprite/sprite/网格 —— 实测 bSprite 交换会破坏身体渲染（躯干透明），
@@ -340,6 +357,44 @@ namespace BadNorthBlackSpearman1_3
                         //   且游戏每帧会用原图集覆盖 block，必须每帧重写（我们组件最后 Add，LateUpdate 最后执行）。
                         RepairBodyMaterialBlocks(erasedTex);
                     }
+                }
+            }
+
+            // ★ 第四十二轮（问题①头部闪白/抽搐）：头部带逐帧擦除追踪——动画帧级、非屏幕。
+            //   帧头盔带（帧 y12-22，约 rect 顶 40%）若含"将被擦除"像素（红暗剑刃 或 UV 亮采样），
+            //   则该帧头盔在屏幕上被擦透明→露背景=亮；相邻帧 0↔N 交替 = 用户所见"头部闪白/抽搐"。
+            if (BSLog.HeadTrace && cur != null && cur.texture != null)
+            {
+                int he = CountHeadBandErase(cur);
+                if (_lastHeadErase >= 0 && _lastHeadEraseFrame != cur.name && ((_lastHeadErase == 0) != (he == 0)))
+                {
+                    _headEraseFlips++;
+                    if (!_headEraseWarned && _headEraseFlips >= 3)
+                    {
+                        _headEraseWarned = true;
+                        BSLog.Warn("[头部·帧擦] ⚠️ 头部带擦除在动画帧间 0↔" + he + " 交替 ≥3 次" +
+                            "（帧 " + _lastHeadEraseFrame + "→" + cur.name + "，累计擦=" + _lastHeadErase + "→" + he + "）" +
+                            " = 头盔在'被擦透明(露背景=亮)'与'未擦(黑盔)'间逐帧切换 = 闪白/抽搐实锤");
+                    }
+                }
+                _lastHeadErase = he;
+                _lastHeadEraseFrame = cur.name;
+            }
+
+            // ★ 第四十二轮（问题②）：白帧转换检测——死亡/受击重烘焙瞬间材质块被清空或网格塌缩 = 1~2 帧默认白/不可见。
+            //   转换沿即报（进入/恢复），隔帧扫描节流。
+            if (BSLog.DeathTrace && (++_whiteFrameScanTick & 1) == 0)
+            {
+                bool bad = IsBodyWhiteFrame();
+                if (bad != _whiteFrameActive)
+                {
+                    _whiteFrameActive = bad;
+                    if (bad)
+                        BSLog.Warn("[白帧] ⚠️ 身体进入'空块或网格塌缩'状态（将渲染默认白/不可见）帧=" +
+                            (cur != null ? cur.name : "?") +
+                            " alive=" + (_agent != null && _agent.aliveState != null ? _agent.aliveState.active.ToString() : "?"));
+                    else
+                        BSLog.Info("[白帧] 身体恢复（补块/网格重建完成）");
                 }
             }
 
@@ -492,7 +547,9 @@ namespace BadNorthBlackSpearman1_3
                 ReblockCorpseOnce();
                 // ★ 第三十六轮：死亡腾空期每 ~3 帧转储所有渲染器世界/本地坐标，
                 //   看"上半身/下半身"或"影子/长矛"是否在 ragdoll 期分离错位 = 影分身的第二身影。
-                if (i % 3 == 0) DumpCorpseRenderers(i);
+                // ★ 第四十二轮（日志整理）：降频到每 5 帧 + 由 Diag.DeathTrace 门控；
+                //   紧凑轨迹已由 BlackSpearmanDiagProbe.[腾空] 负责，这里只留 agent 内部渲染器（去掉了全场景扫描）。
+                if (BSLog.DeathTrace && i % 5 == 0) DumpCorpseRenderers(i);
             }
             DumpCorpseState();
         }
@@ -534,26 +591,8 @@ namespace BadNorthBlackSpearman1_3
                             " spr=" + (sr.sprite != null ? sr.sprite.name : "null"));
                     }
                 }
-                // 3) 全场景 MeshRenderer 中离尸体 <0.8m 的（查 agent 外的第二尸体/影分身）
-                Vector3 corpsePos = root.position;
-                var all = Resources.FindObjectsOfTypeAll<MeshRenderer>();
-                if (all != null)
-                {
-                    int near = 0;
-                    for (int i = 0; i < all.Length; i++)
-                    {
-                        var r = all[i];
-                        if (r == null) continue;
-                        if (!r.gameObject.activeInHierarchy) continue;
-                        if (Vector3.Distance(r.transform.position, corpsePos) < 0.8f)
-                        {
-                            sb.Append(" | [场景]" + r.gameObject.name +
-                                " w=" + r.transform.position.ToString("F2") +
-                                " en=" + r.enabled);
-                            if (++near > 15) break;
-                        }
-                    }
-                }
+                // ★ 第四十二轮（日志整理）：去掉"全场景 0.8m 内所有 MeshRenderer"扫描（刷屏元凶）——
+                //   第二尸体/静态尸体的检测由 BlackSpearmanDiagProbe（[腾空] 静态尸= 字段 + AddCorpse 钩子）负责。
                 BSLog.Warn(sb.ToString());
             }
             catch { }
@@ -1625,6 +1664,87 @@ namespace BadNorthBlackSpearman1_3
             int cy = (int)((framePx[i].g / 255f) * ch);
             if (cx < 0 || cy < 0 || cx >= cw || cy >= ch) return false;
             return _partBrightMask[cy * cw + cx];
+        }
+
+        /// <summary>★ 第四十二轮：单像素 UV 解码 → 部件擦除掩码判定（Color 版，供头部带擦除计数用；
+        /// 与 IsPartErase 等价，只是输入为 0~1 的 Color 而非 Color32[]+下标）。</summary>
+        static bool IsPartEraseAt(Color c)
+        {
+            if (!_partReady || _partEraseMask == null) return false;
+            int cw = Mathf.FloorToInt(_partRect.width), ch = Mathf.FloorToInt(_partRect.height);
+            if (cw <= 0 || ch <= 0) return false;
+            int cx = (int)(c.r * cw);
+            int cy = (int)(c.g * ch);
+            if (cx < 0 || cy < 0 || cx >= cw || cy >= ch) return false;
+            return _partEraseMask[cy * cw + cx];
+        }
+
+        /// <summary>★ 第四十二轮（问题①头部闪白/抽搐）：统计当前动画帧的"头部带"内将被擦除的像素数。
+        /// 帧头盔带 = relY(自底) 0.10~0.50（R25/R33 实测：面部 y2-10、头盔 y12-22、帧高 ~70px）。
+        /// 用原图集像素（擦除前的真值）判红暗/UV亮采样；只读子矩形，不做全图集扫描。
+        /// 该数在动画帧间 0↔N 交替 = 头盔在"擦透明(露背景=亮)"与"未擦(黑盔)"间切换 = 闪白。</summary>
+        static int CountHeadBandErase(Sprite cur)
+        {
+            try
+            {
+                var srcTex = cur.texture as Texture2D;
+                if (srcTex == null || !_partReady || _partEraseMask == null) return 0;
+                Rect r = cur.textureRect;
+                int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
+                int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
+                int hh = y1 - y0;
+                // ★ 第三十三轮反向 UV 映射实测：帧头盔带 = 帧 y10-30（面部 y2-10、头盔 y12-22），
+                //   rect 高 ~70px → relY(自底) 0.10~0.43。取 [0.10, 0.50] 覆盖头/盔。
+                int yHead = y0 + (int)(hh * 0.10f);
+                int yHeadEnd = y0 + (int)(hh * 0.50f);
+                if (yHead >= y1 || yHeadEnd <= y0) return 0;
+                int bw = x1 - x0, bh = yHeadEnd - yHead;
+                if (bw <= 0 || bh <= 0) return 0;
+                Color[] px;
+                try { px = srcTex.GetPixels(x0, yHead, bw, bh); }
+                catch { return 0; }
+                int n = 0;
+                for (int i = 0; i < px.Length; i++)
+                {
+                    Color c = px[i];
+                    if (c.a <= 8f / 255f) continue;
+                    byte rr = (byte)(c.r * 255f), g = (byte)(c.g * 255f), b = (byte)(c.b * 255f);
+                    if ((rr > SwordRMin && g < SwordGMax && b < SwordBMax) ||
+                        (UVErase && IsPartEraseAt(c)))
+                        n++;
+                }
+                return n;
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>★ 第四十二轮（问题②白帧）：身体是否处于"空块"状态（→ 渲染默认白）。
+        /// ★ 第四十三轮（日志判读修正）：**移除"4顶点全零"判据**——BatchedSprite.cs 实测角色网格顶点恒为 (0,0,0)，
+        ///   四边形由 shader 用 uv2/tangent/bounds 展开，顶点全零是正常 billboard 表示，之前"塌缩"是误报。
+        ///   死亡/受击重烘焙瞬间 _MainTex/_PartTex 被清空才是真白帧窗口。</summary>
+        bool IsBodyWhiteFrame()
+        {
+            try
+            {
+                if (_sa == null) return false;
+                var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
+                if (mrs == null) return false;
+                var block = new MaterialPropertyBlock();
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                    if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                    try { mr.GetPropertyBlock(block); } catch { }
+                    Texture mt = null, pt = null;
+                    try { mt = block.GetTexture("_MainTex"); } catch { }
+                    try { pt = block.GetTexture("_PartTex"); } catch { }
+                    if (mt == null || pt == null) return true;
+                }
+                return false;
+            }
+            catch { return false; }
         }
 
         /// <summary>单遍统计帧 rect 内：红暗剑刃 / 部件亮采样 / 光晕擦除 三类命中数（安全阀用）。</summary>
