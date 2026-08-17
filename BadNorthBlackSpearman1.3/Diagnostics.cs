@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
@@ -13,7 +13,7 @@ namespace BadNorthBlackSpearman1_3
     /// </summary>
     public class DiagnosticsComponent : MonoBehaviour
     {
-        const float HeartbeatInterval = 30f;   // ★ 第二十三轮：8s→30s，心跳降频（原每 8s 全量 dump 注册表太吵）
+        const float HeartbeatInterval = 30f;   // 8s→30s，心跳降频（原每 8s 全量 dump 注册表太吵）
         float _lastHeartbeat;
 
         void Update()
@@ -127,7 +127,7 @@ namespace BadNorthBlackSpearman1_3
                             " block._MainTex=" + mtName + " block._PartTex=" + ptName);
                     }
 
-                    // ★ 第十四轮：持矛手对齐诊断——矛根 vs Weapon 锚点（持剑手）间距，量化"手脱离身躯"
+                    // 持矛手对齐诊断——矛根 vs Weapon 锚点（持剑手）间距，量化"手脱离身躯"
                     try
                     {
                         Transform spearT = a.transform.Find("Spear_BlackSpearman");
@@ -425,7 +425,7 @@ namespace BadNorthBlackSpearman1_3
             BSLog.Raw("========== 测量结束 ==========\n");
         }
 
-        /// <summary>第十八轮：预制件分析（F8 触发）——注册表 VikingReference + 模板 + 运行实例的完整结构，
+        /// <summary>预制件分析（F8 触发）——注册表 VikingReference + 模板 + 运行实例的完整结构，
         /// 回答“黑矛兵到底由哪些预制件组成、哪些动画/状态可能引发抽动”。</summary>
         void DumpPrefabAnalysis()
         {

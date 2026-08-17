@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -9,6 +9,12 @@ namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
     /// 统一日志系统：BepInEx 控制台 + 独立诊断文件 + 全局异常捕获，游戏崩溃也能留下现场。
+    /// 分级方法语义（防混淆）：
+    /// · <see cref="Info"/>/<see cref="Warn"/>/<see cref="Error"/> —— 写日志文件（带 [时间][级别] 前缀）+ BepInEx 控制台（对应 LogInfo/LogWarning/LogError）；
+    /// · <see cref="Diag"/> —— 写日志文件 + BepInEx 控制台（LogInfo，不带级别前缀；给"要贴日志"的临时诊断用）；
+    /// · <see cref="Raw"/> —— **只写日志文件、不进控制台**（巨型转储/逐帧明细用，避免刷屏）。
+    /// 注意：Info 与 Diag 对控制台的行为相同（都 LogInfo），区别只在是否带 [级别] 前缀；
+    /// Raw 是唯一"只写文件"的方法。
     /// </summary>
     public static class BSLog
     {
@@ -17,7 +23,7 @@ namespace BadNorthBlackSpearman1_3
 
         public static string LogPath => _logPath;
 
-        // ============ 诊断开关（第四十二轮·日志整理：由 Plugin 从 cfg Diag 段写入） ============
+        // ============ 诊断开关（由 Plugin 从 cfg Diag 段写入） ============
         // 巨型转储（去剑 ASCII / transform 层级 / SPAWN 首例完整 dump / [头部采样] 逐帧行）→ 默认关，F8 或显式开启
         public static bool VerboseDumps = false;
         // 头部采样追踪（问题①"头部闪白/抽搐"）——保留窗口统计 [头盔统计] 与异常告警，逐帧行见 VerboseDumps
@@ -79,13 +85,17 @@ namespace BadNorthBlackSpearman1_3
 
         // ============ 分级输出 ============
 
+        /// <summary>常规信息日志：写日志文件（[时间][INFO] 前缀）+ BepInEx 控制台（LogInfo）。</summary>
         public static void Info(string msg) { Write("INFO", msg); }
+        /// <summary>警告日志：写日志文件（[时间][WARN] 前缀）+ BepInEx 控制台（LogWarning）。</summary>
         public static void Warn(string msg) { Write("WARN", msg); }
+        /// <summary>错误日志：写日志文件（[时间][ERROR] 前缀）+ BepInEx 控制台（LogError）。</summary>
         public static void Error(string msg) { Write("ERROR", msg); }
+        /// <summary>裸行：**只写日志文件、不进 BepInEx 控制台**（巨型转储/逐帧明细用，避免刷屏）。</summary>
         public static void Raw(string msg) { Append(msg); }
 
-        /// <summary>诊断行：同时写入日志文件与 BepInEx 控制台（方便直接把诊断内容贴出来）。
-        /// 注意：BSLog.Raw 只写文件、控制台看不到；需要贴日志时请用 Diag。</summary>
+        /// <summary>诊断行：写日志文件 + BepInEx 控制台（LogInfo，无级别前缀；给"要贴日志"的临时诊断用）。
+        /// 注意：BSLog.Raw 只写文件、控制台看不到；需要贴日志时请用 Diag。方法语义总表见类头。</summary>
         public static void Diag(string msg)
         {
             Append(msg);

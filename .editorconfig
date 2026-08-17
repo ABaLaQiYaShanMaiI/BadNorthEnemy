@@ -1,0 +1,48 @@
+# 顶层 .editorconfig —— 统一缩进/命名风格（第四十七轮工程卫生）
+root = true
+
+# ============ 所有文件 ============
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ============ C# ============
+[*.cs]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+# 全项目 C# 统一为 UTF-8 带 BOM（PowerShell 5.1 按 BOM 识别中文，避免无 BOM 被误读为 GBK 产生 spurious diff）
+charset = utf-8-bom
+
+# 大括号换行（Allman 风格，与现有代码一致）
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_open_brace_block = true
+csharp_new_line_before_open_brace_lambda = true
+csharp_new_line_before_open_brace_object_collection = true
+
+# 命名：私有字段统一下划线前缀（与现有 _camelCase 一致）
+dotnet_naming_rule.private_fields_should_have_underscore_prefix.severity = suggestion
+dotnet_naming_rule.private_fields_should_have_underscore_prefix.symbols = private_fields
+dotnet_naming_rule.private_fields_should_have_underscore_prefix.style = underscore_prefix
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_prefix.required_prefix = _
+dotnet_naming_style.underscore_prefix.required_suffix =
+
+# 其余标识符：PascalCase（类型/方法/常量），保持默认即可，不强制
+
+# ============ PowerShell ============
+[*.ps1]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+
+# ============ Markdown ============
+[*.md]
+trim_trailing_whitespace = true
+
+# ============ 构建/项目文件 ============
+[*.csproj]
+indent_style = space
+indent_size = 2

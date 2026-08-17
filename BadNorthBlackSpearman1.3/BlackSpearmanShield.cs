@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using Voxels.TowerDefense;
 using Voxels.TowerDefense.Ballistics;
@@ -8,7 +8,8 @@ namespace BadNorthBlackSpearman1_3
     /// <summary>
     /// 黑矛兵盾牌格挡（复刻 Shield.ModifyAttack）：盾牌正面朝向攻击来袭方向时生效——
     /// 近战正面格挡归零、箭矢 ×0.05 弹开/砸落、飞斧归零、长矛 ×0.2。
-    /// 由 BlackSpearmanWeapon 在基底盾牌子对象上挂载；cfg EnableShield=false 时仅剩视觉。
+    /// 由 BlackSpearmanWeapon 在基底盾牌子对象上挂载；cfg EnableShield=true 时才挂载并启用格挡
+    /// （false=完全移除：效果+美术均不挂载，本组件根本不会挂到 agent 上）。
     /// 另承担\"实际效果\"维度体检：每 30s 输出盾牌是否真的上屏(isVisible)、距身、格挡触发计数，
     /// 与 BlackSpearmanWeapon 挂载时的\"美术资源\"静态体检互补。
     /// </summary>
@@ -22,7 +23,7 @@ namespace BadNorthBlackSpearman1_3
         string blockSound = "Sfx/English/SwordShield/Block";
         string arrowBounceSound = "Sfx/English/SwordShield/DeflectArrow";
 
-        // ★ 实际效果统计（美术资源之外的第二维度：格挡是否真的触发过，供体检/F8 读取）
+        // 实际效果统计（美术资源之外的第二维度：格挡是否真的触发过，供体检/F8 读取）
         public int BlockMelee, BlockArrow, BlockAxe, BlockSpear;
         float _healthTimer = 15f;   // 首个体检延迟 15s（等首次上屏）
         string _lastHealthLog;
@@ -111,7 +112,7 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>移盾遮蔽剑柄：每帧把盾牌贴到持剑锚点（LateUpdate 在动画之后，保证覆盖 Animator 驱动）。
-        /// 第十五轮：偏移与 RepositionShieldToSwordHand 对齐（前 0.05×r、抬 0.02×r），盾心落在手上。</summary>
+        /// 偏移与 RepositionShieldToSwordHand 对齐（前 0.05×r、抬 0.02×r），盾心落在手上。</summary>
         void LateUpdate()
         {
             try

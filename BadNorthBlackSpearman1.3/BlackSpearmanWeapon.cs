@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using Voxels.TowerDefense;
 
@@ -6,13 +6,13 @@ namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
     /// 黑矛兵武器处理（基底 Viking_SwordShield）：
-    ///   1. 移除剑视觉（按名称禁用剑/武器/瞄准骨子对象）；
-    ///   2. 复用我方 Pikeman 的长矛（Spear.spearAim 骨上的 BatchedSprite），克隆挂到黑矛兵身上；
-    ///   3. ★ 第十七轮：EnableShield=false（默认）时完全移除盾牌（效果+美术均不挂载，盾牌子对象禁用）；
-    ///      true 时才保留盾牌美术并挂 BlackSpearmanShield（剑盾兵格挡效果）。
+    /// 1. 移除剑视觉（按名称禁用剑/武器/瞄准骨子对象）；
+    /// 2. 复用我方 Pikeman 的长矛（Spear.spearAim 骨上的 BatchedSprite），克隆挂到黑矛兵身上；
+    /// 3. EnableShield=false（默认）时完全移除盾牌（效果+美术均不挂载，盾牌子对象禁用）；
+    /// true 时才保留盾牌美术并挂 BlackSpearmanShield（剑盾兵格挡效果）。
     /// 盾牌日志固定分两个维度（判断\"盾牌存在\"必须同时看两者，缺一不可）：
-    ///   [盾牌·美术资源] 静态检查：子对象是否存在、Renderer/Mesh/Sprite/材质是否齐备有效、LevelMesh/BodyColoredMesh 渲染管线组件；
-    ///   [盾牌·实际效果] 运行期检查：是否真的上屏(isVisible)、姿态/距身/朝外、格挡是否真的触发(计数)。
+    /// [盾牌·美术资源] 静态检查：子对象是否存在、Renderer/Mesh/Sprite/材质是否齐备有效、LevelMesh/BodyColoredMesh 渲染管线组件；
+    /// [盾牌·实际效果] 运行期检查：是否真的上屏(isVisible)、姿态/距身/朝外、格挡是否真的触发(计数)。
     /// </summary>
     public static class BlackSpearmanWeapon
     {
@@ -20,12 +20,12 @@ namespace BadNorthBlackSpearman1_3
         static float _lastNoSpearLog = -999f;
         static float _lastNoShieldLog = -999f;
         static int _postMoveDumps;   // 移盾后完整体检次数（限前 2 只，避免刷屏）
-        public static bool MountSpearToHand = true;   // 第十四轮：长矛挂到持剑锚点（Weapon 骨=手位），由 Plugin.SpearMountToHand 设置
+        public static bool MountSpearToHand = true;   // 长矛挂到持剑锚点（Weapon 骨=手位），由 ModConfig.SpearMountToHand 设置
 
         /// <summary>按名称关键字禁用的剑视觉子对象表（不含盾牌——盾牌要保留），供预制体剥离与运行时移除共用。</summary>
         public static readonly string[] VisualChildNameKeys = { "sword", "weapon", "aimer", "剑" };
 
-        /// <summary>★ 第十七轮：盾牌子对象关键字表（用户指定完全移除盾牌：效果+美术）。EnableShield=false 时禁用。</summary>
+        /// <summary>盾牌子对象关键字表（用户指定完全移除盾牌：效果+美术）。EnableShield=false 时禁用。</summary>
         public static readonly string[] ShieldChildNameKeys = { "shield", "盾" };
 
         public static void Apply(Agent a)
@@ -44,9 +44,9 @@ namespace BadNorthBlackSpearman1_3
         {
             try
             {
-                // ★ 第十七轮：用户指定完全移除盾牌（效果+美术）→ 不挂盾牌、不加格挡组件（美术已在
-                //   RemoveSword/剥离模板里禁用）。EnableShield=true 才走下面的挂载流程。
-                if (Plugin.EnableShield != null && !Plugin.EnableShield.Value)
+                // 用户指定完全移除盾牌（效果+美术）→ 不挂盾牌、不加格挡组件（美术已在
+                // RemoveSword/剥离模板里禁用）。EnableShield=true 才走下面的挂载流程。
+                if (ModConfig.ShieldFullyRemoved)
                 {
                     BSLog.Info("[盾牌·美术资源] 按用户配置完全移除盾牌（效果+美术均不挂载，EnableShield=false）");
                     return;
@@ -64,10 +64,10 @@ namespace BadNorthBlackSpearman1_3
                 }
                 shieldTf.gameObject.SetActive(true);
 
-                // ③ 实际效果：挂 BlackSpearmanShield（EnableShield=false 时仅视觉，但仍持续输出效果体检）
+                // ③ 实际效果：挂 BlackSpearmanShield 并启用格挡（走到这里必然是 EnableShield=true；false 已在上面 return = 盾牌完全移除）
                 var comp = a.gameObject.GetComponent<BlackSpearmanShield>();
                 if (comp == null) comp = a.gameObject.AddComponent<BlackSpearmanShield>();
-                if (comp != null) comp.Setup(a, shieldTf, Plugin.EnableShield != null && Plugin.EnableShield.Value);
+                if (comp != null) comp.Setup(a, shieldTf, !ModConfig.ShieldFullyRemoved);
 
                 // ④ 美术资源完整体检（含盾牌是否具备可渲染外观）
                 DumpShieldHealth(a, "[盾牌·美术资源] 挂载时");
@@ -76,7 +76,7 @@ namespace BadNorthBlackSpearman1_3
                 FixDegeneratePose(a, shieldTf);
 
                 // ⑥ 移盾遮蔽剑柄（用户方案）：盾牌贴到基底 Weapon 锚点（原本持剑处），每帧跟随身体动画；
-                //    保持朝前——格挡判定 Dot(shield.forward, -攻击方向) 不受影响。
+                // 保持朝前——格挡判定 Dot(shield.forward, -攻击方向) 不受影响。
                 var anchor = FindSwordAnchor(a.transform);
                 if (anchor != null && comp != null)
                 {
@@ -160,8 +160,8 @@ namespace BadNorthBlackSpearman1_3
 
                 int removed = DisableChildrenByNames(a.transform, VisualChildNameKeys);
                 string shieldNote = "";
-                // ★ 第十七轮：用户指定完全移除盾牌（效果+美术）——运行时再禁一次盾牌子对象（模板层已禁，防克隆复活）
-                if (Plugin.EnableShield != null && !Plugin.EnableShield.Value)
+                // 用户指定完全移除盾牌（效果+美术）——运行时再禁一次盾牌子对象（模板层已禁，防克隆复活）
+                if (ModConfig.ShieldFullyRemoved)
                 {
                     int s = DisableChildrenByNames(a.transform, ShieldChildNameKeys);
                     shieldNote = ", 移除盾牌美术 " + s + " 个（EnableShield=false）";
@@ -202,7 +202,7 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>把盾牌移到"原本持剑的位置"遮蔽剑柄残留（用户方案）：以基底 Weapon 锚点为基准，
-        /// 略向前/上偏移（第十五轮：前移收小 0.12→0.05、抬高 0.1→0.02、放大 1.2→1.5，让持剑手真正落在盾面内），
+        /// 略向前/上偏移（前移收小 0.12→0.05、抬高 0.1→0.02、放大 1.2→1.5，让持剑手真正落在盾面内），
         /// 保持朝前（格挡判定依赖 shield.forward）；每帧由 BlackSpearmanShield.swordAnchor 持续跟随。</summary>
         static void RepositionShieldToSwordHand(Agent a, Transform shieldTf, Transform anchor)
         {
@@ -213,9 +213,9 @@ namespace BadNorthBlackSpearman1_3
                 float oldDist = Vector3.Distance(shieldTf.position, a.transform.position);
                 shieldTf.position = target;
                 shieldTf.rotation = Quaternion.LookRotation(a.transform.forward, Vector3.up);
-                shieldTf.localScale = Vector3.one * a.radius * 1.5f;   // 第十五轮：略放大，手落入盾面 bounds
+                shieldTf.localScale = Vector3.one * a.radius * 1.5f;   // 略放大，手落入盾面 bounds
                 float newDist = Vector3.Distance(shieldTf.position, a.transform.position);
-                // ★ 第十四轮：盾牌是否真的盖住持剑手（Weapon 锚点在盾 Renderer 包围盒内 = 手被遮）
+                // 盾牌是否真的盖住持剑手（Weapon 锚点在盾 Renderer 包围盒内 = 手被遮）
                 bool covers = false;
                 var srs = shieldTf.GetComponentsInChildren<Renderer>(true);
                 for (int i = 0; i < srs.Length; i++)
@@ -358,9 +358,9 @@ namespace BadNorthBlackSpearman1_3
                 clone.name = "Spear_BlackSpearman";
                 clone.transform.SetParent(a.transform, false);
 
-                // ★ 第十四轮：长矛对齐持剑手。旧固定偏移 (0, radius*1.4, radius*0.6) 在身体正中，
-                //   与基底剑盾兵"持剑的手"（Weapon 锚点，偏离身体中心 ~0.2m）错位 → 观感"持矛手脱离身躯、
-                //   攻击范围异常大"。改为把矛根挂到 Weapon 锚点（手位），矛尖朝前；找不到锚点则退回旧偏移。
+                // 长矛对齐持剑手。旧固定偏移 (0, radius*1.4, radius*0.6) 在身体正中，
+                // 与基底剑盾兵"持剑的手"（Weapon 锚点，偏离身体中心 ~0.2m）错位 → 观感"持矛手脱离身躯、
+                // 攻击范围异常大"。改为把矛根挂到 Weapon 锚点（手位），矛尖朝前；找不到锚点则退回旧偏移。
                 Vector3 mountPos = new Vector3(0f, a.radius * 1.4f, a.radius * 0.6f);
                 string anchorInfo = "未找到持剑锚点，用旧固定偏移";
                 if (MountSpearToHand)

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Voxels.TowerDefense;
 
 namespace BadNorthBlackSpearman1_3
@@ -34,8 +34,8 @@ namespace BadNorthBlackSpearman1_3
         /// <summary>
         /// 计算长矛应朝向的目标旋转（举矛公式），不立即应用 —— 冲锋技能用，
         /// 由 SpearChargeComponent.LateUpdate 对它做 Slerp 平滑插值。返回是否成功。
-        /// ★ 第十七轮修复"抽动"：方向限制在前半球（目标在身后时混合回朝前，不再 180° 翻转），
-        ///   roll 用虚拟 right=cross(up, dir)（恒 ⊥ dir、永不退化），不再用 agent.right（随身体自旋会翻转）。
+        /// 修复"抽动"：方向限制在前半球（目标在身后时混合回朝前，不再 180° 翻转），
+        /// roll 用虚拟 right=cross(up, dir)（恒 ⊥ dir、永不退化），不再用 agent.right（随身体自旋会翻转）。
         /// </summary>
         public static bool TryGetAimRotation(Agent agent, Vector3 targetWorldPos, out Quaternion rot)
         {
@@ -65,7 +65,7 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// <summary>
-        /// ★ 第十七轮：无目标时的"举矛"姿态——矛尖朝前上方（y 抬 1.0、前 0.6 ≈ 55°），
+        /// 无目标时的"举矛"姿态——矛尖朝前上方（y 抬 1.0、前 0.6 ≈ 55°），
         /// 恢复"长矛始终树立"的设计（船上/待机/移动都举着矛，不再水平持矛等待目标）。
         /// </summary>
         public static bool TryGetRaisedRotation(Agent agent, out Quaternion rot)

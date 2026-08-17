@@ -29,48 +29,21 @@ namespace BadNorthBlackSpearman1_3
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
 
-        public static ConfigEntry<string> SourceVikingName;
-        public static ConfigEntry<string> NewVikingName;
-        public static ConfigEntry<int> Bounty;
-        public static ConfigEntry<float> SpawnChance;
-        public static ConfigEntry<bool> ForceFirstWave;
-        public static ConfigEntry<float> DamageMult;
-        public static ConfigEntry<float> KnockbackMult;
-        public static ConfigEntry<float> StunMult;
-        public static ConfigEntry<float> ScaleMult;
-        public static ConfigEntry<bool> EnableRecolor;
-        public static ConfigEntry<bool> EnableWeaponSwap;
-        public static ConfigEntry<bool> EnableCharge;
-        public static ConfigEntry<bool> RemoveSword;
-        public static ConfigEntry<int> RemoveSwordSprite2Mode;
-        public static ConfigEntry<bool> RemoveSwordFrameUVErase;
-        public static ConfigEntry<int> RemoveSwordFrameUVHalo;
-        public static ConfigEntry<int> RemoveSwordSprite2GripBand;   // 剑柄改身体色开关（第十八轮默认 2；>0 启用 RecolorGripToBody）
-        public static ConfigEntry<bool> SpearMountToHand;            // 第十四轮：长矛挂到持剑锚点（Weapon 骨=手位）
-        public static ConfigEntry<bool> EnableShield;
-        // ★ 第四十二轮（日志整理）：Diag 诊断开关段
-        public static ConfigEntry<bool> DiagVerboseDumps;
-        public static ConfigEntry<bool> DiagHeadTrace;
-        public static ConfigEntry<bool> DiagDeathTrace;
-        public static ConfigEntry<bool> DiagHitDoubleTrace;
-        // ★ 第四十四轮（重影根治实验）：SingleBodyMode
-        //   0=默认（保留 2主+2镜像 全部身体渲染器，游戏原样）；
-        //   1=Setup 时禁用 2 个 _MIRROR_ON 镜像渲染器（ColoredCharacter 是 Cull Off，主身永远绘制，禁镜像不破朝向）→ 消除镜像重影；
-        //   2=再禁用第 2 个主身 MeshRenderer（只留 1 个身体渲染器）→ 最大去重影。
-        public static ConfigEntry<int> DiagSingleBodyMode;
+        // 全部 cfg 配置已收进 ModConfig 静态类（字段/绑定/分段 Bind 见 ModConfig.cs），
+        // 统一入口 ModConfig.ShieldFullyRemoved（cfg EnableShield=false = 完全移除盾牌）。
 
         static VikingReference _blackSpearman;
         static VikingAgent _sourceViking;
         static readonly HashSet<Agent> _done = new HashSet<Agent>();
 
-        // ★ Patch 生效状态（供启动总览与运行期检查）：启动日志里每一行都必须看到 OK
+        // Patch 生效状态（供启动总览与运行期检查）：启动日志里每一行都必须看到 OK
         static bool _patchLevelNode, _patchRange, _patchGetAttack, _patchAttack, _patchAttackUpdate, _patchPlayAnimation, _patchClashBlock;
         static readonly HashSet<Agent> _attackUpdateSeen = new HashSet<Agent>();
-        static int _lastDictCount = -1;   // ★ 第四十二轮：REGISTER 等待日志只在 dict 条目数变化时打（注册重试不刷屏）
+        static int _lastDictCount = -1;   // REGISTER 等待日志只在 dict 条目数变化时打（注册重试不刷屏）
         static readonly int AttackAnimHash = Animator.StringToHash("Attack");
         static readonly int ClashAnimHash = Animator.StringToHash("Clash");
         static float _lastAnimLogTime = -999f;
-        static float _lastClashBlockLog = -999f;   // 第十八轮：ClashActivate 拦截日志节流
+        static float _lastClashBlockLog = -999f;   // ClashActivate 拦截日志节流
 
         /// <summary>诊断探针读取：当前已注册的新单位。</summary>
         public static VikingReference BlackSpearman => _blackSpearman;
@@ -83,15 +56,15 @@ namespace BadNorthBlackSpearman1_3
             Log = Logger;
             try
             {
-                BindConfig();
+                ModConfig.Bind(Config);
 
-                // ★ 第四十二轮（日志整理）：把 cfg Diag 段写入 BSLog 静态开关（各诊断组件读取）
+                // 把 cfg Diag 段写入 BSLog 静态开关（各诊断组件读取）
                 try
                 {
-                    BSLog.VerboseDumps = DiagVerboseDumps.Value;
-                    BSLog.HeadTrace = DiagHeadTrace.Value;
-                    BSLog.DeathTrace = DiagDeathTrace.Value;
-                    BSLog.HitDoubleTrace = DiagHitDoubleTrace.Value;
+                    BSLog.VerboseDumps = ModConfig.DiagVerboseDumps.Value;
+                    BSLog.HeadTrace = ModConfig.DiagHeadTrace.Value;
+                    BSLog.DeathTrace = ModConfig.DiagDeathTrace.Value;
+                    BSLog.HitDoubleTrace = ModConfig.DiagHitDoubleTrace.Value;
                 }
                 catch { }
 
@@ -117,7 +90,7 @@ namespace BadNorthBlackSpearman1_3
                 PatchLevelNodeSetup(harmony);
                 PatchSwordsman(harmony);
 
-                // ★ 启动总览：每条 Patch 的生效状态一眼可见；任一 FAIL 都意味着原版逻辑仍残留
+                // 启动总览：每条 Patch 的生效状态一眼可见；任一 FAIL 都意味着原版逻辑仍残留
                 BSLog.Info("[PATCH·总览] " +
                     "LevelNode=" + (_patchLevelNode ? "OK" : "FAIL") +
                     " range=" + (_patchRange ? "OK" : "FAIL") +
@@ -128,13 +101,13 @@ namespace BadNorthBlackSpearman1_3
                     " ClashBlock=" + (_patchClashBlock ? "OK" : "FAIL") +
                     " ← 全 OK 才代表长矛穿刺真正接管；Attack/AttackUpdate 任一 FAIL 则普通攻击仍是原版挥剑+跳扑");
 
-                BSLog.Info($"[BS v1.3] Ready. 新单位: {NewVikingName.Value}");
-                BSLog.Info($"[配置] Source={SourceVikingName.Value} New={NewVikingName.Value} Bounty={Bounty.Value} " +
-                    $"SpawnChance={SpawnChance.Value} ForceFirstWave={ForceFirstWave.Value} " +
-                    $"DMG={DamageMult.Value} KB={KnockbackMult.Value} Stun={StunMult.Value} Scale={ScaleMult.Value} " +
-                    $"Recolor={EnableRecolor.Value} WeaponSwap={EnableWeaponSwap.Value} Charge={EnableCharge.Value} Shield={EnableShield.Value} " +
-                    $"RemoveSword={RemoveSword.Value} Sprite2Mode={RemoveSwordSprite2Mode.Value} UVErase={RemoveSwordFrameUVErase.Value} UVHalo={RemoveSwordFrameUVHalo.Value} " +
-                    $"GripBand={RemoveSwordSprite2GripBand.Value} SpearMountToHand={SpearMountToHand.Value}");
+                BSLog.Info($"[BS v1.3] Ready. 新单位: {ModConfig.NewVikingName.Value}");
+                BSLog.Info($"[配置] Source={ModConfig.SourceVikingName.Value} New={ModConfig.NewVikingName.Value} Bounty={ModConfig.Bounty.Value} " +
+                    $"SpawnChance={ModConfig.SpawnChance.Value} ForceFirstWave={ModConfig.ForceFirstWave.Value} " +
+                    $"DMG={ModConfig.DamageMult.Value} KB={ModConfig.KnockbackMult.Value} Stun={ModConfig.StunMult.Value} Scale={ModConfig.ScaleMult.Value} " +
+                    $"Recolor={ModConfig.EnableRecolor.Value} WeaponSwap={ModConfig.EnableWeaponSwap.Value} Charge={ModConfig.EnableCharge.Value} Shield={ModConfig.EnableShield.Value} " +
+                    $"RemoveSword={ModConfig.RemoveSword.Value} Sprite2Mode={ModConfig.RemoveSwordSprite2Mode.Value} UVErase={ModConfig.RemoveSwordFrameUVErase.Value} UVHalo={ModConfig.RemoveSwordFrameUVHalo.Value} " +
+                    $"SpearMountToHand={ModConfig.SpearMountToHand.Value}");
             }
             catch (Exception e)
             {
@@ -145,89 +118,10 @@ namespace BadNorthBlackSpearman1_3
             }
         }
 
-        void BindConfig()
-        {
-            SourceVikingName = Config.Bind("General", "SourceVikingName", "Viking_SwordShield",
-                "借用其 VikingAgent 预制体作为视觉/行为模板（仅借用引用，不克隆整个 VikingReference）。\n" +
-                "v1.3 基底：Viking_SwordShield（保留其真实盾牌美术，仅移除剑视觉并挂长矛）。\n" +
-                "⚠️ 如果旧 cfg 里有其它值会覆盖此默认值，请删除或更新 cfg。");
-            NewVikingName = Config.Bind("General", "NewVikingName", "Viking_BlackSpearman",
-                "新单位在敌人生成池中的名字。");
-            Bounty = Config.Bind("General", "Bounty", 8,
-                "赏金（决定该单位占用的敌舰配额）。");
-
-            SpawnChance = Config.Bind("Spawn", "SpawnChance", 0.7f,
-                "每关把新单位加入敌人生成池的概率 (0~1)。");
-            ForceFirstWave = Config.Bind("Spawn", "ForceFirstWave", false,
-                "是否强制在第一波出现（便于测试）。");
-
-            DamageMult = Config.Bind("Combat", "DamageMult", 1.6f, "伤害倍率。");
-            KnockbackMult = Config.Bind("Combat", "KnockbackMult", 2.5f, "击退倍率。");
-            StunMult = Config.Bind("Combat", "StunMult", 1.2f, "眩晕倍率。");
-            ScaleMult = Config.Bind("Combat", "ScaleMult", 1.05f, "体型倍率。");
-
-            EnableRecolor = Config.Bind("Visual", "EnableRecolor", true, "是否把新单位染成黑色。");
-            EnableWeaponSwap = Config.Bind("Visual", "EnableWeaponSwap", true, "是否移除剑盾并复用我方长矛（混搭武器）。");
-            // 去剑：剑烘焙在 OnehandedXXXX 动画帧里的暗红像素（R>70,G<40,B<20），由 SwordRemover 运行时擦除帧像素。
-            EnableCharge = Config.Bind("Skills", "EnableCharge", true, "是否注入冲锋技能。");
-            EnableShield = Config.Bind("Skills", "EnableShield", false,
-                "★ 第十七轮：盾牌完全移除开关。true=保留基底剑盾兵盾牌并具备格挡效果（近战正面格挡、箭矢/飞斧减伤弹开）；\n" +
-                "false=完全移除盾牌（效果+美术均不挂载，盾牌子对象禁用）——用户指定黑矛兵不带盾。" +
-                "默认 false。");
-            RemoveSword = Config.Bind("Visual", "RemoveSword", false,
-                "是否移除烘焙在身体动画帧（OnehandedXXXX）里的剑（默认关闭：颜色签名需先用日志诊断校准，" +
-                "直接开启会误擦身体暗红衣物导致身体透明）。");
-            RemoveSwordSprite2Mode = Config.Bind("Visual", "RemoveSwordSprite2Mode", 2,
-                "sprite2(部件贴图)处理模式——新基底 PartTex_SwordShield 的剑/盾/身体都在部件贴图里（剑盾=亮银亮色、身体=暗色）。\n" +
-                "0=保留原部件贴图、只靠帧擦除去剑（剑盾亮色会经帧 UV 采样残留成白框，弃用）；\n" +
-                "1=整块清空部件单元（身体一起消失会变白框，勿用）；\n" +
-                "2=★第十七轮（用户回退）亮银剑身擦透明：单元内亮银(剑刃+2D盾)+bbox内接壤像素擦透明、\n" +
-                "身体其余保留（剑区预期挖洞；剑柄由 RemoveSwordSprite2GripBand 改身体色——第十八轮默认启用）。");
-            RemoveSwordFrameUVErase = Config.Bind("Visual", "RemoveSwordFrameUVErase", true,
-                "帧擦除是否启用\"UV 感知亮采样擦除\"（第十二轮白框根治）：任何帧像素的 R/G UV 解码采样到\n" +
-                "亮银部件像素(>150)都一并擦除——运行时 ETC2 压缩让部件贴图局部变亮，身体帧像素采样到亮像素 = 白框，\n" +
-                "红暗阈值抓不到它们，只有按 UV 采样判定才抓得到。默认 true（暗身体像素采样暗部件像素，不受影响）。");
-            RemoveSwordFrameUVHalo = Config.Bind("Visual", "RemoveSwordFrameUVHalo", 0,
-                "UV 亮像素光晕（0~6，部件像素距离）：>0 时把\"解码 UV 落在距亮部件像素 ≤N 部件像素\"的帧像素也擦除，\n" +
-                "用于连持剑的手/护手/剑刃边缘一起删。默认 0（只擦纯亮像素=白框）；若手/剑柄仍可见，逐步加大 1→2→3。");
-            RemoveSwordSprite2GripBand = Config.Bind("Visual", "RemoveSwordSprite2GripBand", 2,
-                "★ 第十八轮：剑柄改身体色（用户指定\"剑柄颜色与黑矛兵身躯颜色一致\"），默认 2。\n" +
-                ">0 时把单元内\"暗灰剑柄(40≤r≤100,|r-b|≤25)+亮灰护手(100<r<150 中性)\"改为\n" +
-                "身体暗色(33,26,24)——着色器以部件贴图为颜色源，改色后胸口剑柄带与躯干同色（不挖洞不白框）。\n" +
-                "设 0 可回退到\"不改剑柄\"。");
-            SpearMountToHand = Config.Bind("Visual", "SpearMountToHand", true,
-                "第十四轮：长矛是否挂到持剑锚点（基底 Weapon 骨=原本持剑的手）。旧固定偏移 (0, 半径*1.4, 半径*0.6)\n" +
-                "让矛根悬在身体正中、与持剑手（偏离身体中心 ~0.2m）错位 → 观感\"持矛手脱离身躯、攻击范围异常大\"。\n" +
-                "true=矛根贴到 Weapon 锚点（手位）；false=旧固定偏移。");
-
-            // ★ 第四十二轮（日志整理）：诊断开关——本 Mod 的日志目标从"什么都打"改为"按问题分类可开关"。
-            //   P0 头部闪白/抽搐 → DiagHeadTrace（头盔逐帧采样+帧擦除追踪）；
-            //   P1 死亡腾空影分身/受击两重分身 → DiagDeathTrace + DiagHitDoubleTrace（腾空轨迹+尸体烘焙钩子+镜像复启用探测）。
-            DiagVerboseDumps = Config.Bind("Diag", "VerboseDumps", false,
-                "巨型转储开关（默认关，配合 F8 手动完整诊断用）：去剑 ASCII 像素图 / transform 层级 / SPAWN 首例完整 dump / [头部采样] 逐帧行。\n" +
-                "开启会刷屏（每黑矛兵几 KB），平时保持 false；需要贴细节日志时再开。");
-            DiagHeadTrace = Config.Bind("Diag", "HeadTrace", true,
-                "头部采样追踪（问题①头部闪白/抽搐）：帧末采盔顶实际渲染色 + 窗口统计 [头盔统计]。\n" +
-                "采样点已修正为 Sprite 真实盔顶（旧 chestPos+up*0.45 常落空采到背景）。窗口含\"暗↔亮交替\"计数=闪白实锤。");
-            DiagDeathTrace = Config.Bind("Diag", "DeathTrace", true,
-                "死亡腾空紧凑追踪（问题②死亡影分身/腾空分裂）：死亡→落地每 ~5 帧打一行身体位置/网格/块状态；\n" +
-                "另钩住 CorpseManager.AddCorpse（静态尸体烘焙时刻），与飞行身体对比偏移=双尸证据。");
-            DiagHitDoubleTrace = Config.Bind("Diag", "HitDoubleTrace", true,
-                "受击两重分身探针（问题②受击双影）：探测 _MIRROR_ON 镜像渲染器被游戏重新启用 / 两个身体 MeshRenderer 离位 /\n" +
-                "BodySprite 的 SpriteRenderer(原始帧)与 MeshRenderer(黑色克隆) 同时启用=双重渲染。");
-            DiagSingleBodyMode = Config.Bind("Diag", "SingleBodyMode", 2,
-                "★ 第四十四轮（重影根治实验）：身体渲染器去重影模式。\n" +
-                "0=默认（保留 2主+2镜像，游戏原样，重影存在）；\n" +
-                "1=禁用 2 个 _MIRROR_ON 镜像渲染器（ColoredCharacter 着色器是 Cull Off，主身永远绘制，禁镜像不会让背对时角色消失）；\n" +
-                "2=★默认：只保留 1 个身体渲染器——**保留动画主身（UV 随帧更新=律动源），禁用静态主身+2镜像**\n" +
-                "  → 无重影且保留待机律动（第四十六轮：前主身 UV 恒 0.152=Swordsman0001 静态帧，后主身随帧变化=动画源）。\n" +
-                "改完重启游戏生效。若发现身体局部消失/朝向异常，改回 1 或 0。");
-        }
-
         void OnGameSetupAwake(On.Voxels.TowerDefense.GameSetup.orig_Awake orig, GameSetup self)
         {
             orig(self);
-            // ★ 第四十二轮（日志整理）：dict 键列表（很长）归入 VerboseDumps；平时只报条数
+            // dict 键列表（很长）归入 VerboseDumps；平时只报条数
             BSLog.Info("[BOOT] GameSetup.Awake 完成，dict 现有 " + LevelStateObjectReferences.dict.Count + " 个条目" +
                 (BSLog.VerboseDumps ? ": " + BSLog.Join(LevelStateObjectReferences.dict.Keys) : ""));
             EnsureBlackSpearmanRegistered();
@@ -237,14 +131,14 @@ namespace BadNorthBlackSpearman1_3
         bool EnsureBlackSpearmanRegistered()
         {
             if (_blackSpearman != null) return true;
-            if (!LevelStateObjectReferences.dict.TryGetValue(SourceVikingName.Value, out var srcObj))
+            if (!LevelStateObjectReferences.dict.TryGetValue(ModConfig.SourceVikingName.Value, out var srcObj))
             {
-                // ★ 第四十二轮：等待日志只在 dict 条目数变化时打（GameSetup.Awake 会重试多次，旧版每次都刷一行）
+                // 等待日志只在 dict 条目数变化时打（GameSetup.Awake 会重试多次，旧版每次都刷一行）
                 int cnt = LevelStateObjectReferences.dict.Count;
                 if (cnt != _lastDictCount)
                 {
                     _lastDictCount = cnt;
-                    BSLog.Info($"[REGISTER] 等待源单位 {SourceVikingName.Value} 注册（当前 dict 条目 {cnt}），稍后重试");
+                    BSLog.Info($"[REGISTER] 等待源单位 {ModConfig.SourceVikingName.Value} 注册（当前 dict 条目 {cnt}），稍后重试");
                 }
                 return false;
             }
@@ -272,18 +166,18 @@ namespace BadNorthBlackSpearman1_3
                 return;
             }
 
-            // ★ 新建干净对象而非克隆 prefab：作为根对象存在，避开 LevelArcConsistency 扫描与 DomainBool NPE。
-            var go = new GameObject(NewVikingName.Value);
+            // 新建干净对象而非克隆 prefab：作为根对象存在，避开 LevelArcConsistency 扫描与 DomainBool NPE。
+            var go = new GameObject(ModConfig.NewVikingName.Value);
             DontDestroyOnLoad(go);
 
             var vr = go.AddComponent<VikingReference>();
             vr.type = VikingAgent.Type.SwordShield; // 运行时无法新增枚举值，复用近战类型
-            vr.bounty = Bounty.Value;
+            vr.bounty = ModConfig.Bounty.Value;
             vr.approachAudioId = src.approachAudioId;
             vr.arriveAudioId = src.arriveAudioId;
 
-            // ★ 预制体层面剥离：克隆"干净模板"，提前销毁逻辑残留组件（实测 Arsonist 会抢占
-            //    brain.actions 导致冲锋永不触发），再交给 VikingReference.Start() 实例化。
+            // 预制体层面剥离：克隆"干净模板"，提前销毁逻辑残留组件（实测 Arsonist 会抢占
+            // brain.actions 导致冲锋永不触发），再交给 VikingReference.Start() 实例化。
             var stripped = BuildStrippedTemplate(_sourceViking);
             if (!ReferenceEquals(vikingField, null))
             {
@@ -293,10 +187,10 @@ namespace BadNorthBlackSpearman1_3
 
             // 不手动实例化 vikingClone —— 原版 VikingReference.Start() 下一帧创建唯一副本（手动 Instantiate 曾致双 Container + 孤儿克隆）。
 
-            LevelStateObjectReferences.dict[NewVikingName.Value] = vr;
+            LevelStateObjectReferences.dict[ModConfig.NewVikingName.Value] = vr;
             _blackSpearman = vr;
 
-            BSLog.Info($"[REGISTER] 已新建并注册 {NewVikingName.Value} (type={vr.type}, bounty={vr.bounty})");
+            BSLog.Info($"[REGISTER] 已新建并注册 {ModConfig.NewVikingName.Value} (type={vr.type}, bounty={vr.bounty})");
             BSLog.Raw($"[REGISTER] 注册后 dict 键: {BSLog.Join(LevelStateObjectReferences.dict.Keys)}");
             StartCoroutine(ApplyArtDelayed(vr));
         }
@@ -309,7 +203,7 @@ namespace BadNorthBlackSpearman1_3
             {
                 GameObject stripped = UnityEngine.Object.Instantiate(src.gameObject);
                 stripped.name = "BlackSpearman_StrippedTemplate";
-                // ★ 自身保持 active（Start 克隆的 vikingClone 才会可见），挂在 inactive holder 下避免出现在场景。
+                // 自身保持 active（Start 克隆的 vikingClone 才会可见），挂在 inactive holder 下避免出现在场景。
                 var holder = new GameObject("BlackSpearman_StrippedHolder");
                 holder.SetActive(false);
                 stripped.transform.SetParent(holder.transform, false);
@@ -317,8 +211,8 @@ namespace BadNorthBlackSpearman1_3
                 // ① 逻辑残留：DestroyImmediate 立即销毁（Destroy 延迟到帧末，VR.Start() 同帧就会克隆本模板）。
                 var arsonist = stripped.GetComponent<Arsonist>();
                 if (arsonist != null) UnityEngine.Object.DestroyImmediate(arsonist);
-                // ★ 销毁 Shield 逻辑组件前先记录盾牌子对象（美术资源维度：
-                //   权威引用 Shield.shield 字段优先，名称关键字兜底——避免\"组件销毁后再也定位不到盾牌\"）。
+                // 销毁 Shield 逻辑组件前先记录盾牌子对象（美术资源维度：
+                // 权威引用 Shield.shield 字段优先，名称关键字兜底——避免\"组件销毁后再也定位不到盾牌\"）。
                 var shieldComp = stripped.GetComponent<Shield>();
                 Transform shieldTf = (shieldComp != null && shieldComp.shield != null) ? shieldComp.shield : null;
                 if (shieldTf == null) shieldTf = BlackSpearmanWeapon.FindShieldTransform(stripped.transform);
@@ -326,9 +220,9 @@ namespace BadNorthBlackSpearman1_3
 
                 // ② 视觉残留：禁用剑/武器/瞄准骨子对象（盾牌保留——剑盾兵基底的盾牌美术即黑矛兵的盾牌）
                 int removedVisuals = BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.VisualChildNameKeys);
-                // ★ 第十七轮：用户选择完全移除盾牌（效果+美术）→ 剥离模板里也禁用盾牌子对象（双保险，
-                //   VikingReference.Start() 克隆模板后 ApplyToAgent 还会再禁一次）。
-                if (EnableShield != null && !EnableShield.Value)
+                // 用户选择完全移除盾牌（效果+美术）→ 剥离模板里也禁用盾牌子对象（双保险，
+                // VikingReference.Start() 克隆模板后 ApplyToAgent 还会再禁一次）。
+                if (ModConfig.ShieldFullyRemoved)
                     BlackSpearmanWeapon.DisableChildrenByNames(stripped.transform, BlackSpearmanWeapon.ShieldChildNameKeys);
 
                 BSLog.Info("[REGISTER] 已生成剥离模板: 删除Arsonist=" + (arsonist != null) +
@@ -410,7 +304,7 @@ namespace BadNorthBlackSpearman1_3
             }, ref _patchGetAttack);
 
             // ⚠️ 勿按参数类型定位 Attack：Func<,> 引用会让 Unity Mono(mscorlib 2.0) JIT 抛 TypeLoadException，
-            //    使整批 Patch 静默失效。按方法名查找（Swordsman 只有一个 public Attack，无歧义）。
+            // 使整批 Patch 静默失效。按方法名查找（Swordsman 只有一个 public Attack，无歧义）。
             TryPatch("Swordsman.Attack（长矛穿刺·不播挥剑）", () =>
             {
                 var m = typeof(Swordsman).GetMethod("Attack", BindingFlags.Instance | BindingFlags.Public);
@@ -441,10 +335,10 @@ namespace BadNorthBlackSpearman1_3
                         BindingFlags.NonPublic | BindingFlags.Static)));
             }, ref _patchPlayAnimation);
 
-            // 5) ★ 第十八轮：拦截原版挥剑 Clash 动画——黑矛兵每次命中（SpearHit/冲锋 HIT）后
-            //    Agent.DealDamage → Swordsman.ModifyAttack → clash.SetActive → ClashActivate 会播放
-            //    Swordsman_Clash（剑击滑动动画，实测 body=slide:True、clip=Swordsman_Clash），
-            //    叠加在矛刺上 = “人物抽动”的元凶之一。黑矛兵直接跳过（伤害在 DealDamage 内已结算）。
+            // 5) 拦截原版挥剑 Clash 动画——黑矛兵每次命中（SpearHit/冲锋 HIT）后
+            // Agent.DealDamage → Swordsman.ModifyAttack → clash.SetActive → ClashActivate 会播放
+            // Swordsman_Clash（剑击滑动动画，实测 body=slide:True、clip=Swordsman_Clash），
+            // 叠加在矛刺上 = “人物抽动”的元凶之一。黑矛兵直接跳过（伤害在 DealDamage 内已结算）。
             TryPatch("Swordsman.ClashActivate（拦截挥剑动画·治抽动）", () =>
             {
                 var m = typeof(Swordsman).GetMethod("ClashActivate",
@@ -457,8 +351,8 @@ namespace BadNorthBlackSpearman1_3
         }
 
         // ⚠️ 雷区（Unity Mono / mscorlib 2.0）：禁止 System.Action/System.Func（TypeLoadException 使整批
-        //    Patch 失效）—— 用自定义委托；反射对象判空一律 ReferenceEquals（== 会引 op_Equality 导致
-        //    MissingMethodException）。
+        // Patch 失效）—— 用自定义委托；反射对象判空一律 ReferenceEquals（== 会引 op_Equality 导致
+        // MissingMethodException）。
         delegate void PatchJob();
 
         // 每个 Patch 独立 try/catch：单个失败不拖垮其余 Patch。
@@ -507,7 +401,7 @@ namespace BadNorthBlackSpearman1_3
             catch { }
         }
 
-        // 第十八轮：黑矛兵不播原版 Clash（剑击）动画。命中后 ModifyAttack→ClashActivate 会在矛刺期间
+        // 黑矛兵不播原版 Clash（剑击）动画。命中后 ModifyAttack→ClashActivate 会在矛刺期间
         // 播放 Swordsman_Clash（身体滑动击打动画，见日志 clip=Swordsman_Clash / body=slide:True）=“人物抽动”。
         // 只拦动画与音效（ClashActivate 仅播动画+设 animator bool，IL 已验证），clash 状态生命周期照旧。
         static bool SwordsmanClashActivatePrefix(Swordsman __instance)
@@ -600,8 +494,8 @@ namespace BadNorthBlackSpearman1_3
                 var enemySw = targetAgent.brain as Swordsman;
                 if (enemySw != null && enemySw.shield != null) enemySw.shield.MaybeParry(__instance);
                 SpearChargeComponent.NotifyMeleeAttackStart(__instance.agent);
-                // ★ 拦截证据：本行出现 = Attack 前缀确实在跑、原版挥剑确实被跳过
-                //   （range 应为 0.69 而非原版 0.09 —— 同时是 range Patch 的活体探针）
+                // 拦截证据：本行出现 = Attack 前缀确实在跑、原版挥剑确实被跳过
+                // （range 应为 0.69 而非原版 0.09 —— 同时是 range Patch 的活体探针）
                 BSLog.Info("[近战·拦截] Attack() 已接管 target=" + targetAgent.name +
                     " range=" + __instance.range.ToString("F2") + " → 跳过原版挥剑/跳扑");
                 __result = true;
@@ -621,7 +515,7 @@ namespace BadNorthBlackSpearman1_3
                 if (__instance == null || __instance.agent == null) return true;
                 if (!_done.Contains(__instance.agent)) return true;
 
-                // ★ 接管证据：每个黑矛兵第一次进入 AttackUpdate 时打一行（证明前缀在跑）
+                // 接管证据：每个黑矛兵第一次进入 AttackUpdate 时打一行（证明前缀在跑）
                 if (_attackUpdateSeen.Add(__instance.agent))
                     BSLog.Info("[近战·接管] Swordsman.AttackUpdate 已接管（黑矛兵 #" + _attackUpdateSeen.Count + "）——攻击结束改由矛刺周期判定");
 
@@ -638,8 +532,8 @@ namespace BadNorthBlackSpearman1_3
                     SpearChargeComponent.NotifyMeleeAttackEnd(__instance.agent);
                     if (stam > 0f && __instance.agent.enemyAgent != null)
                     {
-                        // ★ 连刺：不调用原版 Attack()（其签名含 System.Func<,>，Unity Mono 类型加载雷区），
-                        //   直接重启攻击状态 + 矛刺周期。
+                        // 连刺：不调用原版 Attack()（其签名含 System.Func<,>，Unity Mono 类型加载雷区），
+                        // 直接重启攻击状态 + 矛刺周期。
                         __instance.target = __instance.agent.enemyAgent;
                         __instance.attack.SetActive(true);
                         SpearChargeComponent.NotifyMeleeAttackStart(__instance.agent);
@@ -673,18 +567,18 @@ namespace BadNorthBlackSpearman1_3
             if (_blackSpearman == null) return;
             if (__instance.enemies == null) return;
             if (__instance.enemies.Contains(_blackSpearman)) return;
-            if (UnityEngine.Random.value > SpawnChance.Value)
+            if (UnityEngine.Random.value > ModConfig.SpawnChance.Value)
             {
                 BSLog.Info("[CAMPAIGN] 本关未抽中新单位（SpawnChance 未命中）");
                 return;
             }
 
-            if (ForceFirstWave.Value && __instance.enemies.Count > 0)
+            if (ModConfig.ForceFirstWave.Value && __instance.enemies.Count > 0)
                 __instance.enemies.Insert(0, _blackSpearman);
             else
                 __instance.enemies.Add(_blackSpearman);
 
-            BSLog.Info($"[CAMPAIGN] 已将 {NewVikingName.Value} 加入本关敌人生成池 (count={__instance.enemies.Count})");
+            BSLog.Info($"[CAMPAIGN] 已将 {ModConfig.NewVikingName.Value} 加入本关敌人生成池 (count={__instance.enemies.Count})");
             DiagnosticsComponent.DumpEnemies(__instance.enemies, "CAMPAIGN·注入后");
         }
 
@@ -711,7 +605,7 @@ namespace BadNorthBlackSpearman1_3
             {
                 BSLog.Section("SPAWN 黑矛兵");
                 BSLog.Info($"[SPAWN] 本艘敌舰生成黑矛兵 {applied} 个（累计 {_done.Count}）");
-                // ★ 第四十二轮（日志整理）：首例完整 dump（层级/组件/SpriteRenderer）归入 VerboseDumps；平时按 F8
+                // 首例完整 dump（层级/组件/SpriteRenderer）归入 VerboseDumps；平时按 F8
                 if (first != null && BSLog.VerboseDumps)
                     DiagnosticsComponent.DumpAgent(first, "SPAWN·黑矛兵首例");
             }
@@ -720,49 +614,49 @@ namespace BadNorthBlackSpearman1_3
 
         static void ApplyToAgent(Agent a)
         {
-            // ★ 第十四轮：长矛挂持剑锚点开关（在 Apply 前设置，MountSpear 读取）
-            BlackSpearmanWeapon.MountSpearToHand = SpearMountToHand.Value;
-            if (EnableRecolor.Value)
+            // 长矛挂持剑锚点开关（在 Apply 前设置，MountSpear 读取）
+            BlackSpearmanWeapon.MountSpearToHand = ModConfig.SpearMountToHand.Value;
+            if (ModConfig.EnableRecolor.Value)
             {
                 var vis = a.gameObject.AddComponent<BlackSpearmanVisual>();
                 if (vis != null) vis.ApplyOnce(a);
             }
-            if (EnableWeaponSwap.Value)
+            if (ModConfig.EnableWeaponSwap.Value)
                 BlackSpearmanWeapon.Apply(a);
-            if (Mathf.Abs(ScaleMult.Value - 1f) > 0.0001f)
-                a.scale *= ScaleMult.Value;
+            if (Mathf.Abs(ModConfig.ScaleMult.Value - 1f) > 0.0001f)
+                a.scale *= ModConfig.ScaleMult.Value;
 
             var sw = a.GetComponent<Swordsman>();
             if (sw != null)
             {
-                ScaleArr(sw.damageLevels, DamageMult.Value);
-                ScaleArr(sw.knockbackLevels, KnockbackMult.Value);
-                ScaleArr(sw.stunLevels, StunMult.Value);
-                // ★ 静默基底挥剑音效：Swordsman.Attack() 会播 swingSound("Sfx/English/Sword/Swing")，
-                //   这是"剑劈砍特效"的听觉部分。换成长矛挥击音效（复用已确认存在的 Spear 攻击音效）。
+                ScaleArr(sw.damageLevels, ModConfig.DamageMult.Value);
+                ScaleArr(sw.knockbackLevels, ModConfig.KnockbackMult.Value);
+                ScaleArr(sw.stunLevels, ModConfig.StunMult.Value);
+                // 静默基底挥剑音效：Swordsman.Attack() 会播 swingSound("Sfx/English/Sword/Swing")，
+                // 这是"剑劈砍特效"的听觉部分。换成长矛挥击音效（复用已确认存在的 Spear 攻击音效）。
                 try { sw.swingSound = "Sfx/English/Spear"; } catch { }
                 BSLog.Info($"[AGENT] 黑矛兵 {a.name} 攻击范围 range={sw.range.ToString("F2")} radius={a.radius.ToString("F2")} dmg={sw.damage.ToString("F1")} kb={sw.knockback.ToString("F1")}");
             }
 
-            if (EnableCharge.Value)
+            if (ModConfig.EnableCharge.Value)
             {
                 var ch = a.gameObject.AddComponent<SpearChargeComponent>();
                 if (ch != null) ch.Setup(a);
                 RegisterBrainAction(a, ch);
             }
-            // ★ 去剑组件：无论 RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
+            // 去剑组件：无论 ModConfig.RemoveSword 开关都挂载（用于运行时诊断输出），擦除动作按开关执行
             var remover = a.gameObject.AddComponent<SwordRemover>();
-            if (remover != null) remover.Setup(a, RemoveSword.Value);
-            // ★ 第二十三轮：移除逐帧抽动探针（TwitchProbe）——其"[抽动]⑥精灵帧闪动"口径多次误报刷屏，
-            //   且橡皮筋/闪烁根因已由 LateUpdate 硬同步 + 同帧采样根治，不再需要常驻诊断。诊断可 F8 手动转储。
-            // ★ sprite2(部件贴图)处理模式：0=保留原部件(默认，避免白框) 1=整块清空(旧) 2=只擦亮银剑身
-            SwordRemover.Sprite2Mode = RemoveSwordSprite2Mode.Value;
-            // ★★ UV 感知亮采样擦除（白框根治）+ 光晕（吃持剑的手）：模式0下按"帧 UV→部件采样"判定白框像素
-            SwordRemover.UVErase = RemoveSwordFrameUVErase.Value;
-            SwordRemover.UVHalo = RemoveSwordFrameUVHalo.Value;
-            // ★ 第二十四轮：RemoveSwordSprite2GripBand（剑柄改色）已不再生效（GripFloodPx 已删）——
-            //   剑柄改色会误涂肩甲/胸甲/头盔同色像素，且顶点色 B 恒 0.02 时剑柄本就是黑色剪影。
-            // ★ 第四十二轮（日志整理）：针对性诊断探针——死亡腾空轨迹 / 静态尸体烘焙钩子 / 受击两重分身探测
+            if (remover != null) remover.Setup(a, ModConfig.RemoveSword.Value);
+            // 移除逐帧抽动探针（TwitchProbe）——其"[抽动]⑥精灵帧闪动"口径多次误报刷屏，
+            // 且橡皮筋/闪烁根因已由 LateUpdate 硬同步 + 同帧采样根治，不再需要常驻诊断。诊断可 F8 手动转储。
+            // sprite2(部件贴图)处理模式（0/1/2 语义见 ModConfig.RemoveSwordSprite2Mode 说明）
+            SwordRemover.Sprite2Mode = ModConfig.RemoveSwordSprite2Mode.Value;
+            // UV 感知亮采样擦除（白框根治）+ 光晕（吃持剑的手）：模式0下按"帧 UV→部件采样"判定白框像素
+            SwordRemover.UVErase = ModConfig.RemoveSwordFrameUVErase.Value;
+            SwordRemover.UVHalo = ModConfig.RemoveSwordFrameUVHalo.Value;
+            // 剑柄改色（RecolorGripToBody/GripFloodPx）已删除——剑柄改色会误涂肩甲/胸甲/头盔同色像素，
+            // 且顶点色 B 恒 0.02 时剑柄本就是黑色剪影。对应 cfg 键 RemoveSwordSprite2GripBand 已从 ModConfig 移除。
+            // 针对性诊断探针——死亡腾空轨迹 / 静态尸体烘焙钩子 / 受击两重分身探测
             var probe = a.gameObject.AddComponent<BlackSpearmanDiagProbe>();
             if (probe != null) probe.Setup(a);
         }

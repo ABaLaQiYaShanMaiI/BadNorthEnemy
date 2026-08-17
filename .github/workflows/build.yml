@@ -1,0 +1,41 @@
+# 最小 CI：dotnet build 验证。
+# 注意：本项目引用 Bad North 游戏程序集（Assembly-CSharp/UnityEngine*/BepInEx/MMHOOK），
+# 完整编译需要一份游戏安装（BadNorthDir）。
+#  - 若仓库配置了 Secrets → BAD_NORTH_DIR（指向完整游戏安装目录，适合自托管 runner），
+#    本工作流会执行完整 Release 编译 + 部署校验；
+#  - 未配置时退化为 Restore 冒烟检查（验证 csproj 合法性，不能编译产物）。
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      BadNorthDir: ${{ secrets.BAD_NORTH_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # 完整编译（需 secrets.BAD_NORTH_DIR，自托管 runner 装上游戏后使用）
+      - name: Full build (Release)
+        if: env.BadNorthDir != ''
+        shell: pwsh
+        run: |
+          dotnet build BadNorthBlackSpearman1.3/BadNorthBlackSpearman1.3.csproj -c Release -nologo -p:BadNorthDir="$env:BadNorthDir"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # 冒烟检查：无游戏引用时只做 Restore + csproj 校验
+      - name: Smoke check (Restore)
+        if: env.BadNorthDir == ''
+        shell: pwsh
+        run: |
+          Write-Host "未配置 secrets.BAD_NORTH_DIR，跳过完整编译（仅 Restore 冒烟）。"
+          Write-Host "在 GitHub 仓库 Settings → Secrets → 添加 BAD_NORTH_DIR = 完整游戏安装目录（自托管 runner）即可启用完整编译。"
+          dotnet build BadNorthBlackSpearman1.3/BadNorthBlackSpearman1.3.csproj -c Release -t:Restore --nologo

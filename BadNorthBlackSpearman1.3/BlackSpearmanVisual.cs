@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,22 +9,22 @@ namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
     /// 黑矛兵黑色外观：每帧在 LateUpdate 强制顶点色 B 通道。
-    /// ★ 第二十四轮（闪白根治）：原版 `Agent.aliveAndGrounded.OnUpdate += UpdateColor`（Agent.cs:418）每帧把
-    ///   `spriteAnimator.color.b = 1 - healthFraction` —— B 通道是游戏的"受击白闪"通道。旧版周期写 B=0.01
-    ///   （60/30 帧间隔）打不过它：受击时 b→1 → 身体闪白/暖色 = 用户所见"颜色不对劲+闪烁"。
-    ///   现在每帧在 LateUpdate 重写（渲染前最后阶段，必然赢）：
-    ///   - 身体（SpriteAnimator）：b 强制 0.02 → 恒黑，抑制受击白闪；
-    ///   - 长矛/阴影（普通 BatchedSprite）：b 强制 1.0 → 保持原色（长矛可见、阴影正常）。
-    ///   黑色本体由 SwordRemover 烘进部件贴图克隆（整体压暗 ×0.15），双保险。
+    /// 原版 `Agent.aliveAndGrounded.OnUpdate += UpdateColor`（Agent.cs:418）每帧把
+    /// `spriteAnimator.color.b = 1 - healthFraction` —— B 通道是游戏的"受击白闪"通道。旧版周期写 B=0.01
+    /// （60/30 帧间隔）打不过它：受击时 b→1 → 身体闪白/暖色 = 用户所见"颜色不对劲+闪烁"。
+    /// 现在每帧在 LateUpdate 重写（渲染前最后阶段，必然赢）：
+    /// - 身体（SpriteAnimator）：b 强制 0.02 → 恒黑，抑制受击白闪；
+    /// - 长矛/阴影（普通 BatchedSprite）：b 强制 1.0 → 保持原色（长矛可见、阴影正常）。
+    /// 黑色本体由 SwordRemover 烘进部件贴图克隆（整体压暗 ×0.15），双保险。
     /// </summary>
     public class BlackSpearmanVisual : MonoBehaviour
     {
         Agent _agent;
         int _frames;
-        static int _unitIdCounter;       // ★ 第三十六轮：单位编号计数器（区分多个黑矛兵的采样日志）
+        static int _unitIdCounter;       // 单位编号计数器（区分多个黑矛兵的采样日志）
         int _unitId;                     // 本黑矛兵编号
-        // ★ 第二十五轮：长矛手部压暗 —— 玩家长矛精灵（Spear_0/1/2）自带两只暖肤的手（128x18 精灵 y8-12），
-        //   克隆纹理并压暗全部暖肤像素（r-b>25 且 r>130），手变黑、矛杆保持原色。静态缓存按纹理实例 ID 共享。
+        // 长矛手部压暗 —— 玩家长矛精灵（Spear_0/1/2）自带两只暖肤的手（128x18 精灵 y8-12），
+        // 克隆纹理并压暗全部暖肤像素（r-b>25 且 r>130），手变黑、矛杆保持原色。静态缓存按纹理实例 ID 共享。
         static readonly Dictionary<int, Texture2D> _spearTexCache = new Dictionary<int, Texture2D>();
 
         public void ApplyOnce(Agent agent)
@@ -37,9 +37,9 @@ namespace BadNorthBlackSpearman1_3
         void LateUpdate()
         {
             Recolor();
-            // ★ 第二十七轮（修正）：屏幕像素回读诊断——**只在登岛(onMain)后采样**（敌舰上身体 alpha=0 透明，采到的是海水；
-            //   上轮 20 次采样全浪费在登岛前）。每 0.5s 采样第一只登岛黑矛兵的胸口实际渲染色，直到 30 次。
-            // ★ 第四十二轮：归入 VerboseDumps 门控（该采样点常被英文兵/背景遮挡误报"整条偏亮"，默认不再刷）
+            // 屏幕像素回读诊断——**只在登岛(onMain)后采样**（敌舰上身体 alpha=0 透明，采到的是海水；
+            // 上轮 20 次采样全浪费在登岛前）。每 0.5s 采样第一只登岛黑矛兵的胸口实际渲染色，直到 30 次。
+            // 归入 VerboseDumps 门控（该采样点常被英文兵/背景遮挡误报"整条偏亮"，默认不再刷）
             if (BSLog.VerboseDumps && _pixelSampleCount < 30)
             {
                 bool onMain = _agent != null && _agent.navPos.valid && _agent.navPos.onMain;
@@ -54,17 +54,17 @@ namespace BadNorthBlackSpearman1_3
                 }
             }
 
-            // ★ 第三十四轮（头部闪白定位）：高频头部亮度采样——每 0.016s（≈每帧）采盔顶实际渲染色，
-            //   记录亮度时间序列 + 相邻跳变（>0.25）+ 屏坐标跳动（>5px），把"头部闪白/抽搐"量化成可判读的曲线。
-            // ★ 第三十六轮：间隔 0.1s→0.03s；★ 第四十轮：0.03s→0.016s（抓 60Hz 高频闪动），限 150 次 ≈ 2.5s。
-            // ★ 第四十二轮：由 cfg Diag.HeadTrace 门控（日志整理：默认开，但逐帧行只在你开 VerboseDumps 时打）
+            // 高频头部亮度采样——每 0.016s（≈每帧）采盔顶实际渲染色，
+            // 记录亮度时间序列 + 相邻跳变（>0.25）+ 屏坐标跳动（>5px），把"头部闪白/抽搐"量化成可判读的曲线。
+            // 采样间隔 0.016s（抓 60Hz 高频闪动），限 600 次 ≈ 10s。
+            // 由 cfg Diag.HeadTrace 门控（默认开；逐帧行只在 VerboseDumps 时打）
             if (BSLog.HeadTrace && _headSampleCount < 600)
             {
                 bool onMain = _agent != null && _agent.navPos.valid && _agent.navPos.onMain;
                 if (onMain)
                 {
-                    _headSampleTimer -= Time.unscaledDeltaTime;   // ★ 第四十一轮：改用未缩放真实时间——慢放(空格)时采样
-                    if (_headSampleTimer <= 0f)                   //   仍按真实帧率，频率对比才有效（Time.deltaTime 会被 timeScale 拖慢）
+                    _headSampleTimer -= Time.unscaledDeltaTime;   // 改用未缩放真实时间——慢放(空格)时采样
+                    if (_headSampleTimer <= 0f)                   // 仍按真实帧率，频率对比才有效（Time.deltaTime 会被 timeScale 拖慢）
                     {
                         _headSampleTimer = 0.016f;
                         StartCoroutine(SampleHeadBrightness());
@@ -76,26 +76,26 @@ namespace BadNorthBlackSpearman1_3
         float _pixelSampleTimer;
         static int _pixelSampleCount;   // 限前 30 次采样（防刷屏）
         bool _pixelNoCamLogged;         // 找不到相机时打印一次原因
-        float _headSampleTimer;         // ★ 第三十四轮：头部高频采样计时器
+        float _headSampleTimer;         // 头部高频采样计时器
         int _headSampleCount;           // 头部采样计数（限 600 次 ≈ 10s，留出"正常→空格慢放→恢复"对比窗口）
         float _prevHeadBright = -1f;    // 上一次头部亮度（跳变检测）
-        int _prevHeadSX = -1, _prevHeadSY = -1;   // ★ 第四十轮：上一次头部屏坐标（几何跳动检测）
-        // ★ 第四十一轮（用户建议）：头盔变动频率统计——每窗口(30采样≈0.5真实秒)输出亮度/位移跳变率(按真实秒)+timeScale，
-        //   供"空格慢放"对比：跳变率(次/真实秒)不随 ts 下降 = 每渲染帧级变动(渲染层问题)；随 ts 同降 = 游戏时间(动画/状态机)驱动。
+        int _prevHeadSX = -1, _prevHeadSY = -1;   // 上一次头部屏坐标（几何跳动检测）
+        // 头盔变动频率统计——每窗口(30采样≈0.5真实秒)输出亮度/位移跳变率(按真实秒)+timeScale，
+        // 供"空格慢放"对比：跳变率(次/真实秒)不随 ts 下降 = 每渲染帧级变动(渲染层问题)；随 ts 同降 = 游戏时间(动画/状态机)驱动。
         float _hWinStart;               // 统计窗口起点(真实秒)
         int _hWinSamples;               // 窗口内采样数
         int _hWinBJumps;                // 窗口内亮度跳变数
         int _hWinPJumps;                // 窗口内位移跳变数
         float _hWinBrightSum;           // 窗口内亮度累加（平均亮度）
-        // ★ 第四十二轮（问题①头部闪白/抽搐·诊断修正）：暗/亮像素计数 + 暗↔亮交替计数
+        // 暗/亮像素计数 + 暗↔亮交替计数
         int _hWinDark;                  // 窗口内"暗盔"判定次数
         int _hWinBrightN;               // 窗口内"亮盔/露背景"判定次数
         int _hWinAlt;                   // 窗口内 暗↔亮 交替次数（≥3 = 闪白实锤）
         bool _prevHeadDarkValid;
         bool _prevHeadDark;
-        // ★ 第四十三轮（日志判读修正）：垂直条带最暗点统计——顶点全零=正常 billboard，之前"网格塌缩"误报。
-        //   条带最暗点 ≤0.35 = 头部某高度有黑盔（单点 0.78 落在透明 padding 的恒亮是采样落空）；
-        //   整条 >0.55 = 头部真亮。
+        // 垂直条带最暗点统计——顶点全零=正常 billboard，之前"网格塌缩"误报。
+        // 条带最暗点 ≤0.35 = 头部某高度有黑盔（单点 0.78 落在透明 padding 的恒亮是采样落空）；
+        // 整条 >0.55 = 头部真亮。
         float _hWinDarkestSum;          // 窗口内"最暗采样点"亮度累加
         int _hWinDarkestN;              // 窗口内有效最暗点采样数
         float _lastDarkestPt = -1f;     // 最近一次最暗点亮度
@@ -103,7 +103,7 @@ namespace BadNorthBlackSpearman1_3
 
         /// <summary>帧末读屏幕：采样黑矛兵脚→盔顶垂直条 5 点（各 3x3），输出最暗/最亮点亮度。
         /// 最暗≤0.35=黑身正常渲染（✓）；整条>0.35=被英文兵遮挡或身体透明（✗=闪白回归信号）。
-        /// ★ 相机兜底：游戏主相机可能未标记 MainCamera → Camera.main 为 null 时退回 allCameras[0]；越界钳制；跳过原因打印一次。</summary>
+        /// 相机兜底：游戏主相机可能未标记 MainCamera → Camera.main 为 null 时退回 allCameras[0]；越界钳制；跳过原因打印一次。</summary>
         IEnumerator SampleRenderedPixel()
         {
             yield return new WaitForEndOfFrame();
@@ -130,10 +130,10 @@ namespace BadNorthBlackSpearman1_3
                     // 离屏：不计采样，等下次（不打印，防刷屏）
                     yield break;
                 }
-                // ★ 第三十一轮（采样器升级）：旧版只采胸口 1 点 5x5——登岛后黑矛兵常被我方英文兵遮挡，
-                //   或 chestPos 与渲染精灵错位 → 45 次全采到英文兵/地形（亮色误报）。现改为**脚→盔顶垂直条 5 点**：
-                //   - 最暗点 ≤0.35 → 黑身正在渲染（✓）；整条 >0.35 → 被遮挡或身体透明（✗=闪白回归信号）；
-                //   - 最亮点=盔顶/肩甲 → 辅助量化头盔灰可见性（×0.8 后期望 0.15~0.33，黑躯 0.10~0.18）。
+                // 旧版只采胸口 1 点 5x5——登岛后黑矛兵常被我方英文兵遮挡，
+                // 或 chestPos 与渲染精灵错位 → 45 次全采到英文兵/地形（亮色误报）。现改为**脚→盔顶垂直条 5 点**：
+                // - 最暗点 ≤0.35 → 黑身正在渲染（✓）；整条 >0.35 → 被遮挡或身体透明（✗=闪白回归信号）；
+                // - 最亮点=盔顶/肩甲 → 辅助量化头盔灰可见性（×0.8 后期望 0.15~0.33，黑躯 0.10~0.18）。
                 var tex = new Texture2D(3, 3, TextureFormat.RGBA32, false);
                 float[] offs = { -0.30f, -0.10f, 0.10f, 0.30f, 0.45f };
                 float minB = 99f, maxB = -1f;
@@ -165,7 +165,7 @@ namespace BadNorthBlackSpearman1_3
             catch { }
         }
 
-        /// <summary>★ 第四十二轮（问题①头部闪白/抽搐·诊断修正）：
+        /// <summary>
         /// 头盔采样点改用 **Sprite 真实盔顶**（sprite.bounds 顶部 86% 高度、水平 3 点 × 3x3），
         /// 旧 chestPos+up*0.45 实测常落空采到背景（恒 0.62~0.97），永远测不到头盔。
         /// 窗口统计新增：暗/亮判定 + 暗↔亮交替计数（≥3=闪白实锤：头盔在"黑盔↔透明露背景"间逐帧切换）。
@@ -185,10 +185,10 @@ namespace BadNorthBlackSpearman1_3
                 if (ReferenceEquals(cam, null)) yield break;
 
                 // 头盔条带：SpriteAnimator 局部包围盒底→顶，取 5 个相对高度做垂直采样
-                //（0.45=脸/盔下沿，0.60/0.72=盔带，0.84/0.95=盔顶/头顶透明 padding）
-                // ★ 第四十三轮：旧单点 0.78 若落在头顶透明 padding 会恒亮误报；条带最暗点可区分"头盔真亮"与"采样落空"。
-                // ★ 第四十五轮（判读修正）：R44 已确认"身体渲染黑"（死亡窗口扫描 暗身px=1760），但条带仍恒亮
-                //   → 条带点全部落在身体上方透明 padding/地面 = 采样落空。**改用窗口扫描最暗点**（同死亡扫描思路）。
+                // 0.45=脸/盔下沿，0.60/0.72=盔带，0.84/0.95=盔顶/头顶透明 padding
+                // 旧单点 0.78 若落在头顶透明 padding 会恒亮误报；条带最暗点可区分"头盔真亮"与"采样落空"。
+                // 实测已确认"身体渲染黑"（死亡窗口扫描 暗身px=1760），但条带仍恒亮
+                // → 条带点全部落在身体上方透明 padding/地面 = 采样落空。**改用窗口扫描最暗点**（同死亡扫描思路）。
                 Vector3 head = _agent.chestPos + Vector3.up * 0.45f;   // 兜底（找不到 sprite 时）
                 bool usedSprite = false;
                 Transform saT = null;
@@ -221,8 +221,8 @@ namespace BadNorthBlackSpearman1_3
                 int sx = Mathf.Clamp(Mathf.RoundToInt(sp.x), 3, Screen.width - 4);
                 int sy = Mathf.Clamp(Mathf.RoundToInt(sp.y), 3, Screen.height - 4);
 
-                // ★ 第四十五轮：窗口扫描（60x90，以参考点为中心向上偏 15px 罩住头/肩）——
-                //   找出窗口内 3x3 平均最暗的点 + 统计暗像素数。身体渲染黑 → 窗口必有大量暗像素。
+                // 窗口扫描（60x90，以参考点为中心向上偏 15px 罩住头/肩）——
+                // 找出窗口内 3x3 平均最暗的点 + 统计暗像素数。身体渲染黑 → 窗口必有大量暗像素。
                 int ww = 60, wh = 90;
                 int wx0 = Mathf.Clamp(sx - ww / 2, 0, Screen.width - ww);
                 int wy0 = Mathf.Clamp(sy - wh / 2 - 15, 0, Screen.height - wh);
@@ -292,7 +292,7 @@ namespace BadNorthBlackSpearman1_3
                     pJump = true;
                     posJump = " ⚠️跳动";
                 }
-                // ★ 第四十二轮：逐帧行默认关（刷屏源之一）；开 BSLog.VerboseDumps 才打
+                // 逐帧行默认关（刷屏源之一）；开 BSLog.VerboseDumps 才打
                 if (BSLog.VerboseDumps)
                 {
                     BSLog.Info("[头部采样#" + _unitId + "] 亮度=" + avg.ToString("F2") + jump + posJump +
@@ -362,11 +362,11 @@ namespace BadNorthBlackSpearman1_3
                         bool isBody = bs is SpriteAnimator;      // 身体 SpriteAnimator 的 R/G 存 UV 编码
                         if (isBody)
                         {
-                            // ★ 第二十八轮（闪白根治·核心）：强制身体顶点 **alpha=1**（不透明）——
-                            //   `Body.SetGrass` 只在"grass != shadow.a"时写 sprite 颜色，黑矛兵 shadow.a=0 时
-                            //   若 grass 判定短路，身体 alpha 恒 0 → AlphaToMask 整块丢弃 → 身体透明、露出背景
-                            //   （实测 [像素采样] 战斗中亮度 0.5~0.9 = 采到身后岛屿/海水 = 用户所见"闪白"）。
-                            //   B 恒 0.02（黑色由部件贴图分区压暗烘进，B 只做受击白闪抑制）。
+                            // 强制身体顶点 **alpha=1**（不透明）——
+                            // `Body.SetGrass` 只在"grass != shadow.a"时写 sprite 颜色，黑矛兵 shadow.a=0 时
+                            // 若 grass 判定短路，身体 alpha 恒 0 → AlphaToMask 整块丢弃 → 身体透明、露出背景
+                            // （实测 [像素采样] 战斗中亮度 0.5~0.9 = 采到身后岛屿/海水 = 用户所见"闪白"）。
+                            // B 恒 0.02（黑色由部件贴图分区压暗烘进，B 只做受击白闪抑制）。
                             if (Mathf.Abs(c.b - 0.02f) > 0.02f || Mathf.Abs(c.a - 1f) > 0.02f)
                                 bs.color = new Color(c.r, c.g, 0.02f, 1f);
                         }
@@ -409,10 +409,10 @@ namespace BadNorthBlackSpearman1_3
                     {
                         Color32 c = px[i];
                         if (c.a <= 8) continue;
-                        // ★ 第三十轮（蓝手修复）：我方 Pikeman 长矛精灵的手部除了暖肤，还有一条蓝色竖带
-                        //   （实测 R 41-87 / G 81-119 / B 99-123，x~17-31 y6-13）。暖肤阈值压不到蓝色 → 手仍蓝。
-                        //   现在暖肤 OR 蓝系都重度压暗 → 整只手变黑，与黑身融合后"脱开/橡皮筋"不可见。
-                        // ★ 第三十一轮：分暖肤/蓝系计数 + 蓝手压暗后亮度统计（量化确认蓝手已黑，无需再靠肉眼）。
+                        // 我方 Pikeman 长矛精灵的手部除了暖肤，还有一条蓝色竖带
+                        // （实测 R 41-87 / G 81-119 / B 99-123，x~17-31 y6-13）。暖肤阈值压不到蓝色 → 手仍蓝。
+                        // 现在暖肤 OR 蓝系都重度压暗 → 整只手变黑，与黑身融合后"脱开/橡皮筋"不可见。
+                        // 分暖肤/蓝系计数 + 蓝手压暗后亮度统计（量化确认蓝手已黑，无需再靠肉眼）。
                         bool isSkin = c.r - c.b > 25 && c.r > 130;
                         bool isBlue = c.b > 80 && c.b > c.r && c.b > c.g;
                         if (isSkin || isBlue)

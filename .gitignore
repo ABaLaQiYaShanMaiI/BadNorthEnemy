@@ -9,6 +9,14 @@ obj/
 *.exe
 *.log
 
+# 调试遗留物（一次性截图/临时分析输出）
+tmp_*.png
+tmp_*.py
+tmpfix/
+
+# 部署/回滚备份（build.ps1 生成的 .bak_<时间戳>，以及历史 .bak_rNN 回滚备份）
+*.bak_*
+
 # VS Code
 .vs/
 .vscode/

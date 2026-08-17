@@ -4,44 +4,56 @@
     <RootNamespace>BadNorthBlackSpearman1_3</RootNamespace>
     <AssemblyName>BadNorthBlackSpearman1.3</AssemblyName>
     <LangVersion>7.3</LangVersion>
-    <NoWarn>0433;0649</NoWarn>
+    <!--
+      工程卫生（第四十七轮）：游戏目录路径属性化，不再硬编码 D:\Steam\...
+      优先级：命令行 -p:BadNorthDir=xxx > 环境变量 BadNorthDir > 下方默认值（本机）。
+      参考引用全部以 $(BadNorthDir) 为根，请勿在此写入绝对路径。
+      build.ps1 已把"编译 + 复制到 plugins + 哈希校验"自动化（见仓库根目录 build.ps1）。
+    -->
+    <BadNorthDir Condition="'$(BadNorthDir)' == ''">D:\Steam\steamapps\common\BadNorth</BadNorthDir>
+    <!--
+      警告策略：NoWarn 0433;0649 已移除——第四十七轮实测（Debug/Release + Rebuild）当前代码 0 警告，
+      该 NoWarn 是历史遗留的整类静音，已无对应警告。
+      若日后出现 CS0433（UnityEngine 单体和模块程序集类型冲突）或 CS0649（字段从未赋值），请针对性修复，
+      不要重新整类静音。
+    -->
   </PropertyGroup>
 
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BadNorth_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="MMHOOK-Assembly-CSharp">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BepInEx\plugins\MMHOOK-Assembly-CSharp.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BepInEx\plugins\MMHOOK-Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="BepInEx">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BepInEx\core\BepInEx.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BepInEx\core\BepInEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="0Harmony">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BepInEx\core\0Harmony.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BepInEx\core\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BadNorth_Data\Managed\UnityEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BadNorth_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BadNorth_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.AnimationModule">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BadNorth_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.ImageConversionModule">
-      <HintPath>D:\Steam\steamapps\common\BadNorth\BadNorth_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+      <HintPath>$(BadNorthDir)\BadNorth_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

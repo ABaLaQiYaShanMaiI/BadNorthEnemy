@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
@@ -7,15 +7,15 @@ using Voxels.TowerDefense.SpriteMagic;
 namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
-    /// ★ 第四十二轮：针对性诊断探针（问题②：死亡腾空影分身 / 受击两重分身）。
+    /// 针对性诊断探针（问题②：死亡腾空影分身 / 受击两重分身）。
     /// 三个职责：
-    ///  1. 死亡→落地每 ~5 帧紧凑记录：身体位置/抬升/网格塌缩状态/材质块状态/第二身体渲染器偏移（腾空轨迹）；
-    ///  2. 钩住 CorpseManager.AddCorpse：静态尸体烘焙时刻 vs 飞行身体位置 → 偏移>0.1m 且身体还在腾空 =
-    ///     "飞行身体 + 地上静态尸体 = 双尸"实锤（落地后 agent 被 Destroy，只剩静态尸 = 用户所见"落地后只有一具"）；
-    ///  3. 受击/平时探测"两重分身"三类候选来源：
-    ///     a) _MIRROR_ON 镜像渲染器被游戏重新启用（翻面+偏移=双影）；
-    ///     b) 两个主身体 MeshRenderer 世界位置离位（应恒同位，parent-child local(0,0,0)）；
-    ///     c) BodySprite 的 SpriteRenderer(原始帧) 与黑色克隆 MeshRenderer 同时启用 = 双重渲染。
+    /// 1. 死亡→落地每 ~5 帧紧凑记录：身体位置/抬升/网格塌缩状态/材质块状态/第二身体渲染器偏移（腾空轨迹）；
+    /// 2. 钩住 CorpseManager.AddCorpse：静态尸体烘焙时刻 vs 飞行身体位置 → 偏移>0.1m 且身体还在腾空 =
+    /// "飞行身体 + 地上静态尸体 = 双尸"实锤（落地后 agent 被 Destroy，只剩静态尸 = 用户所见"落地后只有一具"）；
+    /// 3. 受击/平时探测"两重分身"三类候选来源：
+    /// a) _MIRROR_ON 镜像渲染器被游戏重新启用（翻面+偏移=双影）；
+    /// b) 两个主身体 MeshRenderer 世界位置离位（应恒同位，parent-child local(0,0,0)）；
+    /// c) BodySprite 的 SpriteRenderer(原始帧) 与黑色克隆 MeshRenderer 同时启用 = 双重渲染。
     /// 全部输出按 BSLog.DeathTrace / BSLog.HitDoubleTrace 门控。
     /// </summary>
     public class BlackSpearmanDiagProbe : MonoBehaviour
@@ -31,7 +31,7 @@ namespace BadNorthBlackSpearman1_3
         bool _mirrorStateWarned;
         bool _spriteDoubleWarned;
         bool _bodyDivWarned;
-        // ★ 第四十四轮（重影根治实验）：SingleBodyMode 去重影
+        // 去重影：SingleBodyMode（0=关 1=禁镜像 2=只留动画主身）
         int _singleBodyMode;
         float _reassertTimer;
 
@@ -46,7 +46,7 @@ namespace BadNorthBlackSpearman1_3
             if (_sa != null) _trackedSaIds.Add(_sa.GetInstanceID());
             _wasAlive = _agent.aliveState != null && _agent.aliveState.active;
             RegisterCorpseHook();
-            ApplySingleBodyMode();   // ★ 第四十四轮：去重影（按 Diag.SingleBodyMode）
+            ApplySingleBodyMode();   // 去重影（按 Diag.SingleBodyMode）
         }
 
         void OnDestroy()
@@ -54,7 +54,7 @@ namespace BadNorthBlackSpearman1_3
             if (_sa != null) _trackedSaIds.Remove(_sa.GetInstanceID());
         }
 
-        // ============ ★ 第四十四轮：去重影（SingleBodyMode） ============
+        // ============ 去重影（SingleBodyMode） ============
         // ColoredCharacter 着色器是 Cull Off（shader_076.txt 实测）→ 主身与 _MIRROR_ON 镜像会同时绘制。
         // 日志实测启动时 4 个身体渲染器（2主+2镜像）全 enabled → 4 份重叠绘制 = 全局重影。
         // 由于 Cull Off，禁镜像不会让背对时角色消失（主身永远绘制），可安全禁用。
@@ -63,7 +63,7 @@ namespace BadNorthBlackSpearman1_3
         {
             try
             {
-                _singleBodyMode = Plugin.DiagSingleBodyMode != null ? Plugin.DiagSingleBodyMode.Value : 0;
+                _singleBodyMode = ModConfig.DiagSingleBodyMode != null ? ModConfig.DiagSingleBodyMode.Value : 0;
                 if (_singleBodyMode <= 0) return;
                 if (_sa == null) return;
                 var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
@@ -84,10 +84,10 @@ namespace BadNorthBlackSpearman1_3
                 if (mirrorEnabled && mainEnabled)
                     BSLog.Warn("[单身] ⚠️ 改造前 主身与镜像渲染器同时启用（Cull Off → 多副本同绘 = 重影来源）主身=" + mains + " 镜像=" + mirrors);
 
-                // ★ 第四十六轮（律动保留）：主身渲染器有"静态"与"动画"两份——
-                //   [死亡分裂] 实测：前面的主身 UV0 恒 (0.152,0.384)=Swordsman0001 静态帧（不随动画更新），
-                //   最后一个主身 UV0 随帧变化 = 动画/律动渲染器。Mode2 必须**保留最后一个主身**（动画源），
-                //   禁用前面的静态主身 → 单渲染器无重影 + 动画律动保留。
+                // 主身渲染器有"静态"与"动画"两份——
+                // [死亡分裂] 实测：前面的主身 UV0 恒 (0.152,0.384)=Swordsman0001 静态帧（不随动画更新），
+                // 最后一个主身 UV0 随帧变化 = 动画/律动渲染器。Mode2 必须**保留最后一个主身**（动画源），
+                // 禁用前面的静态主身 → 单渲染器无重影 + 动画律动保留。
                 int mainKept = 0;
                 string keptInfo = "";
                 for (int i = 0; i < mrs.Length; i++)
@@ -197,8 +197,8 @@ namespace BadNorthBlackSpearman1_3
                     Vector3 corpsePos = matrix.MultiplyPoint(Vector3.zero);
                     Vector3 bodyPos = st != null ? st.position : corpsePos;
                     float off = Vector3.Distance(corpsePos, bodyPos);
-                    // ★ 第四十三轮：0.1~0.3m 多为"脚部 pivot 差"（尸体铺地 vs 身体 billboard 中心），不算双尸；
-                    //   真正双尸 = 身体还在明显腾空（抬升大）时尸体已铺到地面。
+                    // 0.1~0.3m 多为"脚部 pivot 差"（尸体铺地 vs 身体 billboard 中心），不算双尸；
+                    // 真正双尸 = 身体还在明显腾空（抬升大）时尸体已铺到地面。
                     string verdict;
                     if (off > 0.3f)
                         verdict = " ← 偏移>0.3m：身体与静态尸明显分离 = 双尸候选";
@@ -237,7 +237,7 @@ namespace BadNorthBlackSpearman1_3
                     _corpseNearLogged = false;
                     if (BSLog.DeathTrace)
                     {
-                        BSLog.Warn("[腾空] ★ 死亡开始（死亡→落地追踪开启）" +
+                        BSLog.Warn("[腾空]  死亡开始（死亡→落地追踪开启）" +
                             " pos=" + _agent.transform.position.ToString("F2") +
                             " sprite=" + (_sa != null && _sa.sprite != null ? _sa.sprite.name : "?") +
                             " 顶点色=" + (_sa != null ? _sa.color.ToString("F2") : "?") +
@@ -256,7 +256,7 @@ namespace BadNorthBlackSpearman1_3
                     CheckDoubleImage();
                 }
 
-                // ★ 第四十四轮：周期复断言去重影（防游戏运行期重新启用被禁的渲染器）
+                // 周期复断言去重影（防游戏运行期重新启用被禁的渲染器）
                 if (Time.time - _reassertTimer > 1f)
                 {
                     _reassertTimer = Time.time;
@@ -275,7 +275,7 @@ namespace BadNorthBlackSpearman1_3
                 if (_sa == null) return;
                 var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
                 int mainMesh = 0, total = 0, nullBlock = 0;
-                bool meshBad = false;   // ★ 第四十三轮：顶点全零=正常 billboard；只当 uv2 缺失/空才算坏
+                bool meshBad = false;   // 顶点全零=正常 billboard；只当 uv2 缺失/空才算坏
                 string second = "无";
                 var block = new MaterialPropertyBlock();
                 if (mrs != null)
@@ -406,7 +406,7 @@ namespace BadNorthBlackSpearman1_3
                 }
 
                 // c) BodySprite 的 SpriteRenderer(原始帧) 同时启用且有 alpha —— 双重渲染候选
-                //    （节流 2s；正常应 disabled 或 alpha=0；若可见 = 原始剑/亮身压在黑色克隆上）
+                // （节流 2s；正常应 disabled 或 alpha=0；若可见 = 原始剑/亮身压在黑色克隆上）
                 if (!_spriteDoubleWarned && Time.time - _hitWarnTimer > 2f)
                 {
                     var srs = _sa.GetComponentsInChildren<SpriteRenderer>(true);

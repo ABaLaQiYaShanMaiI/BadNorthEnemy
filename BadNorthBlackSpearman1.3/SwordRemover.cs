@@ -9,11 +9,10 @@ namespace BadNorthBlackSpearman1_3
 {
     /// <summary>
     /// 去剑组件：原版 Viking 的"剑"烘焙位置随基底不同——
-    ///   旧基底 Viking_Sword = OnehandedXXXX 动画帧里的暗红剑刃（R>70,G<40,B<20）+ sprite2 PartTex_Sword 亮银剑柄；
-    ///   新基底 Viking_SwordShield = SwordsmanXXXX 帧 + sprite2 PartTex_SwordShield（剑+盾 2D 部件）。
-    /// 原理（第十七轮用户回退）：部件贴图(sprite2) → 换为"亮银剑身擦透明"的克隆（模式2：亮银 + bbox 内接壤像素
-    /// 擦透明，剑区预期挖洞、身体其余保留——用户明确回退"擦除"方案，不要"改身体色"的黑色剑影）；帧内剑刃 →
-    /// 材质块 _MainTex 换去剑克隆（帧级红暗 + UV 亮采样擦除照常执行）。
+    /// 旧基底 Viking_Sword = OnehandedXXXX 动画帧里的暗红剑刃（R>70,G<40,B<20）+ sprite2 PartTex_Sword 亮银剑柄；
+    /// 新基底 Viking_SwordShield = SwordsmanXXXX 帧 + sprite2 PartTex_SwordShield（剑+盾 2D 部件）。
+    /// 原理：sprite2(部件贴图) → 换"分区压暗"克隆（模式2：亮银/躯干烘黑、暗灰头盔保留，不擦不涂零洞）；帧内剑刃 →
+    /// 材质块 _MainTex 换去剑克隆（帧级红暗 + UV 亮采样擦除照常执行）。绝不动 bSprite（交换会破坏身体渲染）。
     /// ⚠️ 安全阀：单帧擦除占比超阈值判定误擦并跳过；帧纹理是共享图集，只擦当前帧 rect。
     /// </summary>
     public class SwordRemover : MonoBehaviour
@@ -26,54 +25,52 @@ namespace BadNorthBlackSpearman1_3
         const int SwordBMax = 20;
         const int OuterBandPx = 6;           // 剑柄/护手纵向带：剑刃 bbox 上下各扩展 6 像素（只擦剑的外侧，绝不碰身体）
         const int OuterMarginPx = 2;         // 外侧水平回退：剑柄与剑刃右/左缘重叠 ≤2px 的部分也一并擦
-        const int HiltBandPx = -1;           // ⚠️ 已禁用（2026-08-15）：帧内剑柄与身体重叠，擦剑柄必伤身体。待部件贴图(sprite2)方案移除剑柄。
+        const int HiltBandPx = -1;           // ⚠️ 已禁用（当前为死路径勿启用）：帧内剑柄与身体重叠，擦剑柄必伤身体。待部件贴图(sprite2)方案移除剑柄。
         const float OuterMinOffsetPx = 5f;   // 剑心与帧心偏移 <5px（剑居中）→ 不擦外侧（避免误擦居中持剑的身体）
         const float SafetyEraseRatio = 0.2f;
-        // ★ sprite2(PartTex) 亮银剑区阈值 —— 运行时探针实测：剑=亮银(159~189,144~186,137~189)、身体=暗(33,26,24)。
-        //   亮银=中性灰（|r-b|、|g-b| 都 < 容差）→ 排除暖色皮肤与暗色衣物；这是剑柄残留"改部件贴图"方案落点。
+        // sprite2(PartTex) 亮银剑区阈值 —— 运行时探针实测：剑=亮银(159~189,144~186,137~189)、身体=暗(33,26,24)。
+        // 亮银=中性灰（|r-b|、|g-b| 都 < 容差）→ 排除暖色皮肤与暗色衣物；这是剑柄残留"改部件贴图"方案落点。
         const int SilverRMin = 110;
         const int SilverGMin = 100;
         const int SilverBMin = 90;
         const int SilverNeutralTol = 60;     // 中性灰容差：|r-b|、|g-b| 都 <60 才算"金属银"
         const int SilverAlphaMin = 128;      // 只擦实心像素，忽略半透明边缘
-        const float Sprite2SafetyRatio = 0.35f; // ★ 第十七轮回退：恢复“擦透明”方案，ETC2 增亮身体像素被擦会挖洞 → 收紧到 35% 防误擦（>35% 亮判定贴图异常）
+        const float Sprite2SafetyRatio = 0.35f; // 旧基底擦除路径专用：ETC2 增亮身体像素被擦会挖洞 → 收紧到 35% 防误擦（>35% 亮判定贴图异常）
         const int SwordBrightMin = 150;      // "纯亮"阈值：剑刃金属（r,g,b>150 中性亮色）。亮银擦除只用它，绝不碰暗色/肤色身体。
-        // ★ 第二十四轮（头盔保护）：PartTex_SwordShield 单元（64x126）的头部/头盔在单元 y<45（含亮银冠饰 y20-44，
-        //   剑刃在 y45-69、胸甲在 y45-89、手/盾在 y94+）。帧擦除的"亮采样"掩码跳过头盔区，避免把头盔冠饰擦透明。
+        // PartTex_SwordShield 单元（64x126）的头部/头盔在单元 y<45（含亮银冠饰 y20-44，
+        // 剑刃在 y45-69、胸甲在 y45-89、手/盾在 y94+）。帧擦除的"亮采样"掩码跳过头盔区，避免把头盔冠饰擦透明。
         const int HelmetMaxY = 45;
-        // ★ 第三十三轮（头盔恢复 v2）：帧头盔带(帧y10-30)采样的单元颜色源 = y47-88 的暗灰 + y44-59 的暖棕
-        //   （反向 UV 映射实测：帧剑刃/盾(y45-70)采样单元 y20-24 亮银 → 亮银必须压黑；
-        //    单元 y21-47 暖棕被帧躯干带(y30-55)大量采样 → 必须压黑；y47-88 的暗灰/暖棕才是头盔专属源）。
+        // 帧头盔带(帧y10-30)采样的单元颜色源 = y47-88 的暗灰 + y44-59 的暖棕
+        // （反向 UV 映射实测：帧剑刃/盾(y45-70)采样单元 y20-24 亮银 → 亮银必须压黑；
+        // 单元 y21-47 暖棕被帧躯干带(y30-55)大量采样 → 必须压黑；y47-88 的暗灰/暖棕才是头盔专属源）。
         const int HelmSrcY0 = 47;
         const int HelmSrcY1 = 88;
 
         static readonly Dictionary<int, Texture2D> _textureCache = new Dictionary<int, Texture2D>();  // 源纹理 → 去剑克隆
-        static readonly Dictionary<int, Sprite> _frameCache = new Dictionary<int, Sprite>();          // 源帧精灵 → 去剑精灵
         static readonly Dictionary<int, Sprite> _sprite2Cache = new Dictionary<int, Sprite>();        // 源 sprite2 → 去剑 sprite2
-        static readonly HashSet<int> _skippedFrames = new HashSet<int>();                            // 因安全阀跳过的帧（不再重试）
         static readonly HashSet<int> _erasedRects = new HashSet<int>();                              // 已擦除的帧 rect（每 rect 只擦一次）
-        static int _colorDiagDone;                                                                   // 帧颜色直方图诊断（限制次数）
         static bool _sprite2DiagDone;                                                                // sprite2 单元 ASCII 诊断（全局仅一次）
         static readonly HashSet<int> _preErasedTex = new HashSet<int>();                            // 已预擦除的源纹理（按源纹理实例 ID；消除动画播放时剑闪回）
         static int _blockDiagCount;                                                                  // 材质块修复详细转储次数（限前 2 只，避免刷屏）
+        static bool _headReadWarned;                                                                 // 头部带擦除追踪：源纹理不可读时的一次性告警（见 CountHeadBandErase）
 
-        /// <summary>sprite2(部件贴图)处理模式（由 Plugin.RemoveSwordSprite2Mode 配置）：
+        /// <summary>sprite2(部件贴图)处理模式（由 ModConfig.RemoveSwordSprite2Mode 配置）：
         /// 0=保留原部件贴图、只靠帧擦除去剑（帧擦会挖洞/残留剑柄，弃用）；
         /// 1=整块清空部件单元（旧方案，会致身体白框，勿用）；
-        /// 2=★第十七轮（用户回退）亮银剑身擦透明：亮银(剑刃+2D盾)与 bbox 内接壤像素擦透明、身体其余保留
-        ///（剑区预期挖洞；剑柄带改身体色——第十八轮用户指定“剑柄颜色与黑矛兵身躯颜色一致”，GripBand&gt;0）。</summary>
+        /// 2=定稿：分区压暗——亮银(>150)×0.15 防剑/盾显形、暗灰×0.8 保留头盔/肩甲、躯干/手/脸烘黑
+        /// （着色器为 LERP，b=0.02 时屏幕色≈克隆色；不擦不涂，零洞无白框）。</summary>
         public static int Sprite2Mode;
 
-        // ★★ UV 感知亮采样擦除（第十二轮，白框根治）：
+        // UV 感知亮采样擦除（白框根治）：
         // 运行时 ETC2 压缩的 PartTex_SwordShield 单元比离线亮（亮像素 bbox 从 y2~50 膨胀到 y0~105），
         // 部分"身体帧像素"（G 高、不满足红暗阈值）解码 UV 后采样到亮银部件像素 → 渲染成白框，旧红暗擦除抓不到。
         // 解法：擦除任何"解码 UV 采样到亮(r,g,b>150)部件像素"的帧像素——白框像素无论帧色如何都被擦，暗身体不受影响。
         public static bool UVErase = true;   // 配置 RemoveSwordFrameUVErase
         public static int UVHalo = 0;        // 配置 RemoveSwordFrameUVHalo：亮像素光晕(部件像素距离)，吃持剑的手/护手
-        // ★ 第二十四轮：GripFloodPx（RemoveSwordSprite2GripBand 剑柄改色）已删除——剑柄改色会误涂肩甲/胸甲/头盔同色像素，
-        //   且顶点色 B 恒 0.02 时剑柄本就是黑色剪影，无需改色。配置项保留但不再生效（见 Plugin）。
+        // 剑柄改色（RecolorGripToBody/GripFloodPx）已删除——会误涂肩甲/胸甲/头盔同色像素，
+        // 且顶点色 B 恒 0.02 时剑柄本就是黑色剪影，无需改色。对应 cfg 键 RemoveSwordSprite2GripBand 已从 ModConfig 移除。
 
-        // ★ 部件单元像素缓存（静态共享）：供帧擦除按"UV→部件采样"判定白框像素（全黑矛兵共用一份）
+        // 部件单元像素缓存（静态共享）：供帧擦除按"UV→部件采样"判定白框像素（全黑矛兵共用一份）
         static bool _partReady;             // 部件缓存已就绪
         static Texture2D _partTexClone;     // sprite2 部件贴图克隆（CloneTexture 一次）
         static Color32[] _partPx;           // 克隆像素数组
@@ -87,29 +84,28 @@ namespace BadNorthBlackSpearman1_3
 
         Agent _agent;
         SpriteAnimator _sa;
-        Sprite _blankSprite2;   // 新基底整块清空/亮银擦除后的 sprite2（烘焙重置时可重应用）
+        Sprite _blankSprite2;   // 按模式处理后的 sprite2 克隆（烘焙重置时可重应用）
         bool _eraseEnabled;
         bool _dumped;      // 运行时诊断已输出（处理第一帧时）
         bool _partKeepLogged;   // 模式0：保留原部件贴图的体检日志已输出（避免每帧刷屏）
         bool _blocksRepaired;   // 身体材质块修复+详细转储已输出（每个黑矛兵一次）
-        Sprite _frameSprite;    // ★ 第二十轮：Update 阶段采样的当前精灵（=原版 SpriteAnimator.SetSprite 本帧提交的精灵）。
-                                //   动画系统在 Update→LateUpdate 之间把 sprite 字段推进到下一帧；LateUpdate 若直接用
-                                //   _sa.sprite（已是新帧），会把"新帧的去剑纹理"贴到"旧帧的网格 UV"上 → 每换一帧动画闪一帧
-                                //   （=用户所见"身子闪烁"）。改用 Update 采样值可保证去剑纹理与网格 UV 永远一致。
-        bool _partAppliedDiagDone;   // 第二十轮：sprite2 改色克隆应用诊断已输出（每个黑矛兵一次）
-        Sprite _partCacheSprite;     // ★ 第二十一轮：帧擦除 UV 掩码的部件源 = 原版 sprite2（克隆前的原件）。
-                                     //   运行时 sprite2 会换成去剑/改色克隆（剑区透明）；掩码必须永远按原件构建，
-                                     //   否则换成克隆后掩码变空、UV 亮采样擦除失效。
-        int _partDiagFrame = -1;     // ★ 第二十一轮：sprite2 应用诊断的延迟帧（克隆上块后等 5 帧再判读稳态）
-        // ★ 第二十四轮：渲染状态周期诊断（定位"黑色身躯闪白"）——每 2s 打印 4 个身体渲染器的块状态 +
-        //   顶点色 B/alpha + 当前帧 + 生命值。若 _PartTex 周期变 null（→ 着色器默认白 = 闪白）会在这里现形。
+        Sprite _frameSprite;    // Update 阶段采样的当前精灵（=原版 SpriteAnimator.SetSprite 本帧提交的精灵）。
+                                // 动画系统在 Update→LateUpdate 之间把 sprite 字段推进到下一帧；LateUpdate 若直接用
+                                // _sa.sprite（已是新帧），会把"新帧的去剑纹理"贴到"旧帧的网格 UV"上 → 每换一帧动画闪一帧
+                                // （=用户所见"身子闪烁"）。改用 Update 采样值可保证去剑纹理与网格 UV 永远一致。
+        bool _partAppliedDiagDone;   // sprite2 克隆应用诊断已输出（每个黑矛兵一次）
+        Sprite _partCacheSprite;     // 帧擦除 UV 掩码的部件源 = 原版 sprite2（克隆前的原件）。
+                                     // 运行时 sprite2 会换成去剑/改色克隆（剑区透明）；掩码必须永远按原件构建，
+                                     // 否则换成克隆后掩码变空、UV 亮采样擦除失效。
+        int _partDiagFrame = -1;     // sprite2 应用诊断的延迟帧（克隆上块后等 5 帧再判读稳态）
+        // 渲染状态周期诊断（定位"黑色身躯闪白"）——每 2s 打印 4 个身体渲染器的块状态 +
+        // 顶点色 B/alpha + 当前帧 + 生命值。若 _PartTex 周期变 null（→ 着色器默认白 = 闪白）会在这里现形。
         float _renderDiagTimer;
-        static int _renderDiagCount;   // 限前 2 只黑矛兵，避免刷屏
-        float _bSpikeTimer;            // ★ 第二十七轮：受击白闪（顶点色B尖峰）追踪节流（0.2s）
-        bool _wasAlive = true;         // ★ 第二十七轮：上一帧存活状态（死亡瞬间转储用）
+        float _bSpikeTimer;            // 受击白闪（顶点色B尖峰）追踪节流（0.2s）
+        bool _wasAlive = true;         // 上一帧存活状态（死亡瞬间转储用）
         bool _deathDumped;             // 死亡转储已输出（每个黑矛兵一次）
-        bool _preRenderLogged;         // ★ 第三十五轮：onPreRender 渲染前补块首次触发日志
-        // ★ 第四十二轮（问题①头部闪白/抽搐）：头部带逐帧擦除追踪（非屏幕、动画帧级）+ 白帧转换检测
+        bool _preRenderLogged;         // onPreRender 渲染前补块首次触发日志
+        // 头部带逐帧擦除追踪（非屏幕、动画帧级）+ 白帧转换检测
         int _lastHeadErase = -1;       // 上一帧头部带"将被擦除"像素数
         string _lastHeadEraseFrame;    // 上一帧名
         int _headEraseFlips;           // 头部擦除 0↔N 交替翻转计数
@@ -137,8 +133,8 @@ namespace BadNorthBlackSpearman1_3
             }
             else
             {
-                // ★ 部件单元缓存：帧擦除按"解码 UV→部件采样"判定白框像素，必须先有部件贴图
-                _partCacheSprite = _sa.sprite2;   // 第二十一轮：锁定原版部件（掩码永远按原件构建）
+                // 部件单元缓存：帧擦除按"解码 UV→部件采样"判定白框像素，必须先有部件贴图
+                _partCacheSprite = _sa.sprite2;   // 锁定原版部件（掩码永远按原件构建）
                 EnsurePartCache(_partCacheSprite);
             }
         }
@@ -153,7 +149,7 @@ namespace BadNorthBlackSpearman1_3
             Camera.onPreRender -= OnPreRenderReblock;
         }
 
-        /// <summary>★ 第三十五轮：渲染前最后一刻补块——游戏死亡重烘焙在比 LateUpdate 更晚的阶段清空 _MainTex/_PartTex，
+        /// <summary>渲染前最后一刻补块——游戏死亡重烘焙在比 LateUpdate 更晚的阶段清空 _MainTex/_PartTex，
         /// 把补块覆盖掉（腾空期白影/影分身）。onPreRender 在相机渲染前触发，抢在渲染前最后时刻写回克隆。</summary>
         void OnPreRenderReblock(Camera cam)
         {
@@ -166,14 +162,14 @@ namespace BadNorthBlackSpearman1_3
 
         void Update()
         {
-            // ★ 第二十轮（身子闪烁根治）：在 Update 阶段采样当前精灵——与原版 SpriteAnimator.SetSprite() 同一时刻、同一值。
-            //   原版把"动画系统写进 sprite 字段的帧"与"网格 UV"在它的 Update 里一起提交；本组件的 LateUpdate 再用同一帧精灵
-            //   覆盖 _MainTex 为去剑克隆，两者始终匹配。旧代码 LateUpdate 直接用 _sa.sprite（动画在 Update→LateUpdate 之间
-            //   已推进到下一帧）→ 去剑纹理(新帧) vs 网格 UV(旧帧) 错位一帧 = 每次换动画帧都闪一下。
+            // 在 Update 阶段采样当前精灵——与原版 SpriteAnimator.SetSprite() 同一时刻、同一值。
+            // 原版把"动画系统写进 sprite 字段的帧"与"网格 UV"在它的 Update 里一起提交；本组件的 LateUpdate 再用同一帧精灵
+            // 覆盖 _MainTex 为去剑克隆，两者始终匹配。旧代码 LateUpdate 直接用 _sa.sprite（动画在 Update→LateUpdate 之间
+            // 已推进到下一帧）→ 去剑纹理(新帧) vs 网格 UV(旧帧) 错位一帧 = 每次换动画帧都闪一下。
             if (_sa != null && _sa.sprite != null) _frameSprite = _sa.sprite;
 
-            // ★ 第二十七轮：死亡瞬间渲染器转储（抓"击杀分裂"）——aliveState 由活→死时，打印 4 个身体渲染器的
-            //   位置/网格UV/材质块，确认分裂是"渲染器各奔东西"还是"纹理/uv 错位"。
+            // 死亡瞬间渲染器转储（抓"击杀分裂"）——aliveState 由活→死时，打印 4 个身体渲染器的
+            // 位置/网格UV/材质块，确认分裂是"渲染器各奔东西"还是"纹理/uv 错位"。
             if (_agent != null && _agent.aliveState != null)
             {
                 bool aliveNow = _agent.aliveState.active;
@@ -181,22 +177,22 @@ namespace BadNorthBlackSpearman1_3
                 {
                     _deathDumped = true;
                     DumpDeathSplit();
-                    // ★ 第三十四轮（死亡腾空影分身根治）：死亡瞬间游戏重烘焙清空 _MainTex/_PartTex → 主 + _MIRROR_ON 镜像
-                    //   都渲染默认白、ragdoll 腾空偏移 → 两个重叠白影 = 影分身。原 ReblockAfterDeath 协程首个 yield return null
-                    //   要等下一帧才补块，死亡当帧仍是白影。现在**当帧同步补块**，让死亡当帧就是黑单尸；30 帧协程继续兜底。
+                    // 死亡瞬间游戏重烘焙清空 _MainTex/_PartTex → 主 + _MIRROR_ON 镜像
+                    // 都渲染默认白、ragdoll 腾空偏移 → 两个重叠白影 = 影分身。原 ReblockAfterDeath 协程首个 yield return null
+                    // 要等下一帧才补块，死亡当帧仍是白影。现在**当帧同步补块**，让死亡当帧就是黑单尸；30 帧协程继续兜底。
                     ReblockCorpseOnce();
-                    StartCoroutine(ScanKillHelmets());   // ★ 第四十一轮（用户建议）：击杀时头盔计数（读屏数暗身/头盔灰团块）
+                    StartCoroutine(ScanKillHelmets());   // 击杀时头盔计数（读屏数暗身/头盔灰团块）
                     StartCoroutine(ReblockAfterDeath());
                 }
                 _wasAlive = aliveNow;
             }
         }
 
-        /// <summary>★ 第四十一轮（用户建议）：击杀时头盔计数——死亡后第 3 帧读屏，在尸体屏坐标 ±160/±200 窗口内
+        /// <summary>击杀时头盔计数——死亡后第 3 帧读屏，在尸体屏坐标 ±160/±200 窗口内
         /// 用连通域统计 ①暗身团块 ②头盔灰团块 ③亮白团块（默认白影）：
         /// 正常=暗身1+头盔灰1+亮白0；若 ≥2 个暗身 或 ≥2 个头盔灰团块 = 凭空多生成身影/头盔（影分身实锤）。
-        /// ★ 第四十一轮改进：死亡当帧游戏把身体网格顶点全部重置为 (0,0,0)（[死亡分裂] 前顶点全零）→ 身体塌缩不可见，
-        ///   当帧读屏必得"暗身=0"（误报）。改为等 3 帧（网格重建 + onPreRender 补块生效）后再扫描。</summary>
+        /// 改进：死亡当帧游戏把身体网格顶点全部重置为 (0,0,0)（[死亡分裂] 前顶点全零）→ 身体塌缩不可见，
+        /// 当帧读屏必得"暗身=0"（误报）。改为等 3 帧（网格重建 + onPreRender 补块生效）后再扫描。</summary>
         IEnumerator ScanKillHelmets()
         {
             for (int i = 0; i < 3; i++) yield return null;   // 等网格重建 + 补块生效
@@ -213,7 +209,7 @@ namespace BadNorthBlackSpearman1_3
                 Vector3 sp = cam.WorldToScreenPoint(_agent.transform.position);
                 if (sp.z <= 0f) yield break;
                 int cx = Mathf.RoundToInt(sp.x), cy = Mathf.RoundToInt(sp.y);
-                // ★ 第四十三轮：尸体出屏/贴屏边时读屏不可靠（旧日志"暗身px=0"多是尸体在屏幕边缘采到背景），跳过
+                // 尸体出屏/贴屏边时读屏不可靠（旧日志"暗身px=0"多是尸体在屏幕边缘采到背景），跳过
                 if (cx < 80 || cx > Screen.width - 80 || cy < 80 || cy > Screen.height - 80)
                 {
                     BSLog.Warn("[击杀头盔计数] 尸体出屏/贴边(屏=(" + cx + "," + cy + "))，跳过读屏（防误报）");
@@ -241,8 +237,8 @@ namespace BadNorthBlackSpearman1_3
                         Color c = px[y * w + x];
                         float br = (c.r + c.g + c.b) / 3f;
                         bool isDark = br < 0.35f;
-                        // ★ 头盔灰收紧：头盔源 avg=71/255≈0.28 max=132≈0.52，屏幕色≈克隆色 → 0.18~0.55 才像头盔暗灰；
-                        //   旧阈值 0.85 把岛屿中灰/英文兵全算进去（上次日志头盔灰≈整个窗口=背景误分类）。
+                        // 头盔灰收紧：头盔源 avg=71/255≈0.28 max=132≈0.52，屏幕色≈克隆色 → 0.18~0.55 才像头盔暗灰；
+                        // 旧阈值 0.85 把岛屿中灰/英文兵全算进去（上次日志头盔灰≈整个窗口=背景误分类）。
                         bool isHelm = Mathf.Abs(c.r - c.b) < 0.20f && Mathf.Abs(c.g - c.b) < 0.20f &&
                             br >= 0.18f && br <= 0.55f;
                         bool isWhite = br > 0.85f;   // 默认白渲染/白影
@@ -252,7 +248,7 @@ namespace BadNorthBlackSpearman1_3
                     }
                 }
 
-                List<int[]> dBlobs = new List<int[]>();   // 暗身团块（R45：身体已确认渲染黑 → 以暗身团块为唯一判据）
+                List<int[]> dBlobs = new List<int[]>();   // 暗身团块（实测：身体已确认渲染黑 → 以暗身团块为唯一判据）
                 List<int[]> hBlobs = new List<int[]>();   // 头盔灰（岛屿中灰背景污染，仅留计数参考）
                 List<int[]> wBlobs = new List<int[]>();   // 亮白（海面/沙地/英文兵背景，仅留计数参考）
                 int dCnt = CountScreenBlobs(dark, w, h, 60, dBlobs);
@@ -269,7 +265,7 @@ namespace BadNorthBlackSpearman1_3
                     " 暗身px=" + darkN + " 团块=" + dCnt +
                     " 头盔灰px=" + helmN + " 团块=" + hCnt +
                     " 亮白px=" + whiteN + " 团块=" + wCnt + " → " + verdict);
-                // ★ 第四十五轮：团块明细（刷屏源）归入 VerboseDumps；平时只留一行结论
+                // 团块明细（刷屏源）归入 VerboseDumps；平时只留一行结论
                 if (BSLog.VerboseDumps)
                 {
                     for (int i = 0; i < dBlobs.Count; i++)
@@ -278,10 +274,10 @@ namespace BadNorthBlackSpearman1_3
                     for (int i = 0; i < hBlobs.Count; i++)
                         BSLog.Warn("  [头盔团块] bbox=(" + (x0 + hBlobs[i][0]) + "," + (y0 + hBlobs[i][1]) + ")-(" +
                             (x0 + hBlobs[i][2]) + "," + (y0 + hBlobs[i][3]) + ") 面积=" + hBlobs[i][4]);
-                for (int i = 0; i < wBlobs.Count; i++)
-                    BSLog.Warn("  [亮白团块] bbox=(" + (x0 + wBlobs[i][0]) + "," + (y0 + wBlobs[i][1]) + ")-(" +
-                        (x0 + wBlobs[i][2]) + "," + (y0 + wBlobs[i][3]) + ") 面积=" + wBlobs[i][4]);
-                }   // ★ 第四十五轮：VerboseDumps 团块明细结束
+                    for (int i = 0; i < wBlobs.Count; i++)
+                        BSLog.Warn("  [亮白团块] bbox=(" + (x0 + wBlobs[i][0]) + "," + (y0 + wBlobs[i][1]) + ")-(" +
+                            (x0 + wBlobs[i][2]) + "," + (y0 + wBlobs[i][3]) + ") 面积=" + wBlobs[i][4]);
+                }   // VerboseDumps 团块明细结束
             }
             catch { }
         }
@@ -324,24 +320,24 @@ namespace BadNorthBlackSpearman1_3
 
             var cur = _frameSprite != null ? _frameSprite : _sa.sprite;
 
-            // ★ 第二十一轮（顺序修复）：先把 sprite2 部件贴图换成去剑/改色克隆，再执行帧擦除写材质块——
-            //   旧顺序"先写块再换 sprite2"：帧擦除/RepairBodyMaterialBlocks 写入的 _PartTex 是原部件贴图，
-            //   随后 SetSprite2 的 ComittBlock 只把克隆提交给 BatchedSprite 的 rends（2 个渲染器），
-            //   其余身体渲染器块 _PartTex 仍是原部件 → 剑柄改色/亮银擦除实际没上大部分块（用户仍见剑柄）。
-            //   现在先换 sprite2，下面所有块写入都会用克隆纹理。
+            // 先把 sprite2 部件贴图换成去剑/改色克隆，再执行帧擦除写材质块——
+            // 旧顺序"先写块再换 sprite2"：帧擦除/RepairBodyMaterialBlocks 写入的 _PartTex 是原部件贴图，
+            // 随后 SetSprite2 的 ComittBlock 只把克隆提交给 BatchedSprite 的 rends（2 个渲染器），
+            // 其余身体渲染器块 _PartTex 仍是原部件 → 剑柄改色/亮银擦除实际没上大部分块（用户仍见剑柄）。
+            // 现在先换 sprite2，下面所有块写入都会用克隆纹理。
             if (_eraseEnabled) ApplySprite2Erase();
 
             if (cur != null && cur.texture != null && IsSwordFrameSprite(cur))
             {
-                // ★ 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
-                // ★ 第四十二轮（日志整理）：该 ASCII 转储每黑矛兵 ~2KB，归入 VerboseDumps 门控；平时想校准剑签名按 F8 即可
+                // 运行时诊断：处理第一帧时输出身体像素 ASCII 图 + sprite2 + 网格状态（无论开关，用于校准剑签名）
+                // 该 ASCII 转储每黑矛兵 ~2KB，归入 VerboseDumps 门控；平时想校准剑签名按 F8 即可
                 if (!_dumped && BSLog.VerboseDumps) { _dumped = true; DumpBodyRuntime(cur); }
 
                 // 1) 主动画帧：当前帧是 Onehanded/Swordsman 帧 → 只把材质块的 _MainTex 换成去剑克隆纹理
-                //    ★ 关键修复：绝不交换 bSprite/sprite/网格 —— 实测 bSprite 交换会破坏身体渲染（躯干透明），
-                //    尽管顶点色/UV 都正常。网格 UV 本来就指向图集单元；克隆纹理与图集同尺寸，
-                //    让 _MainTex 直接采样克隆的同一单元即可渲染"去剑帧"，完全避开 sprite 对象替换。
-                //    ★ 第十七轮（用户回退）：不再有"路线A 跳过帧擦"分支——帧级擦透明恢复（与第十四轮一致）。
+                // 关键修复：绝不交换 bSprite/sprite/网格 —— 实测 bSprite 交换会破坏身体渲染（躯干透明），
+                // 尽管顶点色/UV 都正常。网格 UV 本来就指向图集单元；克隆纹理与图集同尺寸，
+                // 让 _MainTex 直接采样克隆的同一单元即可渲染"去剑帧"，完全避开 sprite 对象替换。
+                // 不再有"路线A 跳过帧擦"分支——帧级擦透明恢复。
                 if (_eraseEnabled)
                 {
                     Texture2D erasedTex = EnsureErasedTexture(cur);
@@ -352,17 +348,17 @@ namespace BadNorthBlackSpearman1_3
                         if (_sa.sprite2 != null && _sa.sprite2.texture != null)
                             _sa.block.SetTexture("_PartTex", _sa.sprite2.texture);
                         _sa.ComittBlock();
-                        // ★ 第十三轮：把去剑克隆 + 部件贴图强制写入全部身体 MeshRenderer 的材质块——
-                        //   空块渲染器（_MainTex/_PartTex 为 null → 着色器默认白色）会渲染成白框/白板，
-                        //   且游戏每帧会用原图集覆盖 block，必须每帧重写（我们组件最后 Add，LateUpdate 最后执行）。
+                        // 把去剑克隆 + 部件贴图强制写入全部身体 MeshRenderer 的材质块——
+                        // 空块渲染器（_MainTex/_PartTex 为 null → 着色器默认白色）会渲染成白框/白板，
+                        // 且游戏每帧会用原图集覆盖 block，必须每帧重写（我们组件最后 Add，LateUpdate 最后执行）。
                         RepairBodyMaterialBlocks(erasedTex);
                     }
                 }
             }
 
-            // ★ 第四十二轮（问题①头部闪白/抽搐）：头部带逐帧擦除追踪——动画帧级、非屏幕。
-            //   帧头盔带（帧 y12-22，约 rect 顶 40%）若含"将被擦除"像素（红暗剑刃 或 UV 亮采样），
-            //   则该帧头盔在屏幕上被擦透明→露背景=亮；相邻帧 0↔N 交替 = 用户所见"头部闪白/抽搐"。
+            // 头部带逐帧擦除追踪——动画帧级、非屏幕。
+            // 帧头盔带（帧 y12-22，约 rect 顶 40%）若含"将被擦除"像素（红暗剑刃 或 UV 亮采样），
+            // 则该帧头盔在屏幕上被擦透明→露背景=亮；相邻帧 0↔N 交替 = 用户所见"头部闪白/抽搐"。
             if (BSLog.HeadTrace && cur != null && cur.texture != null)
             {
                 int he = CountHeadBandErase(cur);
@@ -381,8 +377,8 @@ namespace BadNorthBlackSpearman1_3
                 _lastHeadEraseFrame = cur.name;
             }
 
-            // ★ 第四十二轮（问题②）：白帧转换检测——死亡/受击重烘焙瞬间材质块被清空或网格塌缩 = 1~2 帧默认白/不可见。
-            //   转换沿即报（进入/恢复），隔帧扫描节流。
+            // 白帧转换检测——死亡/受击重烘焙瞬间材质块被清空或网格塌缩 = 1~2 帧默认白/不可见。
+            // 转换沿即报（进入/恢复），隔帧扫描节流。
             if (BSLog.DeathTrace && (++_whiteFrameScanTick & 1) == 0)
             {
                 bool bad = IsBodyWhiteFrame();
@@ -400,10 +396,10 @@ namespace BadNorthBlackSpearman1_3
 
             // sprite2 应用诊断见下方（克隆上块后延迟 5 帧判读稳态）
 
-            // ★ 第二十轮：sprite2 应用诊断——确认"剑柄改身体色/亮银擦除"的克隆确实写进了渲染器块（回答"剑柄改色为何没生效"）
-            //   ★ 第二十一轮：延迟到克隆上块后 5 帧再判读稳态，且统计全部 ColoredCharacter 身体渲染器里
-            //   块 _PartTex == 克隆 的数量（旧版当帧只读 mrs[0]，会命中一个未被 SpriteAnimator.ComittBlock 更新的
-            //   渲染器而误判"块里不是克隆"）。
+            // sprite2 应用诊断——确认"剑柄改身体色/亮银擦除"的克隆确实写进了渲染器块（回答"剑柄改色为何没生效"）
+            // 延迟到克隆上块后 5 帧再判读稳态，且统计全部 ColoredCharacter 身体渲染器里
+            // 块 _PartTex == 克隆 的数量（旧版当帧只读 mrs[0]，会命中一个未被 SpriteAnimator.ComittBlock 更新的
+            // 渲染器而误判"块里不是克隆"）。
             if (_eraseEnabled && !_partAppliedDiagDone && _sa.sprite2 != null &&
                 _blankSprite2 != null && _partDiagFrame >= 0 && Time.frameCount >= _partDiagFrame)
             {
@@ -447,8 +443,8 @@ namespace BadNorthBlackSpearman1_3
                 catch (Exception e) { BSLog.Warn("[去剑] sprite2 应用诊断异常: " + e); }
             }
 
-            // ★ 第二十六轮：渲染状态高频异常检测（闪白定位）——每 0.5s 采样、**持续**（不再限 3 次），
-            //   仅当发现异常才打印（WARN）：_PartTex=NULL（→着色器默认白=闪白直接来源）/_MainTex 非克隆（剑闪回）/顶点色 B>0.3。
+            // 渲染状态高频异常检测（闪白定位）——每 0.5s 采样、**持续**（不再限 3 次），
+            // 仅当发现异常才打印（WARN）：_PartTex=NULL（→着色器默认白=闪白直接来源）/_MainTex 非克隆（剑闪回）/顶点色 B>0.3。
             _renderDiagTimer -= Time.deltaTime;
             if (_renderDiagTimer <= 0f)
             {
@@ -456,9 +452,9 @@ namespace BadNorthBlackSpearman1_3
                 DumpRenderState();
             }
 
-            // ★ 第二十七轮：受击白闪追踪——_sa.color.b 是游戏 UpdateColor(Agent.cs:829) 每帧写入的受击值
-            //   （=1-healthFraction，健康=0、掉血→1；我们的 LateUpdate 随后压回 0.02）。若此处 b>0.05 说明
-            //   该帧正处于受击白闪窗口：与 [像素采样] 时间戳关联即可判定闪白是否=受击白闪。
+            // 受击白闪追踪——_sa.color.b 是游戏 UpdateColor(Agent.cs:829) 每帧写入的受击值
+            // （=1-healthFraction，健康=0、掉血→1；我们的 LateUpdate 随后压回 0.02）。若此处 b>0.05 说明
+            // 该帧正处于受击白闪窗口：与 [像素采样] 时间戳关联即可判定闪白是否=受击白闪。
             _bSpikeTimer -= Time.deltaTime;
             if (_bSpikeTimer <= 0f)
             {
@@ -479,7 +475,6 @@ namespace BadNorthBlackSpearman1_3
         {
             try
             {
-                _renderDiagCount++;
                 string frame = "?";
                 try { if (_sa != null && _sa.sprite != null) frame = _sa.sprite.name; } catch { }
                 float colorB = -1f;
@@ -522,7 +517,7 @@ namespace BadNorthBlackSpearman1_3
                             (pt != null ? (pIsClone ? "✓" : "✗") : "NULL") + "]";
                 }
                 bool bAnomaly = colorB > 0.3f;
-                bool aAnomaly = colorA >= 0f && colorA < 0.9f;   // ★ 第二十八轮：身体顶点 alpha<0.9 = 半透明/透明 = 闪白源
+                bool aAnomaly = colorA >= 0f && colorA < 0.9f;   // 身体顶点 alpha<0.9 = 半透明/透明 = 闪白源
                 bool any = partNull > 0 || mainClone < total || partClone < total || bAnomaly || aAnomaly;
                 if (!any) return;   // 一切正常：不打印（防刷屏）
                 BSLog.Warn("[渲染诊断⚠️] 帧=" + frame + " 顶点B=" + colorB.ToString("F3") +
@@ -536,25 +531,25 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[渲染诊断] 异常: " + e); }
         }
 
-        /// <summary>★ 第二十九轮：死亡后持续补块——死亡瞬间游戏可能重烘焙身体、把材质块清空（白尸）；
+        /// <summary>死亡后持续补块——死亡瞬间游戏可能重烘焙身体、把材质块清空（白尸）；
         /// 死亡后 30 帧内每帧把去剑克隆+部件克隆重新写回 4 个身体渲染器，最后转储尸体最终块状态。
-        /// ★ 第三十四轮：补块逻辑抽成 ReblockCorpseOnce()，死亡当帧先同步调用一次（见 Update），协程再兜底 30 帧。</summary>
+        /// 补块逻辑抽成 ReblockCorpseOnce()，死亡当帧先同步调用一次（见 Update），协程再兜底 30 帧。</summary>
         IEnumerator ReblockAfterDeath()
         {
             for (int i = 0; i < 30; i++)
             {
                 yield return null;
                 ReblockCorpseOnce();
-                // ★ 第三十六轮：死亡腾空期每 ~3 帧转储所有渲染器世界/本地坐标，
-                //   看"上半身/下半身"或"影子/长矛"是否在 ragdoll 期分离错位 = 影分身的第二身影。
-                // ★ 第四十二轮（日志整理）：降频到每 5 帧 + 由 Diag.DeathTrace 门控；
-                //   紧凑轨迹已由 BlackSpearmanDiagProbe.[腾空] 负责，这里只留 agent 内部渲染器（去掉了全场景扫描）。
+                // 死亡腾空期每 ~3 帧转储所有渲染器世界/本地坐标，
+                // 看"上半身/下半身"或"影子/长矛"是否在 ragdoll 期分离错位 = 影分身的第二身影。
+                // 降频到每 5 帧 + 由 Diag.DeathTrace 门控；
+                // 紧凑轨迹已由 BlackSpearmanDiagProbe.[腾空] 负责，这里只留 agent 内部渲染器（去掉了全场景扫描）。
                 if (BSLog.DeathTrace && i % 5 == 0) DumpCorpseRenderers(i);
             }
             DumpCorpseState();
         }
 
-        /// <summary>★ 第三十六轮：转储 agent 下全部 MeshRenderer 的世界/本地坐标 + enabled，
+        /// <summary>转储 agent 下全部 MeshRenderer 的世界/本地坐标 + enabled，
         /// 暴露死亡腾空期"两个重叠偏移身影"到底由哪个渲染器造成（上半身 vs 下半身 / 影子 / 长矛）。</summary>
         void DumpCorpseRenderers(int frameIdx)
         {
@@ -591,14 +586,14 @@ namespace BadNorthBlackSpearman1_3
                             " spr=" + (sr.sprite != null ? sr.sprite.name : "null"));
                     }
                 }
-                // ★ 第四十二轮（日志整理）：去掉"全场景 0.8m 内所有 MeshRenderer"扫描（刷屏元凶）——
-                //   第二尸体/静态尸体的检测由 BlackSpearmanDiagProbe（[腾空] 静态尸= 字段 + AddCorpse 钩子）负责。
+                // 去掉"全场景 0.8m 内所有 MeshRenderer"扫描（刷屏元凶）——
+                // 第二尸体/静态尸体的检测由 BlackSpearmanDiagProbe（[腾空] 静态尸= 字段 + AddCorpse 钩子）负责。
                 BSLog.Warn(sb.ToString());
             }
             catch { }
         }
 
-        /// <summary>★ 第三十四轮：把去剑克隆 + 部件克隆同步写回全部身体渲染器（主 + _MIRROR_ON 镜像），
+        /// <summary>把去剑克隆 + 部件克隆同步写回全部身体渲染器（主 + _MIRROR_ON 镜像），
         /// 并重设 SpriteAnimator 自己的 block。死亡当帧同步调用可让尸体当帧就是黑单尸（不再白影/影分身）。</summary>
         void ReblockCorpseOnce()
         {
@@ -616,16 +611,16 @@ namespace BadNorthBlackSpearman1_3
                     _sa.ComittBlock();
                     RepairBodyMaterialBlocks(erasedTex);
                 }
-                // ★ 第三十四轮（影分身根治·尝试）：死亡/ragdoll 期 _MIRROR_ON 镜像渲染器与主渲染器
-                //   翻面偏移叠加 → 双影。补块后禁用镜像渲染器，只留主渲染器 → 单尸。死亡后不会复活，可永久禁用。
+                // 死亡/ragdoll 期 _MIRROR_ON 镜像渲染器与主渲染器
+                // 翻面偏移叠加 → 双影。补块后禁用镜像渲染器，只留主渲染器 → 单尸。死亡后不会复活，可永久禁用。
                 DisableMirrorRenderers();
             }
             catch { }
         }
 
-        /// <summary>★ 第三十四轮：禁用 _MIRROR_ON 镜像渲染器（死亡补块时调用），消除 ragdoll 腾空期的影分身。
-        /// ★ 第三十七轮：扫描整个 agent（不只 _sa）→ 把长矛的 _MIRROR_ON 镜像也禁用；同时禁用 Shadow 地面阴影渲染器。
-        /// ★ 第三十八轮：继续禁用 Shield（盾牌）与 Spear（长矛主渲染器）——它们是 agent 子节点（BodyAnim 的兄弟），
+        /// <summary>禁用 _MIRROR_ON 镜像渲染器（死亡补块时调用），消除 ragdoll 腾空期的影分身。
+        /// 扫描整个 agent（不只 _sa）→ 把长矛的 _MIRROR_ON 镜像也禁用；同时禁用 Shadow 地面阴影渲染器。
+        /// 继续禁用 Shield（盾牌）与 Spear（长矛主渲染器）——它们是 agent 子节点（BodyAnim 的兄弟），
         /// 死亡腾空期不会随身体翻滚而悬在上方，与翻滚的身体形成"两个重叠偏移的身影"=影分身的真正来源。</summary>
         void DisableMirrorRenderers()
         {
@@ -699,7 +694,7 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[死亡后] 转储异常: " + e); }
         }
 
-        /// <summary>★ 第二十七轮：死亡瞬间渲染器转储——打印 4 个身体渲染器的位置/网格UV/材质块 + Ragdoller 状态，
+        /// <summary>死亡瞬间渲染器转储——打印 4 个身体渲染器的位置/网格UV/材质块 + Ragdoller 状态，
         /// 确认"击杀分裂"是渲染器各奔东西 / 纹理或 UV 错位 / 还是原版 ragdoll 的正常解体。</summary>
         void DumpDeathSplit()
         {
@@ -754,7 +749,7 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[死亡分裂] 转储异常: " + e); }
         }
 
-        /// <summary>★ 第三十四轮：转储 transform 层级（名字 + localPosition/localScale，最多 2 层），
+        /// <summary>转储 transform 层级（名字 + localPosition/localScale，最多 2 层），
         /// 暴露 ragdoll 腾空期主/镜像子节点的相对偏移（影分身=镜像翻面+偏移的来源）。</summary>
         static void DumpTransformHierarchy(Transform t, string indent, int depth)
         {
@@ -771,8 +766,8 @@ namespace BadNorthBlackSpearman1_3
 
         /// <summary>sprite2（部件贴图）处理：旧基底 PartTex_Sword → 亮银剑柄擦除；新基底 PartTex_SwordShield → 按 Sprite2Mode：
         /// 0=保留原部件（只靠帧擦除去剑，身体最完整，避免白框）；1=整块清空（旧方案，会致身体白框）；
-        /// 2=只擦亮银剑身（去剑+保留身体折中）。可重入：烘焙若重置 sprite2 会再次处理。
-        /// ★ 第二十一轮：必须在帧擦除写材质块之前执行——先换好克隆，块写入才用克隆纹理。</summary>
+        /// 2=分区压暗（亮银/躯干烘黑、暗灰头盔保留）。可重入：烘焙若重置 sprite2 会再次处理。
+        /// 必须在帧擦除写材质块之前执行——先换好克隆，块写入才用克隆纹理。</summary>
         void ApplySprite2Erase()
         {
             if (_sa == null || _sa.sprite2 == null || _sa.sprite2.texture == null) return;
@@ -869,9 +864,9 @@ namespace BadNorthBlackSpearman1_3
                     BSLog.Diag("  " + sb.ToString());
                 }
 
-                // ★★ 第十二轮：UV 亮采样分析（白框定位）——统计本帧里"解码 UV 采样到亮部件像素"的不透明像素
-                //    这些像素渲染出来是白/亮色，且不满足红暗阈值（G 高），是模式0下白框的直接来源。
-                //    图例：B=亮采样(白框像素,将被 UVErase 擦除) S=红暗剑刃 .=身体 空格=透明
+                // UV 亮采样分析（白框定位）——统计本帧里"解码 UV 采样到亮部件像素"的不透明像素
+                // 这些像素渲染出来是白/亮色，且不满足红暗阈值（G 高），是模式0下白框的直接来源。
+                // 图例：B=亮采样(白框像素,将被 UVErase 擦除) S=红暗剑刃 .=身体 空格=透明
                 EnsurePartCache(_sa.sprite2);
                 if (_partReady && !_uvDiagDone)
                 {
@@ -903,18 +898,18 @@ namespace BadNorthBlackSpearman1_3
                         (UVHalo > 0 ? "（光晕=" + UVHalo + "）" : ""));
                 }
 
-                // ★★ 网格子对象材质块状态：验证去剑克隆 _MainTex 是否覆盖全部 MeshRenderer（含 _MIRROR_ON 变体）
+                // 网格子对象材质块状态：验证去剑克隆 _MainTex 是否覆盖全部 MeshRenderer（含 _MIRROR_ON 变体）
                 DumpMeshBlocks(_sa);
 
-                // ★ 一次性输出 sprite2（PartTex_Sword 外观）单元 ASCII：验证剑柄/剑身是否也画在外观里，
-                //   为"若帧擦除后仍有残留 → 改 sprite2"的兜底方案提供坐标。
+                // 一次性输出 sprite2（PartTex_Sword 外观）单元 ASCII：验证剑柄/剑身是否也画在外观里，
+                // 为"若帧擦除后仍有残留 → 改 sprite2"的兜底方案提供坐标。
                 if (!_sprite2DiagDone && _sa.sprite2 != null && _sa.sprite2.texture != null)
                 {
                     _sprite2DiagDone = true;
                     DumpSprite2Cell(_sa.sprite2);
                 }
-                // ★ PartTex 采样探针：用顶点色解码（SetSprite2 编码：g=rect.x/256单位、r=rect.y/256单位）
-                //   采样 _PartTex，验证"剑=亮银、身体=暗"是否成立 → 剑柄残留"改部件贴图"正解的前置依据
+                // PartTex 采样探针：用顶点色解码（SetSprite2 编码：g=rect.x/256单位、r=rect.y/256单位）
+                // 采样 _PartTex，验证"剑=亮银、身体=暗"是否成立 → 剑柄残留"改部件贴图"正解的前置依据
                 try
                 {
                     var s2 = _sa.sprite2;
@@ -1082,7 +1077,7 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] 网格块诊断异常: " + e); }
         }
 
-        /// <summary>★ 第十三轮（白框根治+去剑）：把去剑克隆 + 部件贴图强制写入全部身体 MeshRenderer 的材质块。
+        /// <summary>把去剑克隆 + 部件贴图强制写入全部身体 MeshRenderer 的材质块。
         /// 实测现象：身体 SpriteAnimator 下 4 个 MeshRenderer 里前 2 个 block._MainTex/_PartTex 全为 null
         ///（Unlit/ColoredCharacter 对 null 纹理默认采样白色 → 若其网格有几何就渲染成白框/白板）；
         /// 且游戏每帧会用原图集重写 block，去剑克隆必须每帧重写才能上屏。
@@ -1127,7 +1122,7 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] 材质块修复异常: " + e); }
         }
 
-        /// <summary>★ 第十三轮详细转储：每个身体 MeshRenderer 的 mesh 顶点数 / isVisible / _MainTex 实例 ID
+        /// <summary>详细转储：每个身体 MeshRenderer 的 mesh 顶点数 / isVisible / _MainTex 实例 ID
         ///（是否为去剑克隆 vs 原始图集，终于能区分）——直接回答"白框是否来自空几何渲染器 / 剑是否因原始图集残留"。</summary>
         void DumpBodyBlocksDetailed(Texture2D clone, Texture partTex)
         {
@@ -1197,55 +1192,13 @@ namespace BadNorthBlackSpearman1_3
             return false;
         }
 
-        static Sprite GetErasedFrame(Sprite src)
-        {
-            int key = src.GetInstanceID();
-            if (_skippedFrames.Contains(key)) return null;
-            Sprite cached;
-            if (_frameCache.TryGetValue(key, out cached)) return cached;
-            try
-            {
-                var srcTex = src.texture as Texture2D;
-                if (srcTex == null) return null;
-                Texture2D erasedTex = GetSharedClone(srcTex);
-                if (erasedTex == null) return null;
-                Rect rect = src.textureRect;
-                // ★ 颜色直方图诊断（每个源纹理一次）：告诉我们运行时真实颜色分布，用于校准剑签名
-                if (_colorDiagDone < 8) { _colorDiagDone++; DumpFrameColorStats(src, erasedTex, rect); }
-
-                // ★ 安全阀：先统计 rect 内不透明数与"剑红命中数"，命中占比过高 → 判定误擦身体 → 跳过该帧
-                int opaque = CountOpaque(erasedTex, rect);
-                int redDark, partUV, haloUV;
-                int matched = CountEraseScan(erasedTex, rect, out redDark, out partUV, out haloUV);
-                if (opaque > 0 && (redDark > opaque * SafetyEraseRatio ||
-                    partUV > opaque * 0.45f || haloUV > opaque * 0.15f))
-                {
-                    BSLog.Warn("[去剑] 帧 " + src.name + " 命中 " + matched + "/" + opaque +
-                        " (>=" + (SafetyEraseRatio * 100f).ToString("F0") + "%)，疑似误擦身体 → 跳过该帧");
-                    _skippedFrames.Add(key);
-                    return null;
-                }
-                if (matched > 0)
-                {
-                    int uv, halo;
-                    EraseSwordInFrame(erasedTex, rect, out uv, out halo);
-                }
-                var spr = Sprite.Create(erasedTex, rect, src.pivot, src.pixelsPerUnit,
-                    0, SpriteMeshType.FullRect, src.border);
-                spr.name = src.name + "_NoSword";
-                _frameCache[key] = spr;
-                if (_skippedFrames.Count == 0 && _frameCache.Count <= 4)
-                    BSLog.Info("[去剑] 帧 " + src.name + " 去剑成功 擦除=" + matched);
-                return spr;
-            }
-            catch (Exception e) { BSLog.Warn("[去剑] 帧擦除失败: " + e); return null; }
-        }
-
         static Sprite GetErasedSprite2(Sprite s2)
         {
             int key = s2.GetInstanceID();
             Sprite cached;
-            if (_sprite2Cache.TryGetValue(key, out cached)) return cached;
+            // 加固：缓存命中但对象已销毁（跨场景）→ 移除并重建
+            if (_sprite2Cache.TryGetValue(key, out cached) && cached != null) return cached;
+            
             try
             {
                 var srcTex = s2.texture as Texture2D;
@@ -1254,10 +1207,10 @@ namespace BadNorthBlackSpearman1_3
                 int opaque = CountOpaque(tex, s2.textureRect);
                 int minX, maxX, minY, maxY;
                 int erased = EraseSilverPixels(tex, s2.textureRect, out minX, out maxX, out minY, out maxY);
-                // ★ 亮银擦除：PartTex 里剑区签名是"金属亮银"（运行时探针：剑→(159~189,144~186,137~189)、
-                //   身体→暗(33,26,24)）。旧 EraseSwordPixels 用红暗阈值对 PartTex 永远命中 0 → sprite2 去剑从未生效。
+                // 亮银擦除：PartTex 里剑区签名是"金属亮银"（运行时探针：剑→(159~189,144~186,137~189)、
+                // 身体→暗(33,26,24)）。历史教训：旧 EraseSwordPixels（红暗阈值）对 PartTex 永远命中 0 → 已删除。
                 // 安全阀：擦除占比过高 → 判定误擦（sprite2 也可能是大图集），丢弃
-                //   ★ sprite2 单元以剑为主体（PartTex_Sword），阈值放宽到 35%（帧级仍用 0.2）。
+                // sprite2 单元以剑为主体（PartTex_Sword），阈值放宽到 35%（帧级仍用 0.2）。
                 if (erased == 0 || (opaque > 0 && erased > opaque * Sprite2SafetyRatio))
                 {
                     UnityEngine.Object.Destroy(tex);
@@ -1282,7 +1235,9 @@ namespace BadNorthBlackSpearman1_3
         {
             int key = s2.GetInstanceID();
             Sprite cached;
-            if (_sprite2Cache.TryGetValue(key, out cached)) return cached;
+            // 加固：缓存命中但对象已销毁（跨场景）→ 移除并重建
+            if (_sprite2Cache.TryGetValue(key, out cached) && cached != null) return cached;
+            
             try
             {
                 var srcTex = s2.texture as Texture2D;
@@ -1316,16 +1271,18 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] sprite2 清空失败: " + e); return null; }
         }
 
-        /// <summary>★ 第二十六轮（模式2）：部件贴图**分区压暗**——不擦不涂，按颜色分类压暗：
-        /// 亮银(#，>150) ×0.15（近白像素经未擦除帧会白闪，但白闪根因=身体透明已修复，这里仍压暗防剑刃/盾显形）；
-        /// 暗灰(g，40≤r≤100 中性) ×0.8（头盔/肩甲/胸甲可见暗灰——第三十轮从 ×0.45 调高，让头盔样式不被染黑）；
+        /// <summary>部件贴图**分区压暗**——不擦不涂，按颜色分类压暗：
+        /// 亮银(>150) ×0.15（近白像素经未擦除帧会白闪，但白闪根因=身体透明已修复，这里仍压暗防剑刃/盾显形）；
+        /// 暗灰(40≤r≤100 中性) ×0.8（头盔/肩甲/胸甲可见暗灰——从 ×0.45 调高，让头盔样式不被染黑）；
         /// 暖棕/暖肤/其它 ×0.15（躯干/手臂/手/脸 烘黑）。着色器为 LERP：b=0.02 时屏幕色≈克隆色（黑躯+可见暗灰头盔）。
         /// 由 Sprite2Mode=2（RemoveSwordSprite2Mode）启用。</summary>
         static Sprite GetBrightErasedSprite2(Sprite s2)
         {
             int key = s2.GetInstanceID();
             Sprite cached;
-            if (_sprite2Cache.TryGetValue(key, out cached)) return cached;
+            // 加固：缓存命中但对象已销毁（跨场景）→ 移除并重建
+            if (_sprite2Cache.TryGetValue(key, out cached) && cached != null) return cached;
+            
             try
             {
                 var srcTex = s2.texture as Texture2D;
@@ -1338,7 +1295,7 @@ namespace BadNorthBlackSpearman1_3
                 int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
                 int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
                 int darkStrong = 0, darkMid = 0, darkBright = 0;
-                int helmKeep = 0;     // 第三十三轮：头盔源(y47-88)暗灰/暖棕 保留原色像素数
+                int helmKeep = 0;     // 头盔源(y47-88)暗灰/暖棕 保留原色像素数
                 long sSum = 0; int sN = 0, sMax = 0;   // 躯干/亮银 压暗后 max 通道亮度统计（LERP b=0.02 → 屏幕色≈克隆色）
                 long mSum = 0; int mN = 0, mMax = 0;   // 肩胸灰(×0.8) 压暗后 max 通道亮度统计
                 long hSum = 0; int hN = 0, hMax = 0;   // 头盔保留区 max 通道亮度统计（验证头盔可见性）
@@ -1354,8 +1311,8 @@ namespace BadNorthBlackSpearman1_3
                         if (c.a <= 8) continue;
                         if (cy >= HelmSrcY0 && cy < HelmSrcY1 && !(c.r - c.b > 25 && c.r > 130))
                         {
-                            // ★ 第三十五轮（头部闪白修复）：头盔源内的 >150 近白像素（银饰高光，max=190）
-                            //   压暗到 <150（×0.7 → 190→133），消除"头部闪白"（银饰在动画帧间时现时隐 = 视觉闪白）。
+                            // 头盔源内的 >150 近白像素（银饰高光，max=190）
+                            // 压暗到 <150（×0.7 → 190→133），消除"头部闪白"（银饰在动画帧间时现时隐 = 视觉闪白）。
                             if (c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin)
                             {
                                 Color32 d4 = new Color32((byte)(c.r * 0.7f), (byte)(c.g * 0.7f), (byte)(c.b * 0.7f), c.a);
@@ -1367,9 +1324,9 @@ namespace BadNorthBlackSpearman1_3
                             }
                             if (c.r > 100 && c.g > 90 && c.b > 70)
                             {
-                                // ★ 第三十九轮（头部抽搐/闪白根治）：头盔源内的暖棕高光（盔沿/皮饰，r>100 g>90 b>70，max=173）
-                                //   与暗灰主体(40-100)亮度跨度大 → 动画换帧时头部 UV 在两者间横跳 → 亮度闪动=抽搐/闪白。
-                                //   现把暖棕高光压暗 ×0.5（173→87），与暗灰主体(40-100)亮度接轨 → 头部亮度趋于均匀、不再闪动。
+                                // 头盔源内的暖棕高光（盔沿/皮饰，r>100 g>90 b>70，max=173）
+                                // 与暗灰主体(40-100)亮度跨度大 → 动画换帧时头部 UV 在两者间横跳 → 亮度闪动=抽搐/闪白。
+                                // 现把暖棕高光压暗 ×0.5（173→87），与暗灰主体(40-100)亮度接轨 → 头部亮度趋于均匀、不再闪动。
                                 Color32 d5 = new Color32((byte)(c.r * 0.5f), (byte)(c.g * 0.5f), (byte)(c.b * 0.5f), c.a);
                                 px[i] = d5;
                                 helmKeep++;
@@ -1379,8 +1336,8 @@ namespace BadNorthBlackSpearman1_3
                             }
                             if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
                             {
-                                // ★ 第三十三轮（头盔恢复 v2）：头盔源 = 单元 y47-88 的暗灰（帧头盔带 y10-30 采样），
-                                //   保留原色 → 头盔显示原版灰。亮银/暖棕已分别压暗，避免亮度跳变。
+                                // 头盔源 = 单元 y47-88 的暗灰（帧头盔带 y10-30 采样），
+                                // 保留原色 → 头盔显示原版灰。亮银/暖棕已分别压暗，避免亮度跳变。
                                 helmKeep++;
                                 int b0 = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
                                 hSum += b0; hN++; if (b0 > hMax) hMax = b0;
@@ -1389,9 +1346,9 @@ namespace BadNorthBlackSpearman1_3
                         }
                         if (c.r > SwordBrightMin && c.g > SwordBrightMin && c.b > SwordBrightMin)
                         {
-                            // ★ 第二十六轮（闪白根治）：亮银（剑刃/盾/冠饰）不再保留——其近白像素(189,190,189)
-                            //   一旦经"帧擦除覆盖不到的帧像素"渲染出来就是白闪（用户实测：身体快速变白又恢复）。
-                            //   全部重度压暗 ×0.15 → 克隆内不再有近白像素，白闪源头彻底消除。
+                            // 亮银（剑刃/盾/冠饰）不再保留——其近白像素(189,190,189)
+                            // 一旦经"帧擦除覆盖不到的帧像素"渲染出来就是白闪（用户实测：身体快速变白又恢复）。
+                            // 全部重度压暗 ×0.15 → 克隆内不再有近白像素，白闪源头彻底消除。
                             Color32 d1 = new Color32((byte)(c.r * 0.15f), (byte)(c.g * 0.15f), (byte)(c.b * 0.15f), c.a);
                             px[i] = d1;
                             darkBright++;
@@ -1401,7 +1358,7 @@ namespace BadNorthBlackSpearman1_3
                         }
                         if (c.r >= 40 && c.r <= 100 && Mathf.Abs(c.r - c.b) <= 25)
                         {
-                            // ★ 第三十二轮：非头盔区暗灰（肩甲 y45-69 / 胸甲 y70-89）×0.8 可见暗灰；头盔区已在上方独立保留。
+                            // 非头盔区暗灰（肩甲 y45-69 / 胸甲 y70-89）×0.8 可见暗灰；头盔区已在上方独立保留。
                             Color32 d2 = new Color32((byte)(c.r * 0.8f), (byte)(c.g * 0.8f), (byte)(c.b * 0.8f), c.a);
                             px[i] = d2;
                             darkMid++;
@@ -1420,7 +1377,7 @@ namespace BadNorthBlackSpearman1_3
                     }
                 }
                 tex.SetPixels32(px); tex.Apply();
-                // ★ 第二十六轮：校验**单元 rect 内**（不是整个图集！其他格子的亮像素与黑矛兵无关）不再有近白像素
+                // 校验**单元 rect 内**（不是整个图集！其他格子的亮像素与黑矛兵无关）不再有近白像素
                 int remainBright = 0;
                 for (int y = y0; y < y1; y++)
                 {
@@ -1438,7 +1395,7 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Info("[去剑] sprite2 分区压暗(剑盾基底) " + s2.name + " 重压=" + darkStrong +
                     " 中压(暗灰×0.8)=" + darkMid + " 亮银压暗=" + darkBright + " 头盔源保留=" + helmKeep +
                     " 残留亮银=" + remainBright +
-                    "px（第三十三轮：头盔源(y47-88)暗灰/暖棕保留原色、剑刃/盾/躯干/手/脸烘黑；残留=0）" +
+                    "px（头盔源(y47-88)暗灰/暖棕保留原色、剑刃/盾/躯干/手/脸烘黑；残留=0）" +
                     " ｜ 压暗后max通道亮度（屏幕色≈克隆色）：躯干avg=" + (sN > 0 ? sSum / sN : 0) + "(max=" + sMax +
                     ") 暗灰avg=" + (mN > 0 ? mSum / mN : 0) + "(max=" + mMax + ") 头盔源avg=" +
                     (hN > 0 ? hSum / hN : 0) + "(max=" + hMax + ")");
@@ -1486,7 +1443,7 @@ namespace BadNorthBlackSpearman1_3
                 BSLog.Info("[去剑] sprite2 模式0保留原部件(剑盾基底) " + s2.name + " 不透明=" + opaque +
                     " 亮银(>" + SwordBrightMin + ")=" + bright +
                     (bright > 0 ? " bbox=(" + minX + "," + minY + ")-(" + maxX + "," + maxY + ")" : "") +
-                    " ← 若剑仍可见可切 RemoveSwordSprite2Mode=2（只擦亮银剑身）");
+                    " ← 若剑仍可见可切 RemoveSwordSprite2Mode=2（分区压暗）");
             }
             catch (Exception e) { BSLog.Warn("[去剑] 部件体检异常: " + e); }
         }
@@ -1496,7 +1453,10 @@ namespace BadNorthBlackSpearman1_3
         {
             int texKey = srcTex.GetInstanceID();
             Texture2D cached;
-            if (_textureCache.TryGetValue(texKey, out cached)) return cached;
+            // 加固：跨场景静态缓存可能残留已销毁的 Unity 对象（==null 为 true 但 C# 引用非空），
+            // 取出后补一次 Unity 空判断，命中销毁对象则丢弃旧值直接重建，避免下游 GetPixels32 抛异常被吞 → 去剑静默失效。
+            if (_textureCache.TryGetValue(texKey, out cached) && cached != null) return cached;
+            
             Texture2D tex = CloneTexture(srcTex);
             if (tex == null) return null;
             _textureCache[texKey] = tex;
@@ -1506,23 +1466,23 @@ namespace BadNorthBlackSpearman1_3
 
         /// <summary>获取共享去剑克隆并擦除当前帧 rect（每个 rect 只擦一次）。
         /// 不创建新 Sprite —— 调用方把返回值直接设为材质块的 _MainTex，规避 bSprite 交换的渲染破坏。
-        /// 第十二轮：擦除分两类——红暗剑刃(旧) + 部件亮采样(新，白框像素=解码 UV 采样到亮部件像素)。</summary>
+        /// 擦除分两类——红暗剑刃(旧) + 部件亮采样(新，白框像素=解码 UV 采样到亮部件像素)。</summary>
         Texture2D EnsureErasedTexture(Sprite cur)
         {
             try
             {
                 var srcTex = cur.texture as Texture2D;
                 if (srcTex == null) return null;
-                // ★ 部件单元缓存：只有拿到 sprite2 部件贴图才能按 UV 判定白框像素（sprite2 未就绪就重试）
-                //   第二十一轮：必须用原版部件（_partCacheSprite）构建掩码——运行时 sprite2 已是去剑/改色克隆，
-                //   剑区已透明，掩码会变空、UV 亮采样擦除失效。
+                // 部件单元缓存：只有拿到 sprite2 部件贴图才能按 UV 判定白框像素（sprite2 未就绪就重试）
+                // 必须用原版部件（_partCacheSprite）构建掩码——运行时 sprite2 已是去剑/改色克隆，
+                // 剑区已透明，掩码会变空、UV 亮采样擦除失效。
                 if (_sa != null) EnsurePartCache(_partCacheSprite != null ? _partCacheSprite : _sa.sprite2);
                 Texture2D tex = GetSharedClone(srcTex);
                 if (tex == null) return null;
-                // ★ 首次：一次性预擦除图集里全部 Onehanded/Swordsman 帧 → 动画播放时无"首帧剑闪回"
-                //   第十九轮修复根因：必须传**源纹理**（sprite.texture 与源纹理 ReferenceEquals）。
-                //   旧代码误传共享克隆（GetSharedClone 产物）→ 任何 sprite 的 texture 都不等于克隆 → 帧列表恒空 →
-                //   预擦除被"空结果=完成"提前标记，全部帧退回运行时逐帧擦除 = 每帧首显剑闪回（用户所见"美术素材的闪亮"）。
+                // 首次：一次性预擦除图集里全部 Onehanded/Swordsman 帧 → 动画播放时无"首帧剑闪回"
+                // 修复根因：必须传**源纹理**（sprite.texture 与源纹理 ReferenceEquals）。
+                // 旧代码误传共享克隆（GetSharedClone 产物）→ 任何 sprite 的 texture 都不等于克隆 → 帧列表恒空 →
+                // 预擦除被"空结果=完成"提前标记，全部帧退回运行时逐帧擦除 = 每帧首显剑闪回（用户所见"美术素材的闪亮"）。
                 int srcKey = srcTex.GetInstanceID();
                 if (!_preErasedTex.Contains(srcKey) && PreEraseAllOnehanded(srcTex))
                     _preErasedTex.Add(srcKey);
@@ -1532,8 +1492,8 @@ namespace BadNorthBlackSpearman1_3
                 int opaque = CountOpaque(tex, cur.textureRect);
                 int redDark, partUV, haloUV;
                 int matched = CountEraseScan(tex, cur.textureRect, out redDark, out partUV, out haloUV);
-                // ★ 安全阀（三指标）：红暗命中 >20%（身体暗红衣物的误擦信号）、亮采样 >45%（白框像素=采样到亮部件，
-                //   可放宽；超过说明部件缓存异常/贴图被替换）、光晕擦除 >15%（光晕吃手，但过量说明误擦身体）
+                // 安全阀（三指标）：红暗命中 >20%（身体暗红衣物的误擦信号）、亮采样 >45%（白框像素=采样到亮部件，
+                // 可放宽；超过说明部件缓存异常/贴图被替换）、光晕擦除 >15%（光晕吃手，但过量说明误擦身体）
                 if (opaque > 0 && (redDark > opaque * SafetyEraseRatio ||
                     partUV > opaque * 0.45f || haloUV > opaque * 0.15f))
                 {
@@ -1555,7 +1515,7 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] EnsureErasedTexture 异常: " + e); return null; }
         }
 
-        // ============ UV 感知亮采样擦除（第十二轮：白框像素 = 解码 UV 采样到亮部件像素） ============
+        // ============ UV 感知亮采样擦除（白框像素 = 解码 UV 采样到亮部件像素） ============
 
         /// <summary>初始化部件单元像素缓存（静态共享，按部件纹理实例 ID 缓存；sprite2 换了会重建）。
         /// 帧擦除前必须调用——只有拿到部件贴图才能按 UV 判定"该帧像素渲染出来是不是白框"。</summary>
@@ -1598,12 +1558,12 @@ namespace BadNorthBlackSpearman1_3
             List<int> brightIdx = null;
             for (int y = 0; y < ch; y++)
             {
-                // ★ 第二十四轮（头盔保护）：单元 y<HelmetMaxY 是头/头盔区（含亮银冠饰），不参与亮采样擦除掩码，
-                //   否则帧擦除会把头盔冠饰一起擦透明（用户实测"头盔部分材质透明"）。
-                // ★ 第三十四轮（头部闪白/抽搐根治）：第三十三轮恢复头盔源（单元 y47-88 保留原色）后，该区混有 ~257 个
-                //   >150 近白像素（银饰/暖棕高光，max=190），其 y≥45 不在 HelmetMaxY 保护内 → 被纳入擦除掩码 →
-                //   解码 UV 采样到它们的头部帧像素被擦透明 → 动画换帧时头部时擦时显 = 头部闪白/抽搐。
-                //   修复：擦除掩码同时跳过头盔源 y≥HelmSrcY0，让头部帧像素永不被亮采样擦除（剑刃仍走红暗擦除，不受影响）。
+                // 单元 y<HelmetMaxY 是头/头盔区（含亮银冠饰），不参与亮采样擦除掩码，
+                // 否则帧擦除会把头盔冠饰一起擦透明（用户实测"头盔部分材质透明"）。
+                // 恢复头盔源（单元 y47-88 保留原色）后，该区混有 ~257 个
+                // >150 近白像素（银饰/暖棕高光，max=190），其 y≥45 不在 HelmetMaxY 保护内 → 被纳入擦除掩码 →
+                // 解码 UV 采样到它们的头部帧像素被擦透明 → 动画换帧时头部时擦时显 = 头部闪白/抽搐。
+                // 修复：擦除掩码同时跳过头盔源 y≥HelmSrcY0，让头部帧像素永不被亮采样擦除（剑刃仍走红暗擦除，不受影响）。
                 if (y < HelmetMaxY || y >= HelmSrcY0) continue;
                 for (int x = 0; x < cw; x++)
                 {
@@ -1666,7 +1626,7 @@ namespace BadNorthBlackSpearman1_3
             return _partBrightMask[cy * cw + cx];
         }
 
-        /// <summary>★ 第四十二轮：单像素 UV 解码 → 部件擦除掩码判定（Color 版，供头部带擦除计数用；
+        /// <summary>单像素 UV 解码 → 部件擦除掩码判定（Color 版，供头部带擦除计数用；
         /// 与 IsPartErase 等价，只是输入为 0~1 的 Color 而非 Color32[]+下标）。</summary>
         static bool IsPartEraseAt(Color c)
         {
@@ -1679,8 +1639,8 @@ namespace BadNorthBlackSpearman1_3
             return _partEraseMask[cy * cw + cx];
         }
 
-        /// <summary>★ 第四十二轮（问题①头部闪白/抽搐）：统计当前动画帧的"头部带"内将被擦除的像素数。
-        /// 帧头盔带 = relY(自底) 0.10~0.50（R25/R33 实测：面部 y2-10、头盔 y12-22、帧高 ~70px）。
+        /// <summary>统计当前动画帧的"头部带"内将被擦除的像素数。
+        /// 帧头盔带 = relY(自底) 0.10~0.50（实测：面部 y2-10、头盔 y12-22、帧高 ~70px）。
         /// 用原图集像素（擦除前的真值）判红暗/UV亮采样；只读子矩形，不做全图集扫描。
         /// 该数在动画帧间 0↔N 交替 = 头盔在"擦透明(露背景=亮)"与"未擦(黑盔)"间切换 = 闪白。</summary>
         static int CountHeadBandErase(Sprite cur)
@@ -1693,8 +1653,8 @@ namespace BadNorthBlackSpearman1_3
                 int x0 = Mathf.FloorToInt(r.xMin), y0 = Mathf.FloorToInt(r.yMin);
                 int x1 = Mathf.CeilToInt(r.xMax), y1 = Mathf.CeilToInt(r.yMax);
                 int hh = y1 - y0;
-                // ★ 第三十三轮反向 UV 映射实测：帧头盔带 = 帧 y10-30（面部 y2-10、头盔 y12-22），
-                //   rect 高 ~70px → relY(自底) 0.10~0.43。取 [0.10, 0.50] 覆盖头/盔。
+                // 反向 UV 映射实测：帧头盔带 = 帧 y10-30（面部 y2-10、头盔 y12-22），
+                // rect 高 ~70px → relY(自底) 0.10~0.43。取 [0.10, 0.50] 覆盖头/盔。
                 int yHead = y0 + (int)(hh * 0.10f);
                 int yHeadEnd = y0 + (int)(hh * 0.50f);
                 if (yHead >= y1 || yHeadEnd <= y0) return 0;
@@ -1702,7 +1662,17 @@ namespace BadNorthBlackSpearman1_3
                 if (bw <= 0 || bh <= 0) return 0;
                 Color[] px;
                 try { px = srcTex.GetPixels(x0, yHead, bw, bh); }
-                catch { return 0; }
+                catch
+                {
+                    // 加固：源图集纹理（AssetBundle）通常不可读 → GetPixels 抛异常。
+                    // 旧代码静默返回 0 → 头部带擦除追踪恒为"无擦除"，闪白检测静默失效且无日志。不可读时打一次性告警。
+                    if (!_headReadWarned)
+                    {
+                        _headReadWarned = true;
+                        BSLog.Warn("[头部·帧擦] 源纹理不可读（GetPixels 失败），头部带擦除追踪停用: " + srcTex.name);
+                    }
+                    return 0;
+                }
                 int n = 0;
                 for (int i = 0; i < px.Length; i++)
                 {
@@ -1718,10 +1688,10 @@ namespace BadNorthBlackSpearman1_3
             catch { return 0; }
         }
 
-        /// <summary>★ 第四十二轮（问题②白帧）：身体是否处于"空块"状态（→ 渲染默认白）。
-        /// ★ 第四十三轮（日志判读修正）：**移除"4顶点全零"判据**——BatchedSprite.cs 实测角色网格顶点恒为 (0,0,0)，
-        ///   四边形由 shader 用 uv2/tangent/bounds 展开，顶点全零是正常 billboard 表示，之前"塌缩"是误报。
-        ///   死亡/受击重烘焙瞬间 _MainTex/_PartTex 被清空才是真白帧窗口。</summary>
+        /// <summary>身体是否处于"空块"状态（→ 渲染默认白）。
+        /// **移除"4顶点全零"判据**——BatchedSprite.cs 实测角色网格顶点恒为 (0,0,0)，
+        /// 四边形由 shader 用 uv2/tangent/bounds 展开，顶点全零是正常 billboard 表示，之前"塌缩"是误报。
+        /// 死亡/受击重烘焙瞬间 _MainTex/_PartTex 被清空才是真白帧窗口。</summary>
         bool IsBodyWhiteFrame()
         {
             try
@@ -1831,8 +1801,8 @@ namespace BadNorthBlackSpearman1_3
 
         /// <summary>预擦除：把图集里所有已加载的 OnehandedXXXX/SwordsmanXXXX 帧一次性擦除，
         /// 避免动画播放时每帧"首次显示后才擦"（晚一帧 → 慢放可见的剑闪回）。所有帧共享一个像素数组，只上传一次。
-        /// 第十二轮：新基底是 Swordsman 帧（旧代码只擦 Onehanded → 新基底从未预擦，剑闪回仍在）；并加部件亮采样擦除。
-        /// 第十九轮：入参改为**源纹理**（匹配 sprite.texture），像素读写用共享克隆（调用方 _MainTex 用的同一份）。
+        /// 新基底是 Swordsman 帧（旧代码只擦 Onehanded → 新基底从未预擦，剑闪回仍在）；并加部件亮采样擦除。
+        /// 入参改为**源纹理**（匹配 sprite.texture），像素读写用共享克隆（调用方 _MainTex 用的同一份）。
         /// 返回 false = 因部件缓存未就绪推迟（调用方 _preErasedTex 不标记，以便重试）。</summary>
         static bool PreEraseAllOnehanded(Texture2D srcTex)
         {
@@ -1853,8 +1823,8 @@ namespace BadNorthBlackSpearman1_3
                     // 不在收集时标记 _erasedRects：被安全阀跳过的帧应留给逐帧路径重试（擦成功或无可擦才标记）
                 }
                 if (frames == null || frames.Count == 0) return true;   // 无待擦帧也算完成
-                // ★ 安全护栏：UV 擦除开启但部件缓存未就绪（sprite2 尚未烘焙）时，不做预擦也不标记，
-                //   留给逐帧路径（那时缓存已就绪）做完整擦除，避免白框像素被漏掉。
+                // 安全护栏：UV 擦除开启但部件缓存未就绪（sprite2 尚未烘焙）时，不做预擦也不标记，
+                // 留给逐帧路径（那时缓存已就绪）做完整擦除，避免白框像素被漏掉。
                 if (UVErase && !_partReady)
                 {
                     BSLog.Info("[去剑] 预擦除推迟：UV部件缓存未就绪（sprite2 未烘焙），交给逐帧路径");
@@ -1951,78 +1921,6 @@ namespace BadNorthBlackSpearman1_3
             catch (Exception e) { BSLog.Warn("[去剑] 预擦除异常: " + e); return false; }
         }
 
-
-
-        /// <summary>帧颜色直方图诊断（每个源纹理限几次）：输出当前帧 rect 的运行时真实颜色分布，用于校准剑签名。</summary>
-        static void DumpFrameColorStats(Sprite src, Texture2D tex, Rect rect)
-        {
-            try
-            {
-                Color32[] px = tex.GetPixels32();
-                int w = tex.width;
-                int x0 = Mathf.FloorToInt(rect.xMin), y0 = Mathf.FloorToInt(rect.yMin);
-                int x1 = Mathf.CeilToInt(rect.xMax), y1 = Mathf.CeilToInt(rect.yMax);
-                int opaque = 0, bright = 0, redWide = 0, redNarrow = 0;
-                int minX = 999, minY = 999, maxX = -1, maxY = -1;
-                for (int y = y0; y < y1; y++)
-                {
-                    if (y < 0 || y >= tex.height) continue;
-                    for (int x = x0; x < x1; x++)
-                    {
-                        if (x < 0 || x >= w) continue;
-                        Color32 c = px[y * w + x];
-                        if (c.a <= 8) continue;
-                        opaque++;
-                        if (c.r > 150 && c.g > 150 && c.b > 150) bright++;
-                        if (c.r > 70 && c.g < 40 && c.b < 20)
-                        {
-                            redWide++;
-                            if (c.r > 90 && c.g < 25 && c.b < 10) redNarrow++;
-                            if (x < minX) minX = x;
-                            if (x > maxX) maxX = x;
-                            if (y < minY) minY = y;
-                            if (y > maxY) maxY = y;
-                        }
-                    }
-                }
-                BSLog.Diag("[去剑诊断] 帧 " + src.name + " rect=" + rect + " 不透明=" + opaque +
-                    " 亮色=" + bright + " 宽阈值红暗(70/40/20)=" + redWide +
-                    " 窄阈值红暗(90/25/10)=" + redNarrow +
-                    (redWide > 0 ? " 红暗bbox=(" + minX + "," + minY + ")-(" + maxX + "," + maxY + ")" : ""));
-            }
-            catch (Exception e) { BSLog.Warn("[去剑] 直方图诊断异常: " + e); }
-        }
-
-        static int EraseSwordPixels(Texture2D tex, Rect? region)
-        {
-            if (tex == null) return 0;
-            Color32[] px = tex.GetPixels32();
-            if (px == null) return 0;
-            int w = tex.width, h = tex.height;
-            int x0 = region.HasValue ? Mathf.FloorToInt(region.Value.xMin) : 0;
-            int y0 = region.HasValue ? Mathf.FloorToInt(region.Value.yMin) : 0;
-            int x1 = region.HasValue ? Mathf.CeilToInt(region.Value.xMax) : w;
-            int y1 = region.HasValue ? Mathf.CeilToInt(region.Value.yMax) : h;
-            int erased = 0;
-            for (int y = y0; y < y1; y++)
-            {
-                if (y < 0 || y >= h) continue;
-                for (int x = x0; x < x1; x++)
-                {
-                    if (x < 0 || x >= w) continue;
-                    int i = y * w + x;
-                    Color32 c = px[i];
-                    if (c.a > 8 && c.r > SwordRMin && c.g < SwordGMax && c.b < SwordBMax)
-                    {
-                        px[i] = new Color32(0, 0, 0, 0);
-                        erased++;
-                    }
-                }
-            }
-            if (erased > 0) { tex.SetPixels32(px); tex.Apply(); }
-            return erased;
-        }
-
         /// <summary>擦除 sprite2(PartTex) 里的"金属亮银"像素 —— 剑区签名（运行时探针实测：剑=亮银(159~189,144~186,137~189)、
         /// 身体=暗(33,26,24)）。亮银=中性灰（|r-b| 与 |g-b| 都 < 容差）→ 排除暖色皮肤与暗色衣物。
         /// 输出擦除区 bbox 供日志校准。返回擦除数。</summary>
@@ -2065,9 +1963,9 @@ namespace BadNorthBlackSpearman1_3
         }
 
         /// ② 剑柄/护手 = 剑刃基部靠身体一侧的非红不透明像素（仅剑刃 bbox 上下 ±OuterBandPx 纵向带
-        ///    与基部向外 ±HiltBandPx 水平带）。⚠️ HiltBandPx<0 时剑柄带已禁用（帧内剑柄与身体重叠）。
-        /// ③（第十二轮新增）部件亮采样：解码 UV(R/255,G/255) 采样到亮部件像素(+光晕)的帧像素一并擦——
-        ///    白框像素不满足红暗阈值（G 高），只有按 UV 判定才抓得到。out partUV/haloUV 返回两项擦除数。</summary>
+        /// 与基部向外 ±HiltBandPx 水平带）。⚠️ HiltBandPx<0 时剑柄带已禁用（帧内剑柄与身体重叠）。
+        /// ③（新增）部件亮采样：解码 UV(R/255,G/255) 采样到亮部件像素(+光晕)的帧像素一并擦——
+        /// 白框像素不满足红暗阈值（G 高），只有按 UV 判定才抓得到。out partUV/haloUV 返回两项擦除数。</summary>
         static int EraseSwordInFrame(Texture2D tex, Rect rect, out int partUV, out int haloUV)
         {
             partUV = 0; haloUV = 0;
@@ -2111,7 +2009,7 @@ namespace BadNorthBlackSpearman1_3
                         erased++;
                         continue;
                     }
-                    // ★ 部件亮采样：白框像素（帧色不红暗，但解码 UV 采样到亮部件像素）
+                    // 部件亮采样：白框像素（帧色不红暗，但解码 UV 采样到亮部件像素）
                     if (UVErase && IsPartErase(px, i, w))
                     {
                         // ⚠️ 先判"纯亮"再清零——清零后再解码 UV 会变成 (0,0)→cell(0,0)，把亮采样误标成光晕
