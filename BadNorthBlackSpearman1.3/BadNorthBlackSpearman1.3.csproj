@@ -62,7 +62,20 @@
     <None Include="Resources\black_spearman_icon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="Resources\spear_skin_0.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Resources\spear_skin_1.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Resources\spear_skin_2.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- ★ 头像内嵌资源：仅部署 DLL 也能显示改色版头像（外部 PNG 可覆盖） -->
     <EmbeddedResource Include="Resources\black_spearman_icon.png" />
+    <!-- ★ 长矛皮肤内嵌资源：去英军臂（第三只手根治，PNG 整体换精灵）；外部同名 PNG 可覆盖热替换 -->
+    <EmbeddedResource Include="Resources\spear_skin_0.png" />
+    <EmbeddedResource Include="Resources\spear_skin_1.png" />
+    <EmbeddedResource Include="Resources\spear_skin_2.png" />
   </ItemGroup>
 </Project>

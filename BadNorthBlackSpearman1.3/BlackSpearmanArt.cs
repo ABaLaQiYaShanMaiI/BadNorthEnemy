@@ -28,55 +28,68 @@ namespace BadNorthBlackSpearman1_3
         {
             try
             {
+                Texture2D tex = LoadPng(ICON_FILE);
+                if (tex == null) return null;
+                return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+            }
+            catch (Exception e)
+            {
+                BSLog.Warn("[ART] 图标加载失败: " + e);
+                return null;
+            }
+        }
+
+        /// <summary>通用 PNG 加载：① 插件目录外部文件（可覆盖内嵌资源、热替换免重编译）→ ② 内嵌资源。
+        /// 返回 RGBA32 未压缩 Texture2D（ETC2 免疫），供头像/长矛皮肤等美术资源共用。</summary>
+        public static Texture2D LoadPng(string fileName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(fileName)) return null;
                 byte[] data = null;
                 string src = null;
 
-                // ① 外部 PNG（插件目录，可覆盖内嵌资源，便于自定义）
+                // ① 外部 PNG（插件目录 + Resources 子目录，可覆盖内嵌资源，便于自定义/热替换）
                 string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 var candidates = new[]
                 {
-                    Path.Combine(dir, ICON_FILE),
-                    Path.Combine(Path.Combine(dir, "Resources"), ICON_FILE)
+                    Path.Combine(dir, fileName),
+                    Path.Combine(Path.Combine(dir, "Resources"), fileName)
                 };
                 foreach (var p in candidates)
                 {
                     if (File.Exists(p)) { data = File.ReadAllBytes(p); src = p; break; }
                 }
 
-                // ② 内嵌资源（随 DLL 一起编译，仅部署 DLL 也能显示改色版头像）
+                // ② 内嵌资源（随 DLL 一起编译）
                 if (data == null)
                 {
-                    try
+                    var asm = Assembly.GetExecutingAssembly();
+                    foreach (var name in asm.GetManifestResourceNames())
                     {
-                        var asm = Assembly.GetExecutingAssembly();
-                        foreach (var name in asm.GetManifestResourceNames())
+                        if (name.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        using (var s = asm.GetManifestResourceStream(name))
                         {
-                            if (name.IndexOf(ICON_FILE, StringComparison.OrdinalIgnoreCase) < 0) continue;
-                            using (var s = asm.GetManifestResourceStream(name))
-                            {
-                                if (s == null) continue;
-                                data = new byte[s.Length];
-                                s.Read(data, 0, data.Length);
-                            }
-                            src = "(embedded:" + name + ")";
-                            break;
+                            if (s == null) continue;
+                            data = new byte[s.Length];
+                            s.Read(data, 0, data.Length);
                         }
+                        src = "(embedded:" + name + ")";
+                        break;
                     }
-                    catch { }
                 }
 
                 if (data == null) return null;
-
                 var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 if (!ImageConversion.LoadImage(tex, data)) return null;
                 tex.filterMode = FilterMode.Bilinear;
                 tex.wrapMode = TextureWrapMode.Clamp;
-                BSLog.Info("[ART] 头像图标已加载: " + src + " (" + tex.width + "x" + tex.height + ")");
-                return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                BSLog.Info("[ART] 已加载: " + src + " (" + tex.width + "x" + tex.height + ")");
+                return tex;
             }
             catch (Exception e)
             {
-                BSLog.Warn("[ART] PNG 图标加载失败: " + e);
+                BSLog.Warn("[ART] PNG 加载失败 " + fileName + ": " + e);
                 return null;
             }
         }

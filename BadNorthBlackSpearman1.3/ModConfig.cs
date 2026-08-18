@@ -32,6 +32,10 @@ namespace BadNorthBlackSpearman1_3
         public static ConfigEntry<bool> RemoveSwordFrameUVErase;
         public static ConfigEntry<int> RemoveSwordFrameUVHalo;
         public static ConfigEntry<bool> SpearMountToHand;
+        // 第三只手整改（2026-08-18）：长矛精灵手部处理模式 + 握持点钉死
+        public static ConfigEntry<int> SpearHandMode;
+        public static ConfigEntry<bool> GripPinToHand;
+        public static ConfigEntry<float> SpearGripOffset;
 
         // ============ Skills ============
         public static ConfigEntry<bool> EnableCharge;
@@ -111,6 +115,17 @@ namespace BadNorthBlackSpearman1_3
                 "长矛是否挂到持剑锚点（基底 Weapon 骨=原本持剑的手）。旧固定偏移 (0, 半径*1.4, 半径*0.6)\n" +
                 "让矛根悬在身体正中、与持剑手（偏离身体中心 ~0.2m）错位 → 观感\"持矛手脱离身躯、攻击范围异常大\"。\n" +
                 "true=矛根贴到 Weapon 锚点（手位）；false=旧固定偏移。");
+            SpearHandMode = cfg.Bind("Visual", "SpearHandMode", 2,
+                "长矛精灵皮肤（第三只手根治，PNG 整体换精灵，维京长矛同款机制）：\n" +
+                "0=关——使用原版英军长矛（含英军臂，验证用）；\n" +
+                "2=★PNG 皮肤——换成内嵌 spear_skin_0/1/2.png（离线按精确像素规则把英军臂改成身体色，ETC2 免疫、零运行期像素处理）。\n" +
+                "可在插件目录放同名 PNG 覆盖（热替换免重编译）。");
+            GripPinToHand = cfg.Bind("Visual", "GripPinToHand", false,
+                "握持点钉死（可选增强）：矛根每帧 = 手 − 旋转×gripOffset，让握持点恒定落在维京拳上，\n" +
+                "瞄准旋转时矛绕手握动（真实持矛感）。默认 false（模式2改身体色下无洞需对齐，非必需）。");
+            SpearGripOffset = cfg.Bind("Visual", "SpearGripOffset", 0f,
+                "握持点偏移微调（米）：在\"-0.309×矛长(0.6m)=-0.185m\"基准之上叠加（矛头方向为正）。\n" +
+                "GripPinToHand 用它把握持点对齐维京拳；默认 0，游戏内 [像素采样] 校准后调整。");
         }
 
         static void BindSkills(ConfigFile cfg)

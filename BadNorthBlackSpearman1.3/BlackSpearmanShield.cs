@@ -20,8 +20,12 @@ namespace BadNorthBlackSpearman1_3
         public bool enabledByCfg = true;
         public Transform swordAnchor;   // 持剑锚点（移盾遮蔽剑柄）：每帧把盾牌贴到该位置，覆盖 Animator 的盾位驱动
 
-        string blockSound = "Sfx/English/SwordShield/Block";
+        // 原版 Shield.cs 音效路径（:356/:368）：挡近战 = Deflect（弹击）+ ShieldBlock（闷响）双播 + shieldSmash 火花。
+        // 旧值 "Sfx/English/SwordShield/Block" 在原版代码中不存在 → 静音。
+        string blockSound = "Sfx/English/SwordShield/ShieldBlock";
+        string deflectSound = "Sfx/English/SwordShield/Deflect";
         string arrowBounceSound = "Sfx/English/SwordShield/DeflectArrow";
+        ReusableParticle _shieldSmash;   // 基底 Shield 组件序列化的格挡火花（原版 shieldSmash 字段），禁用后仍可读
 
         // 实际效果统计（美术资源之外的第二维度：格挡是否真的触发过，供体检/F8 读取）
         public int BlockMelee, BlockArrow, BlockAxe, BlockSpear;
@@ -35,6 +39,22 @@ namespace BadNorthBlackSpearman1_3
             enabledByCfg = cfgEnabled;
             if (agent != null && agent.attackResponders != null && !agent.attackResponders.Contains(this))
                 agent.attackResponders.Add(this);
+            // 取 shieldSmash（原版挡近战火花）。⚠️ 偏差C修正：剥离模板已 DestroyImmediate 盾组件（Plugin.cs:219），
+            // agent 上没有 Shield 组件 → 从源 SwordShield 预制体（Plugin.SourceViking）读序列化字段，场景 Shield 兜底。
+            try
+            {
+                Shield baseShield = a != null ? a.GetComponent<Shield>() : null;
+                if (baseShield == null && Plugin.SourceViking != null)
+                    baseShield = Plugin.SourceViking.GetComponent<Shield>();
+                if (baseShield == null)
+                {
+                    var any = Resources.FindObjectsOfTypeAll<Shield>();
+                    if (any != null && any.Length > 0 && any[0] != null) baseShield = any[0];
+                }
+                if (baseShield != null) _shieldSmash = baseShield.shieldSmash;
+                else BSLog.Warn("[盾牌] shieldSmash 火花源缺失 → 挡近战只有音效没有火花");
+            }
+            catch { }
         }
 
         public void ModifyAttack(ref Attack attack)
@@ -52,7 +72,11 @@ namespace BadNorthBlackSpearman1_3
                 attack.damage = 0f;
                 attack.stun *= 0.4f;
                 attack.soundSuffix = "Shield";
+                // 原版 Shield.cs:147-150 挡近战 = Deflect+ShieldBlock 双音效 + shieldSmash 火花；
+                // 旧实现只置 0 伤害、无视觉反馈 → 补火花与双音效（对齐原版格挡反馈链）。
+                try { IslandGameplayManager.RequestCombatAudio(deflectSound, agent.gameObject); } catch { }
                 try { IslandGameplayManager.RequestCombatAudio(blockSound, agent.gameObject); } catch { }
+                if (_shieldSmash != null) attack.effect = _shieldSmash;
                 BlockMelee++;
                 BSLog.Info("[盾牌] 格挡近战 " + (attack.monoAttacker != null ? attack.monoAttacker.name : "?") + " facing=" + facing.ToString("F2"));
                 return;

@@ -78,6 +78,8 @@ namespace BadNorthBlackSpearman1_3
         Vector3 _spearBaseLocalPos;    // 长矛挂载基点（突刺偏移在此之上叠加）
         Transform _handAnchor;         // 持剑手锚点（长矛根每帧跟随，消除"持矛手脱离身躯"）
         Vector3 _handMountOffset;      // 矛根相对手的固定本地偏移（挂载时确定）
+        bool _gripPin;                 // 握持点钉死开关（ModConfig.GripPinToHand，配合 SpearHandMode=2）
+        Vector3 _gripOffsetLocal;      // 握持点(英军臂洞中心)相对矛根的本地偏移 = -0.309×矛世界宽 + 微调（Setup 计算）
         Vector3 _thrustOffsetLocal;    // 刺击位移（本地空间：攻击开始瞬间按"对准后的身体朝向"锁定一次，整段不再重算）
         float _thrust;                 // 当前突刺量 0~1
         bool _prevAttackActive;        // 近战诊断：上一帧是否在攻击
@@ -133,6 +135,21 @@ namespace BadNorthBlackSpearman1_3
             _handAnchor = BlackSpearmanWeapon.FindSwordAnchor(_agent.transform);
             if (_handAnchor != null)
                 _handMountOffset = _spearBaseLocalPos - _agent.transform.InverseTransformPoint(_handAnchor.position);
+            // 第三只手整改（配合 SpearHandMode=2 英军臂改身体色）：握持点钉死——
+            // 矛根每帧 = 手 − 旋转×gripOffset，让握持点恒定落在维京拳上（自然握矛、消除旋转时绕 pivot 漂移）。
+            try
+            {
+                _gripPin = ModConfig.GripPinToHand != null && ModConfig.GripPinToHand.Value;
+                // 偏差B修正v2：批量精灵渲染器 bounds 在批量坐标系下不可用（实测 105 单位 → 偏移 -32m 失真），
+                // 改用 SpearLength=0.6m 作矛世界宽：握持点 = -0.309×0.6 = -0.185m（洞中心 x24.5 / pivot x64）。
+                // SpearGripOffset 做微调（默认 0，正=前移/负=后移）。
+                float fineTune = ModConfig.SpearGripOffset != null ? ModConfig.SpearGripOffset.Value : 0f;
+                _gripOffsetLocal = new Vector3(-0.309f * SpearLength + fineTune, 0f, 0f);
+                BSLog.Info("[WEAPON] 握持点偏移=" + _gripOffsetLocal.x.ToString("F3") +
+                    "m（基准 -0.309×矛长0.6 微调=" + fineTune.ToString("F3") +
+                    " 钉死=" + _gripPin + "）");
+            }
+            catch { }
             // 去剑诊断：对前 3 只黑矛兵自动 dump 完整层级 + 所有 sprite/sprite2 详情，
             // 用于确认"剑"到底来自独立子对象 / 动画帧 / sprite2 部件贴图。
             if (_spriteDiagCount < 3)
@@ -250,7 +267,17 @@ namespace BadNorthBlackSpearman1_3
             try
             {
                 Vector3 handLocal = _agent.transform.InverseTransformPoint(_handAnchor.position);
-                _spearBaseLocalPos = handLocal + _handMountOffset;
+                if (_gripPin)
+                {
+                    // 握持点钉死：矛根 = 手 − 当前旋转×gripOffset → 任何朝向下，握持点(透明洞)都落在拳上。
+                    // 旧逻辑把矛根钉在手=把精灵中心钉在手，握持点会随瞄准旋转绕手画圈 → 手"没长在应该的位置"。
+                    Vector3 gripOffsetWorld = _spearTransform.rotation * _gripOffsetLocal;
+                    _spearBaseLocalPos = handLocal - _agent.transform.InverseTransformDirection(gripOffsetWorld);
+                }
+                else
+                {
+                    _spearBaseLocalPos = handLocal + _handMountOffset;
+                }
             }
             catch { }
         }
@@ -456,7 +483,10 @@ namespace BadNorthBlackSpearman1_3
                 // 冲锋/爆发（monoAttacker=本组件）原版不识别 → 由这里补足反馈，避免双音效。
                 if (!(atk.monoAttacker is CloseCombatBrain))
                 {
-                    try { IslandGameplayManager.RequestCombatAudio("Sfx/English/SwordShield/Block", target.gameObject); } catch { }
+                    // 原版 Shield.cs:147-158 挡近战是 Deflect（弹击）+ ShieldBlock（闷响）双播；
+                    // 旧路径 "Sfx/English/SwordShield/Block" 不存在 → 静音。修正为双播对齐原版。
+                    try { IslandGameplayManager.RequestCombatAudio("Sfx/English/SwordShield/Deflect", target.gameObject); } catch { }
+                    try { IslandGameplayManager.RequestCombatAudio("Sfx/English/SwordShield/ShieldBlock", target.gameObject); } catch { }
                     if (shieldComp.shieldSmash != null) atk.effect = shieldComp.shieldSmash;
                 }
                 BSLog.Info("[盾牌] 黑矛长矛被格挡 target=" + target.name + " facing=" + facing.ToString("F2") +
@@ -909,8 +939,11 @@ namespace BadNorthBlackSpearman1_3
                     Vector3 d = _chargeDirection;   // 沿锁定冲锋方向撞飞（比"朝敌人当前位置"更稳定）
                     d.y = 0f;
                     if (d.sqrMagnitude < 0.001f) d = _agent.transform.forward;
-                    // 冲锋命中同样走盾牌格挡（我方剑盾兵正面免伤 + 盾击反馈）
-                    Attack atk = new Attack(s, d, a.transform.position, this, _squad, "Sfx/English/Spear");
+                    // 冲锋命中特效 + 专属技能音效前缀：原版 PikeChargeComponent.GetAttack 命中链就是
+                    // attackPrefix="Sfx/Ability/PikeCharge" + 默认后缀 "Hit" → 比 Spear 命中音更像"技能"。
+                    // 特效：Agent.DealDamage 会在结算后 PlayAt(attack.pos)，冲锋原本无火花/血光，现补 hitEffect。
+                    Attack atk = new Attack(s, d, a.transform.position, this, _squad, "Sfx/Ability/PikeCharge",
+                        ScriptableObjectSingleton<PrefabManager>.instance.hitEffect);
                     TryShieldBlockSpear(a, ref atk);
                     a.DealDamage(atk);
                     _hitCount++;
@@ -947,7 +980,8 @@ namespace BadNorthBlackSpearman1_3
                     if (d.sqrMagnitude < 0.001f) d = _chargeDirection;
                     Vector3 pos2 = Vector3.MoveTowards(a.transform.position, endPos, a.radius * 0.7f) + a.chestOffset;
                     Attack atk2 = new Attack(new AttackSettings { damage = dmg, knockback = StabKnockback + 2f, launchImpulse = StabLaunch, stun = StabStun },
-                        d, pos2, this, _squad, "Sfx/English/Spear");
+                        d, pos2, this, _squad, "Sfx/Ability/PikeCharge",
+                        ScriptableObjectSingleton<PrefabManager>.instance.hitEffect);
                     TryShieldBlockSpear(a, ref atk2);   // 抵达爆发同样走盾牌格挡
                     a.DealDamage(atk2);
                     _hitCount++;

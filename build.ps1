@@ -79,10 +79,15 @@ if (Test-Path $target) {
 }
 Copy-Item $builtDll $target -Force
 
-# 可选：外部头像覆盖文件（已内嵌 DLL，此处仅当 bin 里有才带）
-$icon = Join-Path (Split-Path -Parent $builtDll) 'Resources\black_spearman_icon.png'
+# 可选：外部头像/长矛皮肤覆盖文件（已内嵌 DLL，此处仅当 bin 里有才带，供热替换免重编译）
+$binRes = Join-Path (Split-Path -Parent $builtDll) 'Resources'
+$icon = Join-Path $binRes 'black_spearman_icon.png'
 if (-not (Test-Path $icon)) { $icon = Join-Path (Split-Path -Parent $builtDll) 'black_spearman_icon.png' }
 if (Test-Path $icon) { Copy-Item $icon (Join-Path $plugins 'black_spearman_icon.png') -Force }
+foreach ($skin in @('spear_skin_0.png', 'spear_skin_1.png', 'spear_skin_2.png')) {
+    $p = Join-Path $binRes $skin
+    if (Test-Path $p) { Copy-Item $p (Join-Path $plugins $skin) -Force }
+}
 
 # ---------- 4. SHA256 校验 ----------
 $hashSrc = (Get-FileHash $builtDll -Algorithm SHA256).Hash

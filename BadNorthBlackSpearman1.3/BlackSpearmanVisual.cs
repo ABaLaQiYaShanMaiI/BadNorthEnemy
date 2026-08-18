@@ -18,9 +18,11 @@ namespace BadNorthBlackSpearman1_3
         int _frames;
         static int _unitIdCounter;       // 单位编号计数器（区分多个黑矛兵的采样日志）
         int _unitId;                     // 本黑矛兵编号
-        // 长矛手部压暗 —— 玩家长矛精灵（Spear_0/1/2）自带两只暖肤的手（128x18 精灵 y8-12），
-        // 克隆纹理并压暗全部暖肤像素（r-b>25 且 r>130），手变黑、矛杆保持原色。静态缓存按纹理实例 ID 共享。
-        static readonly Dictionary<int, Texture2D> _spearTexCache = new Dictionary<int, Texture2D>();
+        // 长矛皮肤（SpearHandMode，第三只手根治）：玩家长矛精灵（Spear_0/1/2，128x18）自带英军臂
+        // （暖肤手 + 蓝袖 x17-32）= "第三只手"。0=关（原图）/ 2=PNG 皮肤——整体换精灵为内嵌
+        // spear_skin_0/1/2.png（离线按精确像素规则把英军臂改身体色，ETC2 免疫、零运行期像素处理）。
+        // 缓存：源精灵实例 ID → 皮肤精灵（三帧长矛动画各自映射）。
+        static readonly Dictionary<int, Sprite> _spearSkinSprites = new Dictionary<int, Sprite>();
 
         public void ApplyOnce(Agent agent)
         {
@@ -367,11 +369,11 @@ namespace BadNorthBlackSpearman1_3
                         }
                         else
                         {
-                            // 长矛/阴影：B=1 保持原色；长矛额外压暗手部纹理
+                            // 长矛/阴影：B=1 保持原色；长矛换 PNG 皮肤（去英军臂）
                             if (Mathf.Abs(c.b - 1f) > 0.02f)
                                 bs.color = new Color(c.r, c.g, 1f, c.a);
                             if (bs.name != null && bs.name.IndexOf("Spear", StringComparison.Ordinal) >= 0)
-                                DarkenSpearHand(bs);
+                                ApplySpearSkin(bs);
                         }
                     }
                     catch { }
@@ -380,74 +382,60 @@ namespace BadNorthBlackSpearman1_3
             catch { }
         }
 
-        /// <summary>压暗长矛精灵纹理里的暖肤像素（持矛的手）→ 黑手；矛杆/矛头保持原色。
-        /// 克隆共享纹理后，通过渲染器材质块 _MainTex 换克隆（与 SwordRemover 同款思路）。</summary>
-        static void DarkenSpearHand(BatchedSprite bs)
+        /// <summary>长矛皮肤：整体换精灵（维京长矛同款机制）——把克隆长矛当前帧精灵换成内嵌
+        /// spear_skin_0/1/2.png（离线按精确像素规则把英军臂改身体色：蓝袖 x17-32 + 亮肤手 → 黑躯色，
+        /// 木杆/矛头保留）。ETC2 免疫、零运行期像素处理；外部同名 PNG 可覆盖热替换。
+        /// SpearHandMode：0=关（原图）/ 2=PNG 皮肤（终态）。</summary>
+        static void ApplySpearSkin(BatchedSprite bs)
         {
             try
             {
-                Sprite sp = GetSpriteOf(bs);
-                if (sp == null || sp.texture == null) return;
-                var tex = sp.texture as Texture2D;
-                if (tex == null) return;
-                int key = tex.GetInstanceID();
-                Texture2D clone;
-                if (!_spearTexCache.TryGetValue(key, out clone))
+                if (ModConfig.SpearHandMode == null || ModConfig.SpearHandMode.Value != 2) return;
+                Sprite current = GetSpriteOf(bs);
+                if (current == null || current.name == null) return;
+                // 长矛动画帧 → 皮肤文件（三帧同一套空间规则）
+                string skinFile = null;
+                if (current.name == "Spear_0") skinFile = "spear_skin_0.png";
+                else if (current.name == "Spear_1") skinFile = "spear_skin_1.png";
+                else if (current.name == "Spear_2") skinFile = "spear_skin_2.png";
+                if (skinFile == null) return;
+
+                int srcKey = current.GetInstanceID();
+                Sprite skin;
+                if (!_spearSkinSprites.TryGetValue(srcKey, out skin))
                 {
-                    clone = CloneTex(tex);
-                    if (clone == null) return;
-                    Color32[] px = clone.GetPixels32();
-                    int w = clone.width, h = clone.height;
-                    int n = 0, nSkin = 0, nBlue = 0;
-                    long blueSum = 0; int blueN = 0, blueMax = 0;   // 蓝手压暗后 max 通道亮度（黑躯≤40 同量级=已融合）
-                    for (int i = 0; i < px.Length; i++)
-                    {
-                        Color32 c = px[i];
-                        if (c.a <= 8) continue;
-                        // 我方 Pikeman 长矛精灵的手部除了暖肤，还有一条蓝色竖带
-                        // （实测 R 41-87 / G 81-119 / B 99-123，x~17-31 y6-13）。暖肤阈值压不到蓝色 → 手仍蓝。
-                        // 现在暖肤 OR 蓝系都重度压暗 → 整只手变黑，与黑身融合后"脱开/橡皮筋"不可见。
-                        // 分暖肤/蓝系计数 + 蓝手压暗后亮度统计（量化确认蓝手已黑，无需再靠肉眼）。
-                        bool isSkin = c.r - c.b > 25 && c.r > 130;
-                        bool isBlue = c.b > 80 && c.b > c.r && c.b > c.g;
-                        if (isSkin || isBlue)
-                        {
-                            byte nr = (byte)(c.r * 0.15f), ng = (byte)(c.g * 0.15f), nb = (byte)(c.b * 0.15f);
-                            px[i] = new Color32(nr, ng, nb, c.a);
-                            n++;
-                            if (isSkin && !isBlue) nSkin++;
-                            if (isBlue)
-                            {
-                                nBlue++;
-                                int bMax = Mathf.Max(nr, Mathf.Max(ng, nb));
-                                blueSum += bMax; blueN++;
-                                if (bMax > blueMax) blueMax = bMax;
-                            }
-                        }
-                    }
-                    if (n > 0) { clone.SetPixels32(px); clone.Apply(); }
-                    _spearTexCache[key] = clone;
-                    BSLog.Info("[渲染] 长矛手部压暗 " + n + "px（" + sp.name + "）暖肤=" + nSkin + " 蓝系=" + nBlue +
-                        " → 压暗后max通道亮度：蓝手avg=" + (blueN > 0 ? blueSum / blueN : 0) + "(max=" + blueMax +
-                        ") 黑躯≤40 同量级 → 手融入黑身、矛杆保持原色");
+                    skin = CreateSpearSkinSprite(current, skinFile);
+                    if (skin == null) return;
+                    _spearSkinSprites[srcKey] = skin;
                 }
-                // 换材质块 _MainTex 为克隆（所有渲染器）
-                var mrs = bs.GetComponentsInChildren<MeshRenderer>(true);
-                if (mrs == null) return;
-                var block = new MaterialPropertyBlock();
-                for (int i = 0; i < mrs.Length; i++)
-                {
-                    if (mrs[i] == null) continue;
-                    try
-                    {
-                        mrs[i].GetPropertyBlock(block);
-                        block.SetTexture("_MainTex", clone);
-                        mrs[i].SetPropertyBlock(block);
-                    }
-                    catch { }
-                }
+                // 已换到该皮肤则跳过；动画把精灵换回原图时（bSprite 不再是皮肤）自动再换
+                if (ReferenceEquals(bs.bSprite, skin)) return;
+                bs.bSprite = skin;
+                bs.color = Color.white;
             }
             catch { }
+        }
+
+        /// <summary>用内嵌/外部 PNG 创建长矛皮肤精灵（保持源精灵的 pivot 比例与 pixelsPerUnit，外观不变）。</summary>
+        static Sprite CreateSpearSkinSprite(Sprite src, string file)
+        {
+            try
+            {
+                Texture2D tex = BlackSpearmanArt.LoadPng(file);
+                if (tex == null || tex.width <= 0 || tex.height <= 0) return null;
+                if (src.rect.width <= 0f || src.rect.height <= 0f) return null;
+                Vector2 pivot = new Vector2(src.pivot.x / src.rect.width, src.pivot.y / src.rect.height);
+                float ppu = src.pixelsPerUnit * ((float)tex.width / src.rect.width);
+                var sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), pivot, ppu);
+                sprite.name = "SpearSkin_" + file;
+                BSLog.Info("[渲染] 长矛换皮肤: " + file + " (" + tex.width + "x" + tex.height + ") 源=" + src.name);
+                return sprite;
+            }
+            catch (Exception e)
+            {
+                BSLog.Warn("[渲染] 长矛皮肤创建失败 " + file + ": " + e);
+                return null;
+            }
         }
 
         static Sprite GetSpriteOf(BatchedSprite bs)
@@ -461,24 +449,6 @@ namespace BadNorthBlackSpearman1_3
                 if (ReferenceEquals(f, null)) return null;
                 var sr = f.GetValue(bs) as SpriteRenderer;
                 return sr != null ? sr.sprite : null;
-            }
-            catch { return null; }
-        }
-
-        static Texture2D CloneTex(Texture2D src)
-        {
-            try
-            {
-                var rt = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
-                var old = RenderTexture.active;
-                RenderTexture.active = rt;
-                Graphics.Blit(src, rt);
-                var tex = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
-                tex.ReadPixels(new Rect(0, 0, src.width, src.height), 0, 0);
-                tex.Apply();
-                RenderTexture.active = old;
-                RenderTexture.ReleaseTemporary(rt);
-                return tex;
             }
             catch { return null; }
         }

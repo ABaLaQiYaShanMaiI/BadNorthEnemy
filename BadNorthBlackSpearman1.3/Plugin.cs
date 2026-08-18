@@ -49,6 +49,8 @@ namespace BadNorthBlackSpearman1_3
         public static VikingReference BlackSpearman => _blackSpearman;
         /// <summary>诊断探针读取：已处理的黑矛兵 Agent 数量。</summary>
         public static int TrackedAgentCount => _done.Count;
+        /// <summary>源 SwordShield 预制体（含未剥离的 Shield 组件 → 读取序列化 shieldSmash 火花；剥离模板已 DestroyImmediate 盾组件）。</summary>
+        public static VikingAgent SourceViking => _sourceViking;
 
         void Awake()
         {
@@ -455,7 +457,8 @@ namespace BadNorthBlackSpearman1_3
                     stun = __instance.stun
                 };
                 __result = new Attack(settings, dir, (target.wChestPos + __instance.agent.wChestPos) / 2f,
-                    __instance, __instance.agent.squad, "Sfx/English/Spear");
+                    __instance, __instance.agent.squad, "Sfx/English/Spear",
+                    ScriptableObjectSingleton<PrefabManager>.instance.hitEffect);
                 SpearVisual.AimAt(__instance.agent, target.chestPos);   // 视觉：长矛刺向目标（盖过挥剑动画）
                 BSLog.Info("[近战] GetAttack target=" + target.name + " dmg=" + settings.damage.ToString("F1") +
                     " kb=" + settings.knockback.ToString("F1") + " stun=" + settings.stun.ToString("F1") +
@@ -633,8 +636,9 @@ namespace BadNorthBlackSpearman1_3
                 ScaleArr(sw.knockbackLevels, ModConfig.KnockbackMult.Value);
                 ScaleArr(sw.stunLevels, ModConfig.StunMult.Value);
                 // 静默基底挥剑音效：Swordsman.Attack() 会播 swingSound("Sfx/English/Sword/Swing")，
-                // 这是"剑劈砍特效"的听觉部分。换成长矛挥击音效（复用已确认存在的 Spear 攻击音效）。
-                try { sw.swingSound = "Sfx/English/Spear"; } catch { }
+                // 这是"剑劈砍特效"的听觉部分。换成长矛挥击音效——原版 Spear.swingSound = "Sfx/English/Spear/Swing"
+                // （真实叶子事件）；旧值 "Sfx/English/Spear" 只是命中前缀，不可直接播放 → 静音。
+                try { sw.swingSound = "Sfx/English/Spear/Swing"; } catch { }
                 BSLog.Info($"[AGENT] 黑矛兵 {a.name} 攻击范围 range={sw.range.ToString("F2")} radius={a.radius.ToString("F2")} dmg={sw.damage.ToString("F1")} kb={sw.knockback.ToString("F1")}");
             }
 
