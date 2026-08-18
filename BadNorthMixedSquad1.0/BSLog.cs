@@ -49,10 +49,10 @@ namespace BadNorthMixedSquad1_0
         {
             try
             {
-                _logPath = Path.Combine(dir, "BadNorthBlackSpearman1.3.log");
+                _logPath = Path.Combine(dir, "BadNorthMixedSquad1.0.log");
                 File.AppendAllText(_logPath,
                     "\n\n" + new string('=', 80) + "\n" +
-                    " Black Spearman v1.3 诊断日志  " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n" +
+                    " Mixed Squad v1.0 诊断日志  " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n" +
                     new string('=', 80) + "\n");
 
                 Application.logMessageReceived += OnLogMessageReceived;

@@ -234,7 +234,8 @@ namespace BadNorthMixedSquad1_0
             TryPatch("Squad.CreateAgent（混编角色轮换）", () =>
             {
                 var m = typeof(Squad).GetMethod("CreateAgent", new[] { typeof(Agent), typeof(NavPos) });
-                if (m == null) throw new Exception("CreateAgent 方法未找到");
+                // ⚠️ .NET 3.5 雷：反射对象判空必须 ReferenceEquals（`==` 引 MethodInfo.op_Equality → MissingMethodException）
+                if (ReferenceEquals(m, null)) throw new Exception("CreateAgent 方法未找到");
                 harmony.Patch(m,
                     prefix: new HarmonyMethod(typeof(Plugin).GetMethod("SquadCreateAgentPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
                     postfix: new HarmonyMethod(typeof(Plugin).GetMethod("SquadCreateAgentPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
