@@ -408,8 +408,10 @@ namespace BadNorthBlackSpearman1_3
                     if (skin == null) return;
                     _spearSkinSprites[srcKey] = skin;
                 }
-                // 已换到该皮肤则跳过；动画把精灵换回原图时（bSprite 不再是皮肤）自动再换
-                if (ReferenceEquals(bs.bSprite, skin)) return;
+                // 已渲染为该皮肤则跳过；动画把渲染精灵换回原图时（current 不再是皮肤，bSprite 可能陈旧）自动再换
+                // ⚠️ 修复：改判 current（实际渲染精灵）而非 bs.bSprite——长矛动画直接改 _spriteRenderer.sprite 时
+                // bSprite 是陈旧皮肤，旧判断 ReferenceEquals(bs.bSprite, skin) 会误判已换 → 蓝臂原图残留。
+                if (ReferenceEquals(current, skin)) return;
                 bs.bSprite = skin;
                 bs.color = Color.white;
             }
