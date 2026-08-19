@@ -13,12 +13,19 @@ namespace BadNorthMixedSquad1_0
         public static ConfigEntry<string> SourceVikingName;
         public static ConfigEntry<string> NewVikingName;
         public static ConfigEntry<int> Bounty;
-        // 混编比例（每 9 人配额，M1 生成用；盾:矛:弓 默认 4:3:2）
+        // 混编比例（每 9 人配额，M1 生成用；盾:矛:弓 默认 3:3:3 均衡——3 人船=1:1:1、9 人船=3盾3矛3箭）
         public static ConfigEntry<int> MixedShieldPer9;
         public static ConfigEntry<int> MixedSpearPer9;
         public static ConfigEntry<int> MixedArcherPer9;
         // M2 战术分层站位开关
         public static ConfigEntry<bool> EnableFormation;
+        // ============ Formation（M4 顺序联动：盾→弓→矛）============
+        public static ConfigEntry<bool> EnableWaveCharge;
+        public static ConfigEntry<float> ChargeTriggerDist;
+        public static ConfigEntry<float> WaveInterval;
+        // ============ Archer（弓手威慑：集火点射 + 命中率提升）============
+        public static ConfigEntry<bool> EnableArcherFocus;
+        public static ConfigEntry<float> ArrowTrackingStrength;
 
         // ============ Spawn ============
         public static ConfigEntry<float> SpawnChance;
@@ -67,6 +74,8 @@ namespace BadNorthMixedSquad1_0
             BindCombat(cfg);
             BindVisual(cfg);
             BindSkills(cfg);
+            BindFormation(cfg);
+            BindArcher(cfg);
             BindDiag(cfg);
         }
 
@@ -80,12 +89,12 @@ namespace BadNorthMixedSquad1_0
                 "新单位在敌人生成池中的名字。");
             Bounty = cfg.Bind("General", "Bounty", 12,
                 "赏金（决定该单位占用的敌舰配额）。混编小队 9 人（盾4矛3弓2），比单兵种高。");
-            MixedShieldPer9 = cfg.Bind("General", "MixedShieldPer9", 4,
-                "混编每 9 人盾兵数（占前排，原版剑盾兵）。");
+            MixedShieldPer9 = cfg.Bind("General", "MixedShieldPer9", 3,
+                "混编每 9 人盾兵数（占前排，原版剑盾兵）。3 人船自动=1。");
             MixedSpearPer9 = cfg.Bind("General", "MixedSpearPer9", 3,
-                "混编每 9 人长矛兵数（黑矛兵，冲锋/刺击）。");
-            MixedArcherPer9 = cfg.Bind("General", "MixedArcherPer9", 2,
-                "混编每 9 人弓手数（原版弓手，后排）。");
+                "混编每 9 人长矛兵数（黑矛兵，冲锋/刺击）。3 人船自动=1。");
+            MixedArcherPer9 = cfg.Bind("General", "MixedArcherPer9", 3,
+                "混编每 9 人弓手数（原版弓手，后排）。3 人船自动=1。");
             EnableFormation = cfg.Bind("General", "EnableFormation", true,
                 "M2 战术分层站位：盾前/矛中/弓后三列 + 抵阵等敌（敌入范围才交战）。false=退化为原版行为（各自冲建筑）。");
         }
@@ -149,6 +158,24 @@ namespace BadNorthMixedSquad1_0
                 "盾牌完全移除开关。true=保留基底剑盾兵盾牌并具备格挡效果（近战正面格挡、箭矢/飞斧减伤弹开）；\n" +
                 "false=完全移除盾牌（效果+美术均不挂载，盾牌子对象禁用）——用户指定黑矛兵不带盾。" +
                 "默认 false。");
+        }
+
+        static void BindArcher(ConfigFile cfg)
+        {
+            EnableArcherFocus = cfg.Bind("Archer", "EnableArcherFocus", true,
+                "弓手集火点射：同船弓手锁定同一目标（优先低血量），集中输出威慑。");
+            ArrowTrackingStrength = cfg.Bind("Archer", "ArrowTrackingStrength", 0.5f,
+                "箭矢追踪强度 0~1（命中率提升）：>0 时箭矢飞行中每帧向目标当前位置修正弹道；0=原版抛物弹道。");
+        }
+
+        static void BindFormation(ConfigFile cfg)
+        {
+            EnableWaveCharge = cfg.Bind("Formation", "EnableWaveCharge", true,
+                "盾→弓→矛顺序联动：盾线接敌后弓手压制，敌逼近盾线时同船矛兵错峰冲阵。false=矛兵自由冲锋（旧行为）。");
+            ChargeTriggerDist = cfg.Bind("Formation", "ChargeTriggerDist", 5f,
+                "敌距盾线触发冲阵号令的距离（米）。");
+            WaveInterval = cfg.Bind("Formation", "WaveInterval", 0.15f,
+                "矛兵错峰冲锋间隔（秒）——连续冲击浪。");
         }
 
         static void BindDiag(ConfigFile cfg)

@@ -15,17 +15,17 @@ namespace BadNorthMixedSquad1_0
     {
         const float DetectionRadius = 6.0f;   // 扫描兜底探测范围（优先取 Swordsman 大脑目标）
         const float ChargeSpeed = 5.0f;       // 冲刺速度 5m/s（更快更冲，冲击感）
-        const float ChargeOvershoot = 1.5f;   // 穿透余量：冲过锁定格 1.5m，穿透敌阵、冲击阵营
+        const float ChargeOvershoot = 2.0f;   // 穿透余量：冲过锁定格 2.0m（1.5→2.0，穿透敌阵、冲击阵营更强）
         const float CooldownTime = 10f;       // 冷却（2026-08-15 用户指定：延长到 10s，冲锋更稀有、更像"技能"）
         const float WindUpDuration = 0.5f;    // 起手
         const float RetreatDistance = 0.6f;   // 后退 0.6m（原 1.2 太远，且易退到船）
         const float SpearLength = 0.6f;       // 原版 Spear.spearLength
-        const float StabDamage = 3.0f;        // 冲锋刺击基础伤害（随 squad 等级放大）
+        const float StabDamage = 4.0f;        // 冲锋刺击基础伤害（随 squad 等级放大；3→4 更痛）
         const float StabKnockback = 9.0f;     // 击退（撞飞/撞下海）
         const float StabStun = 10f;           // 眩晕
         const float StabLaunch = 8f;          // 命中撞飞（ragdoll 弹起，背海敌人撞下海）
         const float HitRadius = 0.5f;         // 命中判定半径 = 单矛线宽 0.5m（用户指定：减少范围波及；原版单兵 ≈0.46m）
-        const float ArrivalBurstRadius = 1.2f; // 抵达终点爆发半径（终点的范围波及，与沿途线宽独立，可单独调）
+        const float ArrivalBurstRadius = 1.5f; // 抵达终点爆发半径（终点的范围波及；1.2→1.5 爆发更猛）
         const float EnergyDecayPerHit = 0.8f;  // 每命中一次能量衰减（原版 Pike Charge 同款：扫过一排递减）
         const float LevelDamageScale = 0.25f;  // 每级伤害增幅：dmg = StabDamage × (1 + 等级×系数)
         const float ThrustDistance = 0.45f;   // 近战刺击：长矛沿自身前向突刺的距离（视觉"刺"而非"挥砍"）
@@ -41,6 +41,7 @@ namespace BadNorthMixedSquad1_0
         enum Phase { Idle, WindUp, Charging, Retreat, Cooldown }
 
         Phase _phase = Phase.Idle;
+        bool _ordered;              // M4：收到"冲阵号令"（TacticalFormation 解除阵型门控，允许冲锋）
         Agent _agent;
         Squad _squad;
         bool _setupDone;
@@ -533,6 +534,12 @@ namespace BadNorthMixedSquad1_0
         bool TryTriggerCharge(bool log)
         {
             if (_phase != Phase.Idle) return false;
+            // M4 顺序联动门控：混编阵型中的矛兵，未收到"冲阵号令" → 待命（盾→弓→矛的顺序，禁止自由乱冲）
+            if (TacticalFormation.InFormation(_agent) && !_ordered)
+            {
+                if (log) Log("触发拦截: 阵型待命（盾线接敌/弓手压制中，等冲阵号令）");
+                return false;
+            }
             if (_agent == null || _agent.aliveState == null || !_agent.aliveState.active || !_agent.dangerous)
             {
                 if (log) Log("触发拦截: alive=" + (_agent != null && _agent.aliveState != null ? _agent.aliveState.active.ToString() : "null") +
@@ -579,18 +586,27 @@ namespace BadNorthMixedSquad1_0
                 if (log) Log("触发拦截: 无大脑目标且 6m 内无扫描目标（详见 FindNearestEnemy 诊断）");
                 return false;
             }
-            // 建筑/地形遮挡拦截：目标锁定格与自身之间的直线必须全程位于主岛可走导航网格上，
-            // 且直线中段不被房屋/残骸（House，含已烧毁）占据。水面/悬崖/建筑遮挡 → 本次不发起冲锋
-            // （技能保留，交给普通 AI 绕路/近战，隔 0.25s 再重新评估）。
+            // 路径底线：目标锁定格与自身之间的直线必须位于主岛可走导航网格上（水面/悬崖/网格外 → 不冲）。
+            // 建筑不再硬拦截——目标在建筑后也发起冲锋（撞建筑前停，但能冲出威慑距离并命中沿途敌人）。
             if (nearest == null || !nearest.navPos.valid)
             {
                 if (log) Log("触发拦截: 目标 navPos 无效，不发起冲锋");
                 return false;
             }
-            if (!IsStraightPathWalkable(_agent.navPos.wPos, nearest.navPos.wPos))
+            if (!IsTerrainPathClear(_agent.navPos.wPos, nearest.navPos.wPos))
             {
-                if (log) Log("触发拦截: 直线路径被建筑/地形遮挡(目标=" + nearest.name + ")，不发起冲锋");
-                return false;
+                // 地形被挡：尝试换一个地形通畅的扫描目标（避免"悬崖后目标"导致不冲锋）
+                Agent alt = null; Vector3 altDir;
+                if (FindNearestEnemy(out altDir, out alt, log) && alt != null && alt != nearest)
+                {
+                    if (log) Log("触发拦截: 原目标地形被挡，改冲通畅目标 " + alt.name);
+                    nearest = alt; dir = altDir;
+                }
+                else
+                {
+                    if (log) Log("触发拦截: 直线路径被地形遮挡(目标=" + nearest.name + ")，不发起冲锋");
+                    return false;
+                }
             }
             _chargeDirection = dir.normalized;
             _targetAgent = nearest;   // 记住目标（冲刺完成后转身后退迎击）
@@ -623,6 +639,14 @@ namespace BadNorthMixedSquad1_0
             if (_agent.enemyAgent != null && _agent.enemyAgent.aliveState != null && _agent.enemyAgent.aliveState.active)
                 return _agent.enemyAgent;
             return null;
+        }
+
+        /// <summary>冲阵号令（TacticalFormation 战斗相位调用）：解除阵型门控并立即重扫，自然触发冲锋。
+        /// 错峰由阵型按 WaveInterval 逐个调用控制（波次冲锋）。</summary>
+        public void OrderCharge()
+        {
+            _ordered = true;
+            _actScanTimer = 0f;   // 下一帧立即 TryTriggerCharge
         }
 
         void StartWindUp()
@@ -1036,7 +1060,7 @@ namespace BadNorthMixedSquad1_0
         void UpdateCooldown()
         {
             _phaseTimer -= Time.deltaTime;
-            if (_phaseTimer <= 0f) { _phase = Phase.Idle; _agent.maxSpeed = _originalSpeed; }
+            if (_phaseTimer <= 0f) { _phase = Phase.Idle; _ordered = false; _agent.maxSpeed = _originalSpeed; }
         }
 
         /// <summary>单位死亡/失效时中止技能状态机（释放 exclusives、恢复速度/movability），回到 Idle。</summary>
@@ -1054,6 +1078,7 @@ namespace BadNorthMixedSquad1_0
             }
             _phase = Phase.Idle;
             _phaseTimer = 0f;
+            _ordered = false;   // M4：中止后需重新等号令
         }
 
         /// <summary>
@@ -1113,6 +1138,9 @@ namespace BadNorthMixedSquad1_0
                 var a = c.GetComponentInParent<Agent>();
                 if (a == null || a == _agent || a.isViking) continue;
                 if (a.aliveState != null && !a.aliveState.active) continue;
+                if (!a.navPos.valid) continue;
+                // 地形通畅过滤：目标与自身直线必须位于主岛可走网格（悬崖后目标排除；建筑后保留——冲锋能冲出距离）
+                if (!IsTerrainPathClear(_agent.navPos.wPos, a.navPos.wPos)) continue;
                 float dist = Vector3.Distance(_agent.transform.position, a.transform.position);
                 if (dist >= DetectionRadius) continue;
                 int locks;
@@ -1206,6 +1234,22 @@ namespace BadNorthMixedSquad1_0
             return false;
         }
 
+        /// <summary>地形通畅检查（只判导航网格可走，不判建筑）：起点到终点直线全程位于主岛可走网格上。
+        /// 用于冲锋目标选择——悬崖/水面后的目标排除，建筑后的目标保留（冲锋撞建筑前停但能冲出距离）。</summary>
+        bool IsTerrainPathClear(Vector3 from, Vector3 to)
+        {
+            Vector3 dir = to - from;
+            dir.y = 0f;
+            float total = dir.magnitude;
+            if (total < 0.01f) return true;
+            dir /= total;
+            for (float d = 0f; d <= total + WalkableStep * 0.5f; d += WalkableStep)
+            {
+                if (!IsPointWalkable(from + dir * d)) return false;
+            }
+            return true;
+        }
+
         /// <summary>建筑/地形遮挡检查：起点到终点锁定格的直线必须全程位于主岛可走导航网格上；
         /// 直线中段（起终点各留 BuildingBlockRadius 余量，避免"贴墙站/贴墙打"误判）被房屋/残骸占据
         /// 同样判定遮挡。用于发起冲锋前的拦截：单位在建筑或不可接触地形后面 → 不释放技能。</summary>
@@ -1257,7 +1301,7 @@ namespace BadNorthMixedSquad1_0
             }
             float end = terrainBreak ? edge - WalkableEndMargin : last;   // 地形→岸上内收；建筑→检测边界前
             if (firstBad <= targetDist + BuildingBlockRadius)
-                return Mathf.Max(0.5f, end);       // 边界在目标格之前（防御：冲锋被中途阻拦）
+                return Mathf.Max(Mathf.Min(2.5f, targetDist), end);   // 边界在目标格前：至少冲 min(2.5m,目标距) 威慑距离
             return Mathf.Max(targetDist, end);     // 至少到达目标，穿透段夹回岸上/建筑前
         }
 

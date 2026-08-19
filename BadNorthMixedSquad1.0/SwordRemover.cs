@@ -85,6 +85,7 @@ namespace BadNorthMixedSquad1_0
         bool _eraseEnabled;
         bool _dumped;      // 运行时诊断已输出（处理第一帧时）
         bool _partKeepLogged;   // 模式0：保留原部件贴图的体检日志已输出（避免每帧刷屏）
+        bool _partOnlyLogged;   // 混编修复：部件压暗独立于 RemoveSword 的一次性诊断已输出
         bool _blocksRepaired;   // 身体材质块修复+详细转储已输出（每个黑矛兵一次）
         Sprite _frameSprite;    // Update 阶段采样的当前精灵（=原版 SpriteAnimator.SetSprite 本帧提交的精灵）。
                                 // 动画系统在 Update→LateUpdate 之间把 sprite 字段推进到下一帧；LateUpdate 若直接用
@@ -322,7 +323,15 @@ namespace BadNorthMixedSquad1_0
             // 随后 SetSprite2 的 ComittBlock 只把克隆提交给 BatchedSprite 的 rends（2 个渲染器），
             // 其余身体渲染器块 _PartTex 仍是原部件 → 剑柄改色/亮银擦除实际没上大部分块（用户仍见剑柄）。
             // 现在先换 sprite2，下面所有块写入都会用克隆纹理。
-            if (_eraseEnabled) ApplySprite2Erase();
+            // ⚠️ 混编修复（原生剑残留根因）：部件贴图分区压暗（模式2 定稿）**不受 RemoveSword 门控**——
+            // 剑/剑柄由身体帧的 UV 编码采样部件贴图渲染，压暗后即使帧级擦除没开（RemoveSword=false 默认）
+            // 或某帧被安全阀跳过，剑区在部件贴图里也是黑的（黑身剪影内不可见）。
+            // 旧代码把 ApplySprite2Erase 挂在 _eraseEnabled 下 → 默认 cfg 下部件贴图完全没处理 = 上屏仍有原生剑。
+            ApplySprite2Erase();
+            // 帧擦除关闭时（RemoveSword=false）RepairBodyMaterialBlocks 不会运行——SetSprite2 的 ComittBlock
+            // 只把压暗部件提交给 SpriteAnimator 自己的 rends；静态主身/镜像渲染器的 _PartTex 块仍是原件，
+            // 剑仍会经它们的 UV 采样上屏。这里独立兜底把压暗部件写入全部身体渲染器。
+            if (!_eraseEnabled) WritePartTexToAllBodyRenderers();
 
             if (cur != null && cur.texture != null && IsSwordFrameSprite(cur))
             {
@@ -393,11 +402,12 @@ namespace BadNorthMixedSquad1_0
 
             // sprite2 应用诊断见下方（克隆上块后延迟 5 帧判读稳态）
 
-            // sprite2 应用诊断——确认"剑柄改身体色/亮银擦除"的克隆确实写进了渲染器块（回答"剑柄改色为何没生效"）
+            // sprite2 应用诊断——确认"剑柄改身体色/亮银擦除"的克隆确实写进了渲染器块（回答"剑柄改色为何没生效"）。
             // 延迟到克隆上块后 5 帧再判读稳态，且统计全部 ColoredCharacter 身体渲染器里
             // 块 _PartTex == 克隆 的数量（旧版当帧只读 mrs[0]，会命中一个未被 SpriteAnimator.ComittBlock 更新的
             // 渲染器而误判"块里不是克隆"）。
-            if (_eraseEnabled && !_partAppliedDiagDone && _sa.sprite2 != null &&
+            // ⚠️ 混编修复：部件压暗独立于 RemoveSword，诊断也随之独立（不再用 _eraseEnabled 门控）。
+            if (!_partAppliedDiagDone && _sa.sprite2 != null &&
                 _blankSprite2 != null && _partDiagFrame >= 0 && Time.frameCount >= _partDiagFrame)
             {
                 _partAppliedDiagDone = true;
@@ -774,43 +784,43 @@ namespace BadNorthMixedSquad1_0
                 (_sa.sprite2.name != null && _sa.sprite2.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0) ||
                 (_sa.sprite2.texture != null && _sa.sprite2.texture.name != null &&
                  _sa.sprite2.texture.name.IndexOf("SwordShield", StringComparison.Ordinal) >= 0);
-            if (swordShieldPart)
+            // ⚠️ 混编修复：基底固定是 Viking_SwordShield，部件贴图必为剑盾部件。
+            // 旧代码先按名字判定 swordShieldPart、命中才走模式2；若运行时部件名被烘焙/克隆改名
+            // （名字里没有 "SwordShield"），会落入旧基底 GetErasedSprite2（亮银擦除 + 35% 安全阀）——
+            // 而 SwordShield 部件亮银占比实测 40.8% > 35% 安全阀必拒 → 部件完全未处理 → 剑残留。
+            // 这里改为直接按 Sprite2Mode 处理（swordShieldPart 只用于诊断日志），模式2 分区压暗无条件生效。
+            // 部件压暗独立于帧级擦除（RemoveSword）：RemoveSword=false（默认）时也压黑剑/剑柄。
+            if (!_eraseEnabled && !_partOnlyLogged)
             {
-                if (Sprite2Mode == 1)
+                _partOnlyLogged = true;
+                BSLog.Info("[去剑] 部件贴图分区压暗（模式=" + Sprite2Mode + "）已独立应用（RemoveSword=false，帧级擦除关闭）→ 剑/剑柄经部件贴图压黑" +
+                    " | 部件名=" + (_sa.sprite2.name != null ? _sa.sprite2.name : "null") +
+                    " 纹理名=" + (_sa.sprite2.texture.name != null ? _sa.sprite2.texture.name : "null") +
+                    " 剑盾部件=" + swordShieldPart);
+            }
+            if (Sprite2Mode == 1)
+            {
+                if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
                 {
-                    if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
-                    {
-                        _blankSprite2 = GetBlankSprite2(_sa.sprite2);
-                        if (_blankSprite2 != null) { _sa.SetSprite2(_blankSprite2); _partDiagFrame = Time.frameCount + 5; }
-                    }
+                    _blankSprite2 = GetBlankSprite2(_sa.sprite2);
+                    if (_blankSprite2 != null) { _sa.SetSprite2(_blankSprite2); _partDiagFrame = Time.frameCount + 5; }
                 }
-                else if (Sprite2Mode == 2)
+            }
+            else if (Sprite2Mode == 2)
+            {
+                if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
                 {
-                    if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
-                    {
-                        _blankSprite2 = GetBrightErasedSprite2(_sa.sprite2);
-                        if (_blankSprite2 != null) { _sa.SetSprite2(_blankSprite2); _partDiagFrame = Time.frameCount + 5; }
-                    }
-                }
-                else
-                {
-                    if (!_partKeepLogged)
-                    {
-                        _partKeepLogged = true;
-                        LogPartCellStats(_sa.sprite2);
-                    }
+                    _blankSprite2 = GetBrightErasedSprite2(_sa.sprite2);
+                    if (_blankSprite2 != null) { _sa.SetSprite2(_blankSprite2); _partDiagFrame = Time.frameCount + 5; }
                 }
             }
             else
             {
-                if (!(_blankSprite2 != null && ReferenceEquals(_sa.sprite2, _blankSprite2)))
+                // 模式0：保留原部件贴图、只靠帧擦除去剑（剑盾亮色会经帧 UV 采样残留成白框，弃用）
+                if (!_partKeepLogged)
                 {
-                    Sprite erased2 = GetErasedSprite2(_sa.sprite2);
-                    if (erased2 != null && !ReferenceEquals(_sa.sprite2, erased2))
-                    {
-                        _sa.SetSprite2(erased2);   // 同步更新 part 纹理 + RG 图集编码
-                        _partDiagFrame = Time.frameCount + 5;
-                    }
+                    _partKeepLogged = true;
+                    LogPartCellStats(_sa.sprite2);
                 }
             }
         }
@@ -1074,6 +1084,32 @@ namespace BadNorthMixedSquad1_0
             catch (Exception e) { BSLog.Warn("[去剑] 网格块诊断异常: " + e); }
         }
 
+        /// <summary>把当前 sprite2（去剑/压暗克隆）写入全部 ColoredCharacter 身体渲染器的 _PartTex 块。
+        /// SetSprite2 的 ComittBlock 只提交给 SpriteAnimator 自己的 rends；静态主身/镜像渲染器的块 _PartTex 仍是原件，
+        /// 若帧擦除路径（RepairBodyMaterialBlocks）没跑（RemoveSword=false），剑仍会经它们的 UV 采样上屏。
+        /// 这是混编"部件压暗独立于 RemoveSword"的必要补全：压暗克隆必须落在每一个启用/禁用的身体渲染器块上。</summary>
+        void WritePartTexToAllBodyRenderers()
+        {
+            try
+            {
+                if (_sa == null || _sa.sprite2 == null || _sa.sprite2.texture == null) return;
+                Texture partTex = _sa.sprite2.texture;
+                var mrs = _sa.GetComponentsInChildren<MeshRenderer>(true);
+                if (mrs == null) return;
+                for (int i = 0; i < mrs.Length; i++)
+                {
+                    var mr = mrs[i];
+                    if (mr == null) continue;
+                    var sh = mr.sharedMaterial != null ? mr.sharedMaterial.shader : null;
+                    if (sh == null || sh.name.IndexOf("ColoredCharacter", StringComparison.Ordinal) < 0) continue;
+                    var block = new MaterialPropertyBlock();
+                    try { mr.GetPropertyBlock(block); } catch { }
+                    try { block.SetTexture("_PartTex", partTex); mr.SetPropertyBlock(block); } catch { }
+                }
+            }
+            catch (Exception e) { BSLog.Warn("[去剑] 部件块兜底写入异常: " + e); }
+        }
+
         /// <summary>把去剑克隆 + 部件贴图写入全部身体渲染器的材质块。
         /// 实测前 2 个块 _MainTex/_PartTex 为 null（着色器默认白=白框），且游戏每帧用原图集重写 → 必须每帧补写。
         /// GetPropertyBlock 拷入全部属性，只覆盖 _MainTex/_PartTex，其余（_BloodTex/_Mirror 等）原样保留。</summary>
@@ -1186,6 +1222,8 @@ namespace BadNorthMixedSquad1_0
             return false;
         }
 
+        /// <summary>旧基底 PartTex_Sword 的亮银擦除（混编已不再调用——基底固定 SwordShield，
+        /// 全部走模式2 分区压暗 GetBrightErasedSprite2；保留此函数作为旧基底参考实现）。</summary>
         static Sprite GetErasedSprite2(Sprite s2)
         {
             int key = s2.GetInstanceID();

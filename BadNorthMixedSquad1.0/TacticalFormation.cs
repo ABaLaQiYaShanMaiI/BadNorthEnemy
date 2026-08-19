@@ -4,17 +4,29 @@ using Voxels.TowerDefense;
 
 namespace BadNorthMixedSquad1_0
 {
-    /// <summary>M2 战术分层站位（挂在混编 Longship 上）：盾前/矛中/弓后 三列 + 防御状态机。
+    /// <summary>M2/M4 战术分层站位（挂在混编 Longship 上）：盾前/矛中/弓后 三列 + 战斗相位状态机。
     /// HOLD（敌远）：全队走向格位、朝敌站桩（覆盖大脑 walkDir = 压制"冲建筑"）；
-    /// ENGAGE（敌入范围）：盾兵保持前排钉位顶线（原地近战=稳住阵脚），矛/弓放开各自作战。
+    /// M4 顺序联动（EnableWaveCharge=true）：盾线接敌(盾顶线) → 弓手压制(集火点射) →
+    ///   敌逼近盾线 → 同船矛兵错峰冲阵 → 重整回盾后。false 退化为旧 ENGAGE（矛自由冲锋）。
     /// 死亡收拢；登岛(onMain)后才激活，船上让 Pirate 正常下船。</summary>
     public class TacticalFormation : MonoBehaviour
     {
         const float EngageRange = 14f;   // 进入此范围 → 交战
+        const float ArcherFocusRadius = 26f;  // 弓手集火目标搜索半径（弓手射程内）
         const float LookRange = 40f;     // 更远范围找敌人定朝向
         const float Spacing = 0.45f;     // 同排横向间距
         const float RowGap = 0.5f;       // 前后排间距（盾→矛→弓）
         const float SlotArrive = 0.2f;   // 距格位 < 此值 → 站桩
+
+        // ===== M4 顺序联动（盾→弓→矛）：战斗相位 =====
+        const float WaveIntervalDefault = 0.15f;  // 矛兵错峰冲锋间隔（冲阵波次）
+        const float ReformTime = 12f;       // 冲阵后重整时长（≈冲锋冷却节奏，给玩家反打窗口）
+        enum BattlePhase { Hold, ShieldBrace, ChargeWave, Reform }
+        BattlePhase _battlePhase = BattlePhase.Hold;
+        float _waveTimer;                   // 错峰发令计时
+        int _waveElapsed;                   // 已发令的矛数
+        float _reformTimer;                 // 重整计时
+        float _chargeTriggerDist = 5f;      // 敌距盾线触发冲锋（cfg ChargeTriggerDist）
 
         Longship _ship;
         readonly List<Agent> _agents = new List<Agent>();
@@ -63,8 +75,15 @@ namespace BadNorthMixedSquad1_0
 
             UpdateAnchorAndFacing();
             _engaged = HasEnemiesNear(EngageRange);
-            if (_engaged) EngageUpdate();
-            else HoldUpdate();
+            if (!_engaged)
+            {
+                _battlePhase = BattlePhase.Hold;   // 敌远 → 回待命
+                HoldUpdate();
+                return;
+            }
+            bool wave = ModConfig.EnableWaveCharge != null && ModConfig.EnableWaveCharge.Value;
+            if (wave) WaveEngageUpdate();   // M4 顺序联动（盾扛→弓射→矛冲）
+            else EngageUpdate();            // 旧行为：盾/弓钉位、矛自由
         }
 
         void RemoveDead()
@@ -130,6 +149,7 @@ namespace BadNorthMixedSquad1_0
 
         void HoldUpdate()
         {
+            ArcherCombat.FocusTarget = null;   // 未接敌不集火
             for (int i = 0; i < _shields.Count; i++) MoveToSlot(_shields[i], 0, _shields.Count, i, true);
             for (int i = 0; i < _spears.Count; i++) MoveToSlot(_spears[i], 1, _spears.Count, i, true);
             for (int i = 0; i < _archers.Count; i++) MoveToSlot(_archers[i], 2, _archers.Count, i, true);
@@ -137,9 +157,102 @@ namespace BadNorthMixedSquad1_0
 
         void EngageUpdate()
         {
+            UpdateArcherFocus();   // 交战中选集火目标（低血量敌人）→ 同船弓手点射
             // 盾兵保持前排钉位（稳住阵脚、原地近战）；弓手钉后列（后排射击不贴脸）；矛放开冲锋/刺击
             for (int i = 0; i < _shields.Count; i++) MoveToSlot(_shields[i], 0, _shields.Count, i, true);
             for (int i = 0; i < _archers.Count; i++) MoveToSlot(_archers[i], 2, _archers.Count, i, true);
+        }
+
+        /// <summary>M4 顺序联动：盾线接敌 → 弓手压制 → 敌逼近盾线 → 同船矛兵错峰冲阵 → 重整回盾后。</summary>
+        void WaveEngageUpdate()
+        {
+            UpdateArcherFocus();   // 弓手集火（低血量目标）
+            if (ModConfig.ChargeTriggerDist != null)
+                _chargeTriggerDist = ModConfig.ChargeTriggerDist.Value;
+            float interval = ModConfig.WaveInterval != null ? ModConfig.WaveInterval.Value : WaveIntervalDefault;
+            if (interval <= 0f) interval = WaveIntervalDefault;
+
+            switch (_battlePhase)
+            {
+                case BattlePhase.Hold:
+                case BattlePhase.Reform:
+                    _battlePhase = BattlePhase.ShieldBrace;   // 接敌 → 盾线顶住、矛待命
+                    break;
+
+                case BattlePhase.ShieldBrace:
+                    // 关联性触发：敌逼近盾线（< 触发距离）→ 冲阵号令
+                    if (NearestEnemyDist() <= _chargeTriggerDist)
+                    {
+                        _battlePhase = BattlePhase.ChargeWave;
+                        _waveTimer = 0f;
+                        _waveElapsed = 0;
+                    }
+                    break;
+
+                case BattlePhase.ChargeWave:
+                    _waveTimer -= Time.deltaTime;
+                    if (_waveElapsed < _spears.Count && _waveTimer <= 0f)
+                    {
+                        var sp = _spears[_waveElapsed].GetComponent<SpearChargeComponent>();
+                        if (!ReferenceEquals(sp, null)) sp.OrderCharge();   // 逐个错峰发令 → 冲击浪
+                        _waveElapsed++;
+                        _waveTimer = interval;
+                    }
+                    if (_waveElapsed >= _spears.Count)   // 全部发令 → 重整
+                    {
+                        _battlePhase = BattlePhase.Reform;
+                        _reformTimer = ReformTime;
+                    }
+                    break;
+            }
+
+            if (_battlePhase == BattlePhase.Reform)
+            {
+                _reformTimer -= Time.deltaTime;
+                if (_reformTimer <= 0f) _battlePhase = BattlePhase.ShieldBrace;   // 重整完回接敌
+            }
+
+            // 站位：盾顶线、弓后列始终；矛只在冲阵期间放开，其余相位钉中列待命
+            for (int i = 0; i < _shields.Count; i++) MoveToSlot(_shields[i], 0, _shields.Count, i, true);
+            for (int i = 0; i < _archers.Count; i++) MoveToSlot(_archers[i], 2, _archers.Count, i, true);
+            if (_battlePhase != BattlePhase.ChargeWave)
+                for (int i = 0; i < _spears.Count; i++) MoveToSlot(_spears[i], 1, _spears.Count, i, true);
+        }
+
+        /// <summary>最近敌人到阵型锚点（≈盾线）的距离。无 → float.MaxValue。</summary>
+        float NearestEnemyDist()
+        {
+            Agent e = NearestEnemy(LookRange);
+            if (e == null) return float.MaxValue;
+            return Vector3.Distance(e.transform.position, _anchor);
+        }
+
+        /// <summary>选集火目标：弓手射程内 HP 最低的存活敌人（点杀脆皮）。无 → 清空。</summary>
+        void UpdateArcherFocus()
+        {
+            if (!ArcherCombat.Enabled)
+            {
+                ArcherCombat.FocusTarget = null;
+                return;
+            }
+            var faction = _agents[0].faction;
+            if (faction == null || faction.enemy == null)
+            {
+                ArcherCombat.FocusTarget = null;
+                return;
+            }
+            var list = AgentEnumerators.GetStaticListRadius(_anchor, ArcherFocusRadius, faction.enemy);
+            Agent best = null;
+            float bestHp = float.MaxValue;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var e = list[i];
+                if (e == null) continue;
+                if (e.aliveState == null || !e.aliveState.active) continue;
+                float hp = e.health;
+                if (hp < bestHp) { bestHp = hp; best = e; }
+            }
+            ArcherCombat.FocusTarget = best;
         }
 
         void MoveToSlot(Agent a, int row, int rowCount, int index, bool holdWhenArrived)
@@ -189,6 +302,19 @@ namespace BadNorthMixedSquad1_0
                 if (slot.HasValue) return slot;
             }
             return null;
+        }
+
+        /// <summary>某 agent 是否属于任意活跃阵型（供 SpearChargeComponent 判断是否受"冲阵号令"门控）。</summary>
+        public static bool InFormation(Agent a)
+        {
+            if (a == null) return false;
+            for (int i = 0; i < _active.Count; i++)
+            {
+                var f = _active[i];
+                if (f == null) continue;
+                if (f.GetSlot(a).HasValue) return true;
+            }
+            return false;
         }
     }
 }

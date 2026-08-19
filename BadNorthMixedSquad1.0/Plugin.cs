@@ -45,6 +45,7 @@ namespace BadNorthMixedSquad1_0
         static int _roleCursor;                              // CreateAgent 消费游标
         static MixedRoleType _lastRole;                      // 最近消费角色（后缀挂 MixedRole）
         static bool _patchMixedCreate;
+        static bool _patchPirate;   // 压制 Pirate 冲建筑（阵型纪律）
         static bool _inMixedLanding;                         // 混编 Landing.Spawn 进行中（补丁只在此刻生效，绝不干扰原版生成）
         static Agent _mixedNominal;                          // 混编标称 prefab（vikingClone.agent 缓存，防 vikingClone 未就绪 NPE）
 
@@ -71,6 +72,14 @@ namespace BadNorthMixedSquad1_0
             try
             {
                 ModConfig.Bind(Config);
+
+                // cfg → 弓手战术静态开关（集火点射 + 箭矢追踪命中率）
+                try
+                {
+                    ArcherCombat.Enabled = ModConfig.EnableArcherFocus.Value;
+                    ArcherCombat.TrackingStrength = ModConfig.ArrowTrackingStrength.Value;
+                }
+                catch { }
 
                 // 把 cfg Diag 段写入 BSLog 静态开关（各诊断组件读取）
                 try
@@ -104,6 +113,8 @@ namespace BadNorthMixedSquad1_0
                 PatchLevelNodeSetup(harmony);
                 PatchSwordsman(harmony);
                 PatchMixedSquad(harmony);
+                ArcherCombat.PatchAll(harmony);
+                PatchPirate(harmony);
 
                 // 启动总览：每条 Patch 的生效状态一眼可见；任一 FAIL 都意味着原版逻辑仍残留
                 BSLog.Info("[PATCH·总览] " +
@@ -115,13 +126,16 @@ namespace BadNorthMixedSquad1_0
                     " PlayAnim=" + (_patchPlayAnimation ? "OK" : "FAIL") +
                     " ClashBlock=" + (_patchClashBlock ? "OK" : "FAIL") +
                     " Mixed=" + (_patchMixedCreate ? "OK" : "FAIL") +
+                    " Pirate=" + (_patchPirate ? "OK" : "FAIL") +
+                    " Archer=" + (ArcherCombat.PatchOK ? "OK" : "FAIL") +
                     " ← 全 OK 才代表长矛穿刺/混编真正接管；Mixed FAIL 则 CreateAgent 角色轮换静默失效");
 
                 BSLog.Info($"[MixedSquad] Ready. 新单位: {ModConfig.NewVikingName.Value}");
                 BSLog.Info($"[配置] Source={ModConfig.SourceVikingName.Value} New={ModConfig.NewVikingName.Value} Bounty={ModConfig.Bounty.Value} " +
                     $"SpawnChance={ModConfig.SpawnChance.Value} ForceFirstWave={ModConfig.ForceFirstWave.Value} " +
                     $"盾:{ModConfig.MixedShieldPer9.Value} 矛:{ModConfig.MixedSpearPer9.Value} 弓:{ModConfig.MixedArcherPer9.Value} " +
-                    $"EnableFormation={ModConfig.EnableFormation.Value}");
+                    $"EnableFormation={ModConfig.EnableFormation.Value} " +
+                    $"弓集火={ModConfig.EnableArcherFocus.Value} 追踪={ModConfig.ArrowTrackingStrength.Value}");
             }
             catch (Exception e)
             {
@@ -240,6 +254,33 @@ namespace BadNorthMixedSquad1_0
                     prefix: new HarmonyMethod(typeof(Plugin).GetMethod("SquadCreateAgentPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
                     postfix: new HarmonyMethod(typeof(Plugin).GetMethod("SquadCreateAgentPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
             }, ref _patchMixedCreate);
+        }
+
+        /// <summary>压制 Pirate 冲建筑（阵型纪律）：登岛后的混编阵型单位跳过原版 Pirate 移动驱动
+        /// （walkDir += orderDir 冲建筑 + 面向船），由 TacticalFormation 统一控制站位。1.3 黑矛兵/原版单位不受影响。</summary>
+        static void PatchPirate(Harmony harmony)
+        {
+            TryPatch("Pirate.ApplyOrder（压制冲建筑·阵型纪律）", () =>
+            {
+                var m = typeof(Pirate).GetMethod("ApplyOrder", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ReferenceEquals(m, null)) throw new Exception("Pirate.ApplyOrder 不存在");
+                harmony.Patch(m, prefix: new HarmonyMethod(typeof(Plugin).GetMethod("PirateApplyOrderPrefix", BindingFlags.Static | BindingFlags.NonPublic)));
+            }, ref _patchPirate);
+        }
+
+        /// <summary>Pirate.ApplyOrder 前缀：混编阵型单位登岛后 → 跳过（否则每帧 walkDir+=orderDir 把单位拉向建筑）。
+        /// 船上/未登岛不拦（让 Pirate 正常下船）。</summary>
+        static bool PirateApplyOrderPrefix(Pirate __instance)
+        {
+            try
+            {
+                if (__instance == null) return true;
+                Agent agent = __instance.agent;
+                if (agent != null && agent.navPos.valid && agent.navPos.onMain && TacticalFormation.InFormation(agent))
+                    return false;   // 阵型接管移动
+            }
+            catch { }
+            return true;
         }
 
         static void SquadCreateAgentPrefix(Squad __instance, ref Agent prefab)
