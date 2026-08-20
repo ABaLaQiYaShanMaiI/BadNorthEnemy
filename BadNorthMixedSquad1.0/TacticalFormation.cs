@@ -1,14 +1,15 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Voxels.TowerDefense;
 
 namespace BadNorthMixedSquad1_0
 {
-    /// <summary>M2/M4 战术分层站位（挂在混编 Longship 上）：盾前/矛中/弓后 三列 + 战斗相位状态机。
+    /// <summary>M2/M4/M5 战术分层站位（挂在混编 Longship 上）：盾前/矛中/弓后 三列 + 战斗相位状态机。
     /// HOLD（敌远）：全队走向格位、朝敌站桩（覆盖大脑 walkDir = 压制"冲建筑"）；
     /// M4 顺序联动（EnableWaveCharge=true）：盾线接敌(盾顶线) → 弓手压制(集火点射) →
     ///   敌逼近盾线 → 同船矛兵错峰冲阵 → 重整回盾后。false 退化为旧 ENGAGE（矛自由冲锋）。
-    /// 死亡收拢；登岛(onMain)后才激活，船上让 Pirate 正常下船。</summary>
+    /// 死亡收拢；船上阶段（EnableShipShieldFront）盾前挡箭 + 甲板重排；登岛(onMain)后才列阵。</summary>
     public class TacticalFormation : MonoBehaviour
     {
         const float EngageRange = 14f;   // 进入此范围 → 交战
@@ -36,6 +37,8 @@ namespace BadNorthMixedSquad1_0
         bool _engaged;
         Vector3 _anchor;
         Vector3 _facing = Vector3.forward;
+        Vector3 _shipFront = Vector3.zero;      // 船上朝向（船头=敌岛方向）：甲板重排 + 挡箭朝向基准
+        bool _arrangedOnShip;                   // 甲板重排（盾前矛中弓后）是否已完成（每船一次）
         static readonly List<TacticalFormation> _active = new List<TacticalFormation>();   // 全场景活跃阵型（供矛兵回退查询格位）
 
         void OnEnable() { if (!_active.Contains(this)) _active.Add(this); }
@@ -58,20 +61,182 @@ namespace BadNorthMixedSquad1_0
             }
         }
 
+        // ===== 船上阶段（M5）：盾前挡箭 =====
+
+        /// <summary>敌舰接近（尚未登岛）阶段：甲板按 盾前/矛中/弓后 重排一次 + 全体面朝敌岛（盾牌挡箭）。
+        /// 只调朝向、不动 walkDir（不干扰 Pirate 下船）；登岛后由列阵逻辑接管。</summary>
+        void OnShipUpdate()
+        {
+            if (_agents.Count == 0) return;
+            // 1) 甲板重排（每船一次）：盾兵换到船头最前、矛中、弓后
+            if (!_arrangedOnShip)
+            {
+                if (_shipFront == Vector3.zero) _shipFront = ComputeShipFront();
+                if (_shipFront != Vector3.zero)
+                {
+                    ArrangeOnShip(_shipFront);
+                    _arrangedOnShip = true;   // 尽力而为：失败也标记，避免每帧重试刷屏
+                }
+            }
+            // 2) 全体面朝敌岛（箭矢来向）——盾牌举在前，挡玩家弓手
+            Vector3 front = _shipFront != Vector3.zero ? _shipFront : _facing;
+            if (front == Vector3.zero) return;
+            for (int i = 0; i < _agents.Count; i++)
+            {
+                var a = _agents[i];
+                if (a == null) continue;
+                if (!a.navPos.valid || a.navPos.onMain) continue;
+                a.LookInDirection(front, 720f, 20f);
+            }
+        }
+
+        /// <summary>船头方向 = 船 → 最近玩家单位（敌岛方向，船头驶向主岛）。无玩家单位 → zero。</summary>
+        Vector3 ComputeShipFront()
+        {
+            try
+            {
+                if (_agents.Count == 0) return Vector3.zero;
+                var faction = _agents[0].faction;
+                if (faction == null || faction.enemy == null) return Vector3.zero;
+                Vector3 center = _ship != null ? _ship.transform.position : _agents[0].transform.position;
+                center.y = 0f;
+                var list = AgentEnumerators.GetStaticListRadius(center, 300f, faction.enemy);
+                Agent best = null;
+                float bestD = float.MaxValue;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var e = list[i];
+                    if (e == null) continue;
+                    Vector3 d = e.transform.position - center; d.y = 0f;
+                    float dd = d.sqrMagnitude;
+                    if (dd < bestD) { bestD = dd; best = e; }
+                }
+                if (best == null) return Vector3.zero;
+                Vector3 dir = best.transform.position - center; dir.y = 0f;
+                return dir.sqrMagnitude > 0.001f ? dir.normalized : Vector3.zero;
+            }
+            catch { return Vector3.zero; }
+        }
+        /// <summary>甲板重排：把同船混编单位按 盾(船头)/矛(中)/弓(船尾) 交换 navPos 站位。
+        /// 已满足盾全在最前则不动；NavPos 是 struct，先快照再赋值防串位。</summary>
+        void ArrangeOnShip(Vector3 front)
+        {
+            if (_ship == null || _agents.Count < 2) return;
+            int n = _agents.Count;
+            Vector3 center = Vector3.zero;
+            int valid = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var a = _agents[i];
+                if (a == null || !a.navPos.valid) continue;
+                center += a.transform.position; valid++;
+            }
+            if (valid < 2)
+            {
+                BSLog.Warn("[船上] 甲板站位不可用（valid=" + valid + "），跳过重排");
+                return;
+            }
+            center /= valid; center.y = 0f;
+
+            // 按投影从大到小排序 = 船头→船尾（简单插入排序，避 LINQ）
+            var slots = new List<Agent>(n);
+            var proj = new List<float>(n);
+            for (int i = 0; i < n; i++)
+            {
+                var a = _agents[i];
+                if (a == null || !a.navPos.valid) continue;
+                Vector3 p = a.transform.position - center; p.y = 0f;
+                slots.Add(a);
+                proj.Add(Vector3.Dot(p, front));
+            }
+            for (int i = 1; i < slots.Count; i++)
+            {
+                Agent ai = slots[i]; float pi = proj[i];
+                int j = i - 1;
+                while (j >= 0 && proj[j] < pi)
+                {
+                    slots[j + 1] = slots[j]; proj[j + 1] = proj[j]; j--;
+                }
+                slots[j + 1] = ai; proj[j + 1] = pi;
+            }
+
+            // 目标布局：盾(最前) + 矛(中) + 弓(后) + 未分类(最后)
+            var target = new List<Agent>(slots.Count);
+            AddRoleList(target, _shields);
+            AddRoleList(target, _spears);
+            AddRoleList(target, _archers);
+            for (int i = 0; i < n; i++)
+                if (!target.Contains(_agents[i])) target.Add(_agents[i]);
+            if (target.Count != slots.Count)
+            {
+                BSLog.Warn("[船上] 重排目标与站位数量不一致（" + target.Count + " != " + slots.Count + "），跳过");
+                return;
+            }
+
+            // 已满足（前 shield 格全是盾）→ 不折腾
+            bool alreadyOk = true;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                bool isShield = IsShield(slots[i]);
+                bool shouldBeShield = i < _shields.Count;
+                if (isShield != shouldBeShield) { alreadyOk = false; break; }
+            }
+            if (alreadyOk)
+            {
+                BSLog.Info("[船上] 甲板已是 盾前/矛中/弓后，跳过重排（count=" + slots.Count + "）");
+                return;
+            }
+
+            var snap = new NavPos[slots.Count];
+            for (int i = 0; i < slots.Count; i++) snap[i] = slots[i].navPos;
+            int moved = 0;
+            for (int i = 0; i < target.Count; i++)
+            {
+                var mover = target[i];
+                if (ReferenceEquals(mover, slots[i])) continue;
+                try
+                {
+                    if (!snap[i].valid) continue;
+                    mover.navPos = snap[i];
+                    mover.transform.position = snap[i].wPos;
+                    moved++;
+                }
+                catch (Exception e) { BSLog.Warn("[船上] 甲板换位异常: " + e.Message); }
+            }
+            BSLog.Info("[船上] 甲板重排 盾" + _shields.Count + "/矛" + _spears.Count + "/弓" + _archers.Count +
+                " 前→后，移动 " + moved + " 格（front=" + front.ToString("F2") + "）");
+        }
+        static void AddRoleList(List<Agent> target, List<Agent> roleList)
+        {
+            for (int i = 0; i < roleList.Count; i++)
+                if (roleList[i] != null && !target.Contains(roleList[i])) target.Add(roleList[i]);
+        }
+
+        static bool IsShield(Agent a)
+        {
+            var role = a != null ? a.GetComponent<MixedRole>() : null;
+            return role != null && role.role == MixedRoleType.Shield;
+        }
+
         void LateUpdate()
         {
             if (_ship == null) return;
             RemoveDead();
             if (_agents.Count == 0) return;
 
-            // 登岛(onMain)后才列阵——在船上时让 Pirate 正常下船
+            // 登岛(onMain)后才列阵；船上阶段走 OnShipUpdate（盾前挡箭 + 甲板重排），Pirate 下船不受干扰
             bool onMain = false;
             for (int i = 0; i < _agents.Count; i++)
             {
                 var a = _agents[i];
                 if (a.navPos.valid && a.navPos.onMain) { onMain = true; break; }
             }
-            if (!onMain) return;
+            if (!onMain)
+            {
+                if (ModConfig.EnableShipShieldFront != null && ModConfig.EnableShipShieldFront.Value)
+                    OnShipUpdate();
+                return;
+            }
 
             UpdateAnchorAndFacing();
             _engaged = HasEnemiesNear(EngageRange);
@@ -158,9 +323,25 @@ namespace BadNorthMixedSquad1_0
         void EngageUpdate()
         {
             UpdateArcherFocus();   // 交战中选集火目标（低血量敌人）→ 同船弓手点射
-            // 盾兵保持前排钉位（稳住阵脚、原地近战）；弓手钉后列（后排射击不贴脸）；矛放开冲锋/刺击
+            // 盾兵保持前排钉位（稳住阵脚、原地近战）；弓手钉后列（后排射击不贴脸）；
+            // 矛兵自由冲锋（非波次模式），一旦非冲阵（回撤/冷却/待机）就钉回盾后中列 → 回马枪
             for (int i = 0; i < _shields.Count; i++) MoveToSlot(_shields[i], 0, _shields.Count, i, true);
             for (int i = 0; i < _archers.Count; i++) MoveToSlot(_archers[i], 2, _archers.Count, i, true);
+            PinSpearsWhenIdle();
+        }
+
+        /// <summary>把非冲阵中（未在 起手/冲刺/回撤）的矛兵钉回盾后中列：冲锋一结束立即回阵，
+        /// 保证"返回后剑盾兵在前、长矛兵在后"对单位发起进攻。</summary>
+        void PinSpearsWhenIdle()
+        {
+            for (int i = 0; i < _spears.Count; i++)
+            {
+                var sp = _spears[i];
+                if (sp == null) continue;
+                var ch = sp.GetComponent<SpearChargeComponent>();
+                if (ch == null || !ch.IsChargeBusy())
+                    MoveToSlot(sp, 1, _spears.Count, i, true);
+            }
         }
 
         /// <summary>M4 顺序联动：盾线接敌 → 弓手压制 → 敌逼近盾线 → 同船矛兵错峰冲阵 → 重整回盾后。</summary>
@@ -212,11 +393,10 @@ namespace BadNorthMixedSquad1_0
                 if (_reformTimer <= 0f) _battlePhase = BattlePhase.ShieldBrace;   // 重整完回接敌
             }
 
-            // 站位：盾顶线、弓后列始终；矛只在冲阵期间放开，其余相位钉中列待命
+            // 站位：盾顶线、弓后列始终；矛只在冲阵期间（起手/冲刺/回撤=busy）放开，其余时刻钉回盾后中列（回马枪）
             for (int i = 0; i < _shields.Count; i++) MoveToSlot(_shields[i], 0, _shields.Count, i, true);
             for (int i = 0; i < _archers.Count; i++) MoveToSlot(_archers[i], 2, _archers.Count, i, true);
-            if (_battlePhase != BattlePhase.ChargeWave)
-                for (int i = 0; i < _spears.Count; i++) MoveToSlot(_spears[i], 1, _spears.Count, i, true);
+            PinSpearsWhenIdle();
         }
 
         /// <summary>最近敌人到阵型锚点（≈盾线）的距离。无 → float.MaxValue。</summary>

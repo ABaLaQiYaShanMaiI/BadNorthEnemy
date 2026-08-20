@@ -134,7 +134,7 @@ namespace BadNorthMixedSquad1_0
                 BSLog.Info($"[配置] Source={ModConfig.SourceVikingName.Value} New={ModConfig.NewVikingName.Value} Bounty={ModConfig.Bounty.Value} " +
                     $"SpawnChance={ModConfig.SpawnChance.Value} ForceFirstWave={ModConfig.ForceFirstWave.Value} " +
                     $"盾:{ModConfig.MixedShieldPer9.Value} 矛:{ModConfig.MixedSpearPer9.Value} 弓:{ModConfig.MixedArcherPer9.Value} " +
-                    $"EnableFormation={ModConfig.EnableFormation.Value} " +
+                    $"EnableFormation={ModConfig.EnableFormation.Value} 船前盾={ModConfig.EnableShipShieldFront.Value} " +
                     $"弓集火={ModConfig.EnableArcherFocus.Value} 追踪={ModConfig.ArrowTrackingStrength.Value}");
             }
             catch (Exception e)
@@ -268,7 +268,7 @@ namespace BadNorthMixedSquad1_0
             }, ref _patchPirate);
         }
 
-        /// <summary>Pirate.ApplyOrder 前缀：混编阵型单位登岛后 → 跳过（否则每帧 walkDir+=orderDir 把单位拉向建筑）。
+        /// <summary>Pirate.ApplyOrder 前缀：混编单位登岛后 → 跳过建筑指令（阵型纪律：盾/矛/弓优先接敌打人、不冲房区）。
         /// 船上/未登岛不拦（让 Pirate 正常下船）。</summary>
         static bool PirateApplyOrderPrefix(Pirate __instance)
         {
@@ -276,8 +276,16 @@ namespace BadNorthMixedSquad1_0
             {
                 if (__instance == null) return true;
                 Agent agent = __instance.agent;
-                if (agent != null && agent.navPos.valid && agent.navPos.onMain && TacticalFormation.InFormation(agent))
-                    return false;   // 阵型接管移动
+                if (agent != null && agent.navPos.valid && agent.navPos.onMain)
+                {
+                    if (TacticalFormation.InFormation(agent)) return false;   // 阵型接管移动
+                    // 兜底：EnableFormation 下即便阵型角色列表暂未同步，带 MixedRole 标记的混编单位也压制建筑指令
+                    if (ModConfig.EnableFormation != null && ModConfig.EnableFormation.Value)
+                    {
+                        var role = agent.GetComponent<MixedRole>();
+                        if (role != null) return false;
+                    }
+                }
             }
             catch { }
             return true;
@@ -346,6 +354,17 @@ namespace BadNorthMixedSquad1_0
                 int shield = Mathf.RoundToInt(count * (float)nShield / ratioSum);
                 int spear = Mathf.RoundToInt(count * (float)nSpear / ratioSum);
                 int archer = count - shield - spear;
+                // 随人数提升：配置的三兵种比例都 >0 时保底每兵种至少 1（count≥3 盾/矛/弓都上场），
+                // 不足的从"多出来"的角色匀出（循环直到可分配；比例含 0 的角色不硬凑）
+                if (count >= 3 && nShield > 0 && nSpear > 0 && nArcher > 0)
+                {
+                    while (shield < 1 || spear < 1 || archer < 1)
+                    {
+                        if (shield < 1) { shield++; if (archer > 1) archer--; else if (spear > 1) spear--; else break; }
+                        else if (spear < 1) { spear++; if (archer > 1) archer--; else if (shield > 1) shield--; else break; }
+                        else if (archer < 1) { archer++; if (spear > 1) spear--; else if (shield > 1) shield--; else break; }
+                    }
+                }
                 for (int i = 0; i < shield; i++) _roleQueue.Add(MixedRoleType.Shield);
                 for (int i = 0; i < spear; i++) _roleQueue.Add(MixedRoleType.Spear);
                 for (int i = 0; i < archer; i++) _roleQueue.Add(MixedRoleType.Archer);

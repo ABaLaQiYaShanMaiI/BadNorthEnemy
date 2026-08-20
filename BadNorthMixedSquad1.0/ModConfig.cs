@@ -19,6 +19,8 @@ namespace BadNorthMixedSquad1_0
         public static ConfigEntry<int> MixedArcherPer9;
         // M2 战术分层站位开关
         public static ConfigEntry<bool> EnableFormation;
+        // 船上盾前挡箭（M5）：敌舰接近时重排甲板 盾前/矛中/弓后 + 面朝敌岛
+        public static ConfigEntry<bool> EnableShipShieldFront;
         // ============ Formation（M4 顺序联动：盾→弓→矛）============
         public static ConfigEntry<bool> EnableWaveCharge;
         public static ConfigEntry<float> ChargeTriggerDist;
@@ -170,6 +172,9 @@ namespace BadNorthMixedSquad1_0
 
         static void BindFormation(ConfigFile cfg)
         {
+            EnableShipShieldFront = cfg.Bind("Formation", "EnableShipShieldFront", true,
+                "船上盾前挡箭：敌舰接近时把同船混编单位按 盾前/矛中/弓后 重排甲板站位，并统一面朝敌岛（盾牌挡箭）。\\n" +
+                "false=船上保持原版排列（登岛后阵型照常）。");
             EnableWaveCharge = cfg.Bind("Formation", "EnableWaveCharge", true,
                 "盾→弓→矛顺序联动：盾线接敌后弓手压制，敌逼近盾线时同船矛兵错峰冲阵。false=矛兵自由冲锋（旧行为）。");
             ChargeTriggerDist = cfg.Bind("Formation", "ChargeTriggerDist", 5f,

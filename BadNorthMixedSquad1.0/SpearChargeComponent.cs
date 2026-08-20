@@ -15,6 +15,7 @@ namespace BadNorthMixedSquad1_0
     {
         const float DetectionRadius = 6.0f;   // 扫描兜底探测范围（优先取 Swordsman 大脑目标）
         const float ChargeSpeed = 5.0f;       // 冲刺速度 5m/s（更快更冲，冲击感）
+        const float RetreatSpeed = 6f;        // 回马枪：返回速度（比冲锋稍快，突刺后快速退回盾后阵线）
         const float ChargeOvershoot = 2.0f;   // 穿透余量：冲过锁定格 2.0m（1.5→2.0，穿透敌阵、冲击阵营更强）
         const float CooldownTime = 10f;       // 冷却（2026-08-15 用户指定：延长到 10s，冲锋更稀有、更像"技能"）
         const float WindUpDuration = 0.5f;    // 起手
@@ -178,6 +179,13 @@ namespace BadNorthMixedSquad1_0
         public string PhaseLabel
         {
             get { return _phase.ToString(); }
+        }
+
+        /// <summary>是否正在冲阵（起手/冲刺/回撤中）。阵型据此决定是否把矛兵钉回盾后中列：
+        /// 非 busy（含 冷却/待机）就拉回盾后 → 回马枪的"返回后长矛在后发起进攻"。</summary>
+        public bool IsChargeBusy()
+        {
+            return _phase == Phase.WindUp || _phase == Phase.Charging || _phase == Phase.Retreat;
         }
 
         bool IBrainAction.MaybeAct(Brain brain)
@@ -534,8 +542,10 @@ namespace BadNorthMixedSquad1_0
         bool TryTriggerCharge(bool log)
         {
             if (_phase != Phase.Idle) return false;
-            // M4 顺序联动门控：混编阵型中的矛兵，未收到"冲阵号令" → 待命（盾→弓→矛的顺序，禁止自由乱冲）
-            if (TacticalFormation.InFormation(_agent) && !_ordered)
+            // M4 顺序联动门控：冲阵号令模式（EnableWaveCharge=true）下，混编阵型中的矛兵未收到"冲阵号令" → 待命；
+            // 自由模式（false）则矛兵自由冲锋——回马枪（突刺→快速回盾后）仍由阵型钉位兜底
+            bool waveMode = ModConfig.EnableWaveCharge != null && ModConfig.EnableWaveCharge.Value;
+            if (waveMode && TacticalFormation.InFormation(_agent) && !_ordered)
             {
                 if (log) Log("触发拦截: 阵型待命（盾线接敌/弓手压制中，等冲阵号令）");
                 return false;
@@ -815,7 +825,8 @@ namespace BadNorthMixedSquad1_0
             }
             catch { }
             _retreatEndPos = retreatTarget;
-            BSLog.Info("[Charge] 开始后退 目标=" + _retreatEndPos.ToString("F2") + " 命中=" + _hitCount);
+            BSLog.Info("[回马枪] 突刺结束→快速回撤盾后 目标=" + _retreatEndPos.ToString("F2") +
+                " 命中=" + _hitCount + "（返回段无伤害）");
         }
 
         void DoRetreat()
@@ -829,8 +840,8 @@ namespace BadNorthMixedSquad1_0
             float dist = to.magnitude;
             if (dist < 0.15f) { EndCharge(); return; }          // 已回退到位，抬枪迎击
 
-            // 以冲刺速度（ChargeSpeed）后退，贴着 navmesh 移动
-            Vector3 step = to.normalized * (ChargeSpeed * Time.deltaTime);
+            // 回马枪：以快于冲锋的速度（RetreatSpeed）快速退回盾后阵位，贴着 navmesh 移动；返回段不结算伤害
+            Vector3 step = to.normalized * (RetreatSpeed * Time.deltaTime);
             if (step.magnitude > dist) step = to;
             NavPos np = _agent.navPos;
             if (np.valid)
