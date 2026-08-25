@@ -39,6 +39,16 @@ namespace BadNorthMixedSquad1_0
         // ⚠️ 以上技能数值（速度/距离/冷却/伤害/半径等）有意保留为代码常量，未进 cfg（ModConfig）——
         //    技能表现是定稿的一部分，改 cfg 容易破坏手感；若确需暴露再迁到 ModConfig。
 
+        // ===== 优化（2026-08-25，对照原版 PikeCharge / VikingSpearBrain 的丝滑化 + 致命化）=====
+        const float TriggerScanInterval = 0.1f;   // 触发扫描节拍（原 0.25s → 0.1s）：技能响应更快、指令更跟手
+        const float ChargeRampTime = 0.12f;       // 冲锋加速时间：发射后 0→满速 SmoothStep 升速（消除"静止→瞬移跳"）
+        const float ChargeConvergeFactor = 0.25f; // LateUpdate 位移收敛系数：transform 向 navPos 每帧拉近的比例
+        const float ChargeConvergeEps = 0.03f;    // 偏差阈值：transform 与 navPos 差 < 此值不插值（让 Body 自己追赶）
+        // 阵型架矛（盾后刺击）：混编阵型中列矛兵的"矛长 + 额外延伸"，让矛尖越过盾线稳定戳中接敌前排。
+        // 同时作用于：Swordsman.range（攻击距离，Plugin 读取）、TestHit（命中距离）、矛刺视觉（刺出距离）。
+        public const float FormationLanceReach = 0.35f;
+        const float FormationThrustDistance = 0.70f;   // 阵型架矛刺出距离（0.45→0.70：矛尖越过盾线）
+
         enum Phase { Idle, WindUp, Charging, Retreat, Cooldown }
 
         Phase _phase = Phase.Idle;
@@ -53,6 +63,9 @@ namespace BadNorthMixedSquad1_0
         readonly Collider[] _hitBuffer = new Collider[16];
         static readonly List<House> _houseCache = new List<House>();   // 建筑缓存：残骸遮挡兜底（遍历 House.bounds）
         static float _houseCacheTime = -999f;
+        // 静态注册表：替换 Resources.FindObjectsOfTypeAll<SpearChargeComponent>()（Unity Mono 上每次都是全场景遍历，
+        // 含未生成的模板/prefab 副本，是技能触发扫描的卡顿源）。OnEnable/OnDisable 维护，只含已生成的存活实例。
+        static readonly List<SpearChargeComponent> _registry = new List<SpearChargeComponent>();
         float _lastLogTime = -999f;
         AgentState _chargeState;
         Transform _spearTransform;
@@ -61,6 +74,8 @@ namespace BadNorthMixedSquad1_0
         Vector3 _chargeStartPos;
         float _posLogTimer;
         float _actScanTimer;
+        float _chargeElapsed;          // 冲锋已推进时长（s，加速曲线用）
+        float _chargeProgress;         // 冲锋已推进距离（m，沿 _chargeStartPos→_chargeDirection）
         // 冲锋/后退渲染同步缓冲——DoCharging/DoRetreat 每帧写入的 navPos 快照，
         // LateUpdate 里重新断言并硬同步 transform（防大脑/导航在 Update 后被改写造成"橡皮筋"回弹）。
         bool _renderSnapPending;
@@ -113,6 +128,16 @@ namespace BadNorthMixedSquad1_0
         {
             float t;
             return a != null && _meleeAttackStart.TryGetValue(a, out t) && Time.time - t >= MeleeAttackDuration;
+        }
+
+        void OnEnable()
+        {
+            if (!_registry.Contains(this)) _registry.Add(this);
+        }
+
+        void OnDisable()
+        {
+            _registry.Remove(this);
         }
 
         public void Setup(Agent agent)
@@ -215,14 +240,15 @@ namespace BadNorthMixedSquad1_0
 
             UpdateMeleeThrust();   // 近战刺击表现：Swordsman 攻击时长矛前刺（视觉"刺"）
 
-            // 独立触发检测（不依赖 Swordsman 状态机）：每 0.25s 自己扫描一次，
+            // 独立触发检测（不依赖 Swordsman 状态机）：每 TriggerScanInterval 自己扫描一次，
             // Idle 状态下满足条件就启动冲锋（TryTriggerCharge 内部 _phase 守卫保证不重复）。
+            // 0.1s 节拍（原 0.25s）：配合静态注册表（无 FindObjectsOfTypeAll 卡顿）让技能指令更跟手。
             _actScanTimer -= Time.deltaTime;
             if (_phase == Phase.Idle && _actScanTimer <= 0f)
             {
-                _actScanTimer = 0.25f;
+                _actScanTimer = TriggerScanInterval;
                 // 每 12s 用 log=true 打一次"拦截原因"诊断（定位冲锋为何不触发；_diagTimer 在下行重置为 12f）
-                _diagTimer -= 0.25f;
+                _diagTimer -= TriggerScanInterval;
                 TryTriggerCharge(_diagTimer <= 0f);
                 if (_diagTimer <= 0f) _diagTimer = 12f;   // 触发拦截诊断降频（登岛前大量"未登主岛"刷屏）
             }
@@ -328,7 +354,11 @@ namespace BadNorthMixedSquad1_0
                 // 刺击开始瞬间先把身体朝向 snap 到突刺方向（SetDirection 是瞬时旋转），
                 // 再在"已对准"的本地系里锁定突刺位移 —— 两处同帧一致，整段刺击不再抖动。
                 try { _agent.SetDirection(_thrustDirWorld); } catch { }
-                _thrustOffsetLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld) * ThrustDistance;
+                // 阵型架矛：混编阵型中列矛兵刺出距离加长（0.45→0.70m），矛尖越过盾线（命中距离由 TestHit 同步延伸）
+                float thrustDist = ThrustDistance;
+                if (_phase == Phase.Idle && TacticalFormation.InFormation(_agent))
+                    thrustDist = FormationThrustDistance;
+                _thrustOffsetLocal = _agent.transform.InverseTransformDirection(_thrustDirWorld) * thrustDist;
 
                 // 稳定刺击朝向：虚拟 right = cross(up, dir) 恒 ⊥ dir 永不退化（避免侧向目标时
                 // LookRotation(dir, agent.right) roll 翻转 180°）；正对目标时 ≡ 旧式。⚠️ 符号别写反（cross(dir,up)=−right）。
@@ -432,12 +462,15 @@ namespace BadNorthMixedSquad1_0
             return hitAny;
         }
 
-        /// <summary>对齐 Spear.TestHit：敌人 chest 转矛本地坐标并归一化，落单位球内即命中。</summary>
+        /// <summary>对齐 Spear.TestHit：敌人 chest 转矛本地坐标并归一化，落单位球内即命中。
+        /// 阵型架矛（盾后刺击）：混编阵型中的矛兵有效矛身长度 +FormationLanceReach，命中覆盖盾线前排敌人。</summary>
         bool TestHit(Vector3 enemyPos)
         {
             if (_spearTransform == null) return false;
             Vector3 v = _spearTransform.InverseTransformPoint(enemyPos);
             float d = SpearLength;          // 0.6m
+            if (_agent != null && TacticalFormation.InFormation(_agent))
+                d += FormationLanceReach;   // 阵型架矛：矛身有效长度延伸（与 Swordsman.range 加成一致）
             v /= d;
             v.z -= 0.5f;
             v.x *= 2f;
@@ -567,15 +600,33 @@ namespace BadNorthMixedSquad1_0
             // 触发逻辑借鉴原版 Twohanded(JumpAttack)：优先取 Swordsman 大脑已锁定的目标
             // （大脑的追击/狩猎目标），而不是独立扫描 —— 技能跟着大脑的战术走，修复"走路到阵前不冲锋"。
             // 只有大脑没有目标时才退回 6m 扫描兜底。
-            Agent nearest = GetBrainTarget();
-            Vector3 dir;
+            // 阵型冲阵号令（waveMode && _ordered）：优先选正前方锥形区内**最远**敌人（贯穿整条敌阵，
+            // 途经前排盾兵（能量×0.8 递减、盾牌背向不格挡）→ 终点爆发打到后排弓手/脆皮 = 更致命）。
+            bool formationCharge = waveMode && _ordered && TacticalFormation.InFormation(_agent);
+            Agent nearest = null;
+            Vector3 dir = Vector3.zero;
+            if (formationCharge)
+            {
+                Agent deep; Vector3 deepDir;
+                if (FindDeepestEnemyInCone(out deepDir, out deep, log) && deep != null)
+                {
+                    nearest = deep;
+                    dir = deepDir;
+                }
+            }
+            if (nearest == null) nearest = GetBrainTarget();
             if (nearest != null)
             {
-                // 路径判定：朝大脑目标的导航格（Twohanded 的 landPos = target.navPos，用 navPos 精确位置而非 transform）
-                dir = nearest.navPos.wPos - _agent.navPos.wPos;
-                dir.y = 0f;
-                // 协同防重也作用于大脑目标：若该目标已被其他黑矛兵锁定（WindUp/Charging 中），
-                // 换扫描目标分散攻击；扫描也全是锁定目标时（软降级）才回到大脑目标。
+                if (!formationCharge || dir.sqrMagnitude < 0.0001f)
+                {
+                    // 路径判定：朝大脑目标的导航格（Twohanded 的 landPos = target.navPos，用 navPos 精确位置而非 transform）。
+                    // 阵型穿透目标已给出 dir 时跳过（dir 由 FindDeepestEnemyInCone 提供）；
+                    // 锥形区选目标失败回退到大脑目标时 dir 仍为零 → 补算，避免零方向"幽灵冲锋"。
+                    dir = nearest.navPos.wPos - _agent.navPos.wPos;
+                    dir.y = 0f;
+                }
+                // 协同防重也作用于大脑/阵型目标：若该目标已被其他黑矛兵锁定（WindUp/Charging 中），
+                // 换扫描目标分散攻击；扫描也全是锁定目标时（软降级）才回到原目标。
                 if (IsLockedByOthers(nearest))
                 {
                     Agent alt = null; Vector3 altDir;
@@ -585,7 +636,9 @@ namespace BadNorthMixedSquad1_0
                         nearest = alt; dir = altDir;
                     }
                 }
-                if (dir.sqrMagnitude < 0.36f)   // 目标已贴脸（<0.6m）→ 无冲刺距离，交给普通攻击
+                if (dir.sqrMagnitude < 0.36f)   // 目标已贴脸（<0.6m）→ 无冲刺距离，交给普通攻击（阵型架矛/近战刺击兜底）。
+                    // 阵型穿透目标（FindDeepestEnemyInCone）的 dir 已归一化（=1）不受此守卫影响；
+                    // 此守卫主要拦"锥形区选目标失败→回退大脑目标"时的贴脸情况（避免零方向幽灵冲锋）。
                 {
                     if (log) Log("触发拦截: 目标已贴脸(" + dir.magnitude.ToString("F2") + "m)，不冲锋");
                     return false;
@@ -624,15 +677,14 @@ namespace BadNorthMixedSquad1_0
             return true;
         }
 
-        /// <summary>协同防重：是否有其他黑矛兵正在 WindUp/Charging 且已锁定该目标。</summary>
+        /// <summary>协同防重：是否有其他黑矛兵正在 WindUp/Charging 且已锁定该目标。静态注册表查询（无 FindObjectsOfTypeAll）。</summary>
         bool IsLockedByOthers(Agent target)
         {
             if (target == null) return false;
-            var all = Resources.FindObjectsOfTypeAll<SpearChargeComponent>();
-            for (int i = 0; i < all.Length; i++)
+            for (int i = 0; i < _registry.Count; i++)
             {
-                var o = all[i];
-                if (o == null || o == this) continue;
+                var o = _registry[i];
+                if (o == null || o == this || o._agent == null) continue;   // _agent 为空 = 未 Setup（模板副本），跳过
                 if ((o._phase == Phase.WindUp || o._phase == Phase.Charging) && o._targetAgent == target)
                     return true;
             }
@@ -681,21 +733,43 @@ namespace BadNorthMixedSquad1_0
 
         void DoWindUp()
         {
-            _agent.LookInDirection(_chargeDirection, 720f, 10f);
+            // 起手转向提速 720→1080°/s：前摇内快速把身体转向冲锋方向，技能释放更果断（不再"转圈"占掉前摇）
+            _agent.LookInDirection(_chargeDirection, 1080f, 10f);
             _phaseTimer -= Time.deltaTime;
             if (_phaseTimer <= 0f)
             {
                 _phase = Phase.Charging;
-                _chargeStartPos = _agent.navPos.wPos;   // 用 navPos 精确位置（transform 可能因动画滞后）
+                // 发射起点对齐**视觉位置**（transform）：navPos 因动画追赶可领先 transform ≤1m，
+                // 若用 navPos 当起点，第一帧位移会把模型从落后处"瞬移"到 navPos = 起手跳。
+                // 先同步 navPos 到视觉位，让导航与渲染从同一点出发，再按锁定方向推进。
+                Vector3 start = _agent.transform.position;
+                start.y = 0f;
+                NavPos np0 = _agent.navPos;
+                if (np0.valid)
+                    _agent.navPos = new NavPos(np0.navigationMesh, start, true, 1f);   // 原版同款回退
+                _chargeStartPos = start;
                 _hitCount = 0;
                 _energy = 1f;
                 _hitAgents.Clear();   // 新一回合：重置能量与命中去重
+                _chargeElapsed = 0f;
+                _chargeProgress = 0f;
                 // 锁定目标：向目标"被定位时"的单元格（navPos.wPos）冲刺，冲刺全程不追踪。
                 // 我方单位横向位移躲闪 → 冲到锁定格落空 → 技能前半段同样算用掉 → 后退迎击。
                 if (_targetAgent != null && _targetAgent.aliveState != null && _targetAgent.aliveState.active)
                     _chargeTargetPos = _targetAgent.navPos.wPos;
                 else
                     _chargeTargetPos = _chargeStartPos + _chargeDirection * 3f;   // 目标已消失则冲一段
+                // 发射瞬间重锁方向（仍是非追踪：只在发射时刻锁线，冲刺全程不追踪）——
+                // 0.5s 前摇内目标可能位移，用最新相对位置重锁，让矛线对准目标当前身位（丝滑）
+                Vector3 rel = _chargeTargetPos - _chargeStartPos;
+                rel.y = 0f;
+                if (rel.sqrMagnitude > 0.0001f)
+                {
+                    _chargeDirection = rel.normalized;
+                    // 重锁后同步举矛朝向（矛已举起，这里做最后对准，避免冲锋线与人/矛朝向不一致）
+                    if (SpearVisual.TryGetAimRotation(_agent, _chargeStartPos + _chargeDirection * SpearLength, out _spearTargetRot))
+                        _hasSpearTarget = true;
+                }
                 // 冲锋距离 = 到锁定格 + 矛长 + 穿透余量(1.5m)：穿透敌阵、冲击阵营，命中也冲完整段
                 _chargeDistance = Mathf.Max(0.5f, Vector3.Distance(_chargeStartPos, _chargeTargetPos) + SpearLength + ChargeOvershoot);
                 // 终点夹回：名义终点可能超出主岛可走网格（目标背靠海/悬崖/建筑时，矛长+穿透余量
@@ -710,7 +784,7 @@ namespace BadNorthMixedSquad1_0
                     _chargeDistance = Mathf.Max(0.5f, walkableEnd);
                 }
                 _chargeDuration = _chargeDistance / ChargeSpeed;
-                _phaseTimer = _chargeDuration;
+                _phaseTimer = _chargeDuration + ChargeRampTime;   // 加速曲线占用的时间一并计入总时长
                 _posLogTimer = 0f;
                 BSLog.Info("[Charge] 冲锋起点 pos=" + _chargeStartPos.ToString("F2") +
                     " 锁定目标格=" + _chargeTargetPos.ToString("F2") + " dir=" + _chargeDirection.ToString("F2") +
@@ -728,11 +802,12 @@ namespace BadNorthMixedSquad1_0
             // 每帧让长矛对准目标（矛尖朝敌人 chest）
             PointSpearAtTarget();
 
-            // 位移推进：固定锁定距离（不追踪），速度恒为 ChargeSpeed
-            float dur = Mathf.Max(0.0001f, _chargeDistance / ChargeSpeed);
-            float elapsed = Mathf.Max(0f, _chargeDuration - _phaseTimer);
-            float t = Mathf.Clamp01(elapsed / dur);   // 0→1
-            Vector3 target = _chargeStartPos + _chargeDirection * (_chargeDistance * t);
+            // 位移推进：固定锁定距离（不追踪），速度沿加速曲线 0→ChargeSpeed（SmoothStep 0.12s）。
+            // 旧版 t=elapsed/duration 线性满速起步 → 静止瞬间冲满速 = "起手瞬移跳"；加速曲线让起跑有爆发感且不跳变。
+            _chargeElapsed += Time.deltaTime;
+            float speedFactor = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_chargeElapsed / ChargeRampTime));
+            _chargeProgress = Mathf.Min(_chargeDistance, _chargeProgress + ChargeSpeed * speedFactor * Time.deltaTime);
+            Vector3 target = _chargeStartPos + _chargeDirection * _chargeProgress;
 
             // 冲锋被阻拦：当前直线点若已落在不可通过地形（NavPos.MoveTo 判定不可达/不在主岛），
             // 立即停止冲锋进入冷却；越过锁定目标格（含建筑余量）之后被房屋/残骸占据同样被阻拦——
@@ -755,13 +830,12 @@ namespace BadNorthMixedSquad1_0
                 if (!np.MoveTo(local))
                     np = new NavPos(np.navigationMesh, target, true, 1f);   // 原版同款回退
                 _agent.navPos = np;
-                // 记录本帧 navPos 快照，LateUpdate 重新断言 + 硬同步 transform（防大脑改写）
+                // 记录本帧 navPos 快照，LateUpdate 重新断言 + 平滑逼近（防大脑改写 / 起手跳 / 橡皮筋回弹）
                 _renderSnapPending = true;
                 _renderSnapPos = target;
                 _renderSnapNav = np;
-                // ⚠️ 历史注释（已过时）：曾写"不做 transform 硬同步"。现已改为在 LateUpdate
-                // 重新断言快照并硬同步 transform（见 LateUpdate）：Body.stepping 跑步动画照常播放，
-                // 只保证最终渲染位置与导航一致（防大脑/导航在 Update 后被改写造成"橡皮筋"回弹）。
+                // ⚠️ 历史注释（已过时）：曾每帧硬同步 transform（teleport）。现已改为 LateUpdate 按
+                // ChargeSpeed×dt 平滑逼近（MoveTowards）——Body.stepping 跑步动画照常播放，视觉连贯无瞬移。
             }
 
             // 每 1.5s 记录位置 + 长矛旋转 + Body 状态 + 动画参数 + navPos 滞后量（降频：渲染已由 LateUpdate 硬同步）
@@ -802,8 +876,8 @@ namespace BadNorthMixedSquad1_0
             // 命中带撞飞（launchImpulse）：敌人沿冲锋方向被弹起/撞下海。
             DealChargeDamage();
 
-            // 冲到锁定格+余量（或时间到）→ 后退迎击（技能算用掉）
-            if (_phaseTimer <= 0f) { StartRetreat(); return; }
+            // 冲到锁定格+余量（或时间到/加速段走完距离）→ 后退迎击（技能算用掉）
+            if (_phaseTimer <= 0f || _chargeProgress >= _chargeDistance) { StartRetreat(); return; }
         }
 
         /// <summary>冲刺结束（命中或落空）：以冲刺速度回退小段距离，稳住阵脚，举矛迎击。</summary>
@@ -891,11 +965,11 @@ namespace BadNorthMixedSquad1_0
 
         void LateUpdate()
         {
-            // Body.stepping 是"追赶式"插值——navPos 以冲锋速度(5m/s)推进时
-            // transform 落后 navPos 实测可达 1.36m（日志 lag=），观感=橡皮筋。渲染帧末尾把身体硬同步到 navPos：
-            // Body 底层 stepping 动画照常播放（跑步/踏步），只保证最终渲染位置与导航一致；近战刺击同理
-            // （攻击期间 walkDir 已被 AttackUpdate 前缀冻结，navPos 停住，同步后身体站桩、矛直线前刺）。
-            // 冲锋/后退用 DoCharging/DoRetreat 写入的快照重新断言 navPos——防大脑/导航在 Update 后被改写回弹。
+            // Body.stepping 是"追赶式"插值——navPos 以冲锋速度(5m/s)推进时 transform 可能滞后。
+            // 渲染帧末尾重新断言 navPos 快照（防大脑/导航在 Update 后被改写回弹），并让 transform
+            // 以"≤最高移动速度×dt"平滑逼近目标点（非 teleport）：偏差小让 Body 自己追赶、偏差大按比例拉近，
+            // 避免旧版每帧硬同步 `transform.position = navPos` 与 Body 插值打架造成的视觉抽动/起手跳。
+            // 近战刺击同理（攻击期间 walkDir 已被 AttackUpdate 前缀冻结，navPos 停住，身体站桩、矛直线前刺）。
             if (_agent != null && _agent.aliveState != null && _agent.aliveState.active)
             {
                 bool chargeMove = _phase == Phase.Charging || _phase == Phase.Retreat;
@@ -904,8 +978,18 @@ namespace BadNorthMixedSquad1_0
                 {
                     if (_renderSnapPending && _renderSnapNav.valid)
                     {
-                        _agent.navPos = _renderSnapNav;             // 重新断言（防被改写）
-                        _agent.transform.position = _renderSnapPos; // 渲染与冲锋线对齐
+                        _agent.navPos = _renderSnapNav;   // 重新断言（防大脑改写回弹）
+                        // 位移平滑逼近（非 teleport）：transform 以 ≤最高移动速度×dt 向目标点插值，
+                        // 偏差 < 阈值（ChargeConvergeEps）不动让 Body 自己追赶；偏差大按比例拉近。
+                        // 旧版每帧 `transform.position = _renderSnapPos` 与 Body 插值打架 = 视觉抽动/起手跳。
+                        Vector3 cur = _agent.transform.position;
+                        Vector3 dest = _renderSnapPos;
+                        float gap = Vector3.Distance(cur, dest);
+                        if (gap > ChargeConvergeEps)
+                        {
+                            float maxStep = Mathf.Max(ChargeSpeed, RetreatSpeed) * Time.deltaTime * 1.25f;
+                            _agent.transform.position = Vector3.MoveTowards(cur, dest, Mathf.Max(maxStep, gap * ChargeConvergeFactor));
+                        }
                     }
                 }
                 else if (meleeMove && _agent.navPos.valid)
@@ -1071,7 +1155,11 @@ namespace BadNorthMixedSquad1_0
         void UpdateCooldown()
         {
             _phaseTimer -= Time.deltaTime;
-            if (_phaseTimer <= 0f) { _phase = Phase.Idle; _ordered = false; _agent.maxSpeed = _originalSpeed; }
+            if (_phaseTimer <= 0f)
+            {
+                _phase = Phase.Idle; _ordered = false; _agent.maxSpeed = _originalSpeed;
+                _actScanTimer = 0f;   // 冷却结束下一帧立即重扫（技能响应丝滑，不再等下个 0.1s 节拍）
+            }
         }
 
         /// <summary>单位死亡/失效时中止技能状态机（释放 exclusives、恢复速度/movability），回到 Idle。</summary>
@@ -1125,12 +1213,13 @@ namespace BadNorthMixedSquad1_0
             // 协同防重（借鉴原版 JumpAttack 的同伴检查 + 软降级）：
             // 统计其他黑矛兵正在"准备/冲锋"阶段锁定的目标。优先选未被锁定的；
             // 若全部被锁则软降级——选"锁定者最少"的目标（避免协同防重把所有目标锁光 → 没人冲锋）。
+            // 静态注册表查询（原 FindObjectsOfTypeAll 每次全场景遍历，替换为 OnEnable/OnDisable 维护的列表）。
+            int registryCount = _registry.Count;
             var lockCount = new Dictionary<Agent, int>();
-            var allCharges = Resources.FindObjectsOfTypeAll<SpearChargeComponent>();
-            for (int i = 0; i < allCharges.Length; i++)
+            for (int i = 0; i < registryCount; i++)
             {
-                var o = allCharges[i];
-                if (o == null || o == this) continue;
+                var o = _registry[i];
+                if (o == null || o == this || o._agent == null) continue;
                 if ((o._phase == Phase.WindUp || o._phase == Phase.Charging) && o._targetAgent != null)
                 {
                     int c;
@@ -1169,7 +1258,7 @@ namespace BadNorthMixedSquad1_0
             target = bestUnlocked != null ? bestUnlocked : bestOverlap;
             if (target == null)
             {
-                if (log) BSLog.Info("[Charge] FindNearestEnemy: 探测collider=" + n + " 其他黑矛兵=" + (allCharges.Length - 1) +
+                if (log) BSLog.Info("[Charge] FindNearestEnemy: 探测collider=" + n + " 其他黑矛兵=" + (registryCount - 1) +
                     " 已锁定目标=" + lockCount.Count + " → 无可用目标");
                 return false;
             }
@@ -1178,6 +1267,55 @@ namespace BadNorthMixedSquad1_0
                 (downgraded ? " (软降级: 目标已被其他黑矛兵锁定=" + bestOverlapLocks + ")" : ""));
             dir = (target.transform.position - _agent.transform.position).normalized;
             dir.y = 0f;
+            return true;
+        }
+
+        /// <summary>阵型穿透目标：正前方锥形区（±~33°）内**最远**的存活敌人——冲锋线贯穿整条敌阵，
+        /// 途经前排（盾牌背向不格挡）→ 终点爆发波及后排弓手/脆皮。只判地形通畅（建筑后保留：能冲出威慑距离）。
+        /// 无锥形区目标 → false（回退大脑目标/就近扫描）。</summary>
+        bool FindDeepestEnemyInCone(out Vector3 dir, out Agent target, bool log)
+        {
+            dir = Vector3.zero;
+            target = null;
+            if (_agent == null || !_agent.navPos.valid) return false;
+            // 锥形基准 = 阵型朝向（盾线面对方向）；拿不到则用自身朝向（阵型钉位已让矛朝敌）
+            Vector3 fwd;
+            Vector3? facing = TacticalFormation.GetFormationFacing(_agent);
+            if (facing.HasValue && facing.Value.sqrMagnitude > 0.001f)
+                fwd = facing.Value;
+            else
+            {
+                fwd = _agent.transform.forward; fwd.y = 0f;
+            }
+            if (fwd.sqrMagnitude < 0.001f) fwd = _agent.transform.forward;
+            fwd.Normalize();
+
+            int n = Physics.OverlapSphereNonAlloc(_agent.transform.position, DetectionRadius, _hitBuffer, ~0, QueryTriggerInteraction.Ignore);
+            Agent best = null; float bestDist = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                var c = _hitBuffer[i];
+                if (c == null) continue;
+                var a = c.GetComponentInParent<Agent>();
+                if (a == null || a == _agent || a.isViking) continue;
+                if (a.aliveState != null && !a.aliveState.active) continue;
+                if (!a.navPos.valid) continue;
+                if (!IsTerrainPathClear(_agent.navPos.wPos, a.navPos.wPos)) continue;
+                Vector3 to = a.transform.position - _agent.transform.position; to.y = 0f;
+                if (to.sqrMagnitude < 0.01f) continue;
+                to.Normalize();
+                if (Vector3.Dot(fwd, to) < 0.55f) continue;   // 正前方锥形区（≈±33°）
+                float dist = Vector3.Distance(_agent.transform.position, a.transform.position);
+                if (dist < 0.8f) continue;   // 太近（已贴脸）不选——让给普通刺击
+                if (dist > bestDist) { bestDist = dist; best = a; }   // 最远 = 贯穿到底
+            }
+            if (best == null) return false;
+            dir = (best.transform.position - _agent.transform.position);
+            dir.y = 0f;
+            dir.Normalize();
+            target = best;
+            if (log) BSLog.Info("[Charge] 阵型穿透目标=" + best.name + " 距离=" + bestDist.ToString("F2") +
+                "m（锥形区最远=贯穿敌阵，终点爆发打后排）");
             return true;
         }
 

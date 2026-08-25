@@ -344,6 +344,55 @@ namespace BadNorthMixedSquad1_0
             }
         }
 
+        /// <summary>盾后架矛：对中列每个非冲阵矛兵，若射程内有存活敌人就**直接启动长矛刺击**。
+        /// 与 Plugin.SwordsmanAttackPrefix 同链路（attack.SetActive + target + 音效 + MaybeParry +
+        /// NotifyMeleeAttackStart），AttackUpdate 前缀会接管刺击周期并自动连刺。
+        /// 保守守卫：aliveAndGrounded / 未在攻击 / 未冲阵 / 距离校验 / 非滑动（防眩晕僵硬期误触发）。</summary>
+        void CommandLanceStabs()
+        {
+            for (int i = 0; i < _spears.Count; i++)
+            {
+                var sp = _spears[i];
+                if (sp == null) continue;
+                var ch = sp.GetComponent<SpearChargeComponent>();
+                if (ch != null && ch.IsChargeBusy()) continue;   // 冲阵/起手/回撤中不架矛
+                var sw = sp.GetComponent<Swordsman>();
+                if (sw == null || sw.attack == null || sw.attack.active) continue;   // 已在刺击
+                if (Plugin.GetSwordsmanStamina(sw) < 0.45f) continue;   // 体力不足一次刺击（cost 0.5）→ 尊重原版攻速/恢复节奏
+                if (sp.aliveAndGrounded == null || !sp.aliveAndGrounded.active) continue;
+                if (sp.body != null && sp.body.sliding != null && sp.body.sliding.active) continue;   // 滑退/眩晕期不刺
+                if (sp.navPos == null || !sp.navPos.valid || !sp.navPos.onMain) continue;
+
+                Agent enemy = (sw.target != null && sw.target.aliveState != null && sw.target.aliveState.active)
+                    ? sw.target : sp.enemyAgent;
+                if (enemy == null || enemy.aliveState == null || !enemy.aliveState.active) continue;
+                if (enemy.navPos == null || !enemy.navPos.valid) continue;
+                // 距离校验：radius + targetRadius + range（range 已含阵型架矛加成 FormationLanceReach）
+                float num = sp.radius + enemy.radius + sw.range;
+                if ((enemy.navPos.pos - sp.navPos.pos).sqrMagnitude > num * num) continue;
+                try
+                {
+                    sw.attack.SetActive(true);
+                    sw.target = enemy;
+                    try { IslandGameplayManager.RequestCombatAudio(sw.swingSound, sp.gameObject); } catch { }
+                    var enemySw = enemy.brain as Swordsman;
+                    if (enemySw != null && enemySw.shield != null)
+                    {
+                        try { enemySw.shield.MaybeParry(sw); } catch { }
+                    }
+                    SpearChargeComponent.NotifyMeleeAttackStart(sp);
+                    if (Time.time - _lastLanceLog > 5f)
+                    {
+                        _lastLanceLog = Time.time;
+                        BSLog.Info("[阵型] 盾后架矛: 中列矛兵刺击 " + enemy.name + "（叠刺输出，矛尖越过盾线）");
+                    }
+                }
+                catch (Exception e) { BSLog.Warn("[阵型] 架矛刺击异常: " + e); }
+            }
+        }
+
+        float _lastLanceLog = -999f;
+
         /// <summary>M4 顺序联动：盾线接敌 → 弓手压制 → 敌逼近盾线 → 同船矛兵错峰冲阵 → 重整回盾后。</summary>
         void WaveEngageUpdate()
         {
@@ -397,6 +446,10 @@ namespace BadNorthMixedSquad1_0
             for (int i = 0; i < _shields.Count; i++) MoveToSlot(_shields[i], 0, _shields.Count, i, true);
             for (int i = 0; i < _archers.Count; i++) MoveToSlot(_archers[i], 2, _archers.Count, i, true);
             PinSpearsWhenIdle();
+            // 盾后架矛（致命化核心）：接敌/重整阶段中列矛兵矛尖越过盾线，对射程内敌人持续刺击——
+            // 盾线顶住仇恨、矛兵叠刺输出，不再"只等冲锋的工具人"。直接启动 Swordsman 攻击状态
+            // （走 SwordsmanAttackPrefix 同款链路：矛刺周期由 AttackUpdate 前缀接管与连刺）。
+            CommandLanceStabs();
         }
 
         /// <summary>最近敌人到阵型锚点（≈盾线）的距离。无 → float.MaxValue。</summary>
@@ -495,6 +548,21 @@ namespace BadNorthMixedSquad1_0
                 if (f.GetSlot(a).HasValue) return true;
             }
             return false;
+        }
+
+        /// <summary>某 agent 所属阵型的朝向（盾线面对方向）。不在阵型/未初始化 → null。
+        /// 供 SpearChargeComponent 阵型穿透目标选择（锥形区基准）使用。</summary>
+        public static Vector3? GetFormationFacing(Agent a)
+        {
+            if (a == null) return null;
+            for (int i = 0; i < _active.Count; i++)
+            {
+                var f = _active[i];
+                if (f == null || f._agents.Count == 0) continue;
+                if (f.GetSlot(a).HasValue)
+                    return f._facing.sqrMagnitude > 0.0001f ? f._facing : (Vector3?)null;
+            }
+            return null;
         }
     }
 }

@@ -608,6 +608,11 @@ namespace BadNorthMixedSquad1_0
                 if (!_done.Contains(__instance.agent)) return;
                 // 长矛攻击距离：原 radius*0.7*1.3≈0.118m 是剑的贴脸距离；改为"矛长 0.6m + 身体半程"≈0.69m。
                 __result = __instance.agent.radius * 0.7f + 0.6f;
+                // 阵型架矛（盾后刺击）：混编阵型中列矛兵额外 +FormationLanceReach——矛尖越过盾线稳定戳中
+                // 接敌前排（配合 SpearChargeComponent.TestHit 命中延伸 + 矛刺视觉加长），让"盾顶线 + 矛中列"
+                // 成为真正的叠刺墙，矛兵不再是"只等冲锋的工具人"。
+                if (TacticalFormation.InFormation(__instance.agent))
+                    __result += SpearChargeComponent.FormationLanceReach;
             }
             catch { }
         }
@@ -650,6 +655,20 @@ namespace BadNorthMixedSquad1_0
         // SpearChargeComponent.UpdateMeleeThrust 驱动。
         static readonly FieldInfo StaminaField = AccessTools.Field(typeof(Swordsman), "stamina");
         static readonly FieldInfo StaminaCostField = AccessTools.Field(typeof(Swordsman), "attackStaminaCost");
+
+        /// <summary>读取 Swordsman 当前体力（供 TacticalFormation 盾后架矛判断节奏——尊重原版体力经济，
+        /// 体力不足一次刺击时不强行出手，避免阵型矛兵绕过攻速/恢复节拍）。反射失败返回 1（不拦截）。</summary>
+        public static float GetSwordsmanStamina(Swordsman sw)
+        {
+            try
+            {
+                return sw != null ? (float)StaminaField.GetValue(sw) : 0f;
+            }
+            catch
+            {
+                return 1f;
+            }
+        }
 
         static bool SwordsmanAttackPrefix(Swordsman __instance, Agent targetAgent, ref bool __result)
         {
