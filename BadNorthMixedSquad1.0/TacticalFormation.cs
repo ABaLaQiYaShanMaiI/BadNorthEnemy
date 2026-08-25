@@ -356,6 +356,7 @@ namespace BadNorthMixedSquad1_0
                 if (sp == null) continue;
                 var ch = sp.GetComponent<SpearChargeComponent>();
                 if (ch != null && ch.IsChargeBusy()) continue;   // 冲阵/起手/回撤中不架矛
+                if (ch != null && ch.IsChargeOrdered()) continue;   // 已收到冲阵号令 → 不再启动刺击，避免"刺一半收手转冲锋"卡顿
                 var sw = sp.GetComponent<Swordsman>();
                 if (sw == null || sw.attack == null || sw.attack.active) continue;   // 已在刺击
                 if (Plugin.GetSwordsmanStamina(sw) < 0.45f) continue;   // 体力不足一次刺击（cost 0.5）→ 尊重原版攻速/恢复节奏

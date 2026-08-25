@@ -49,6 +49,18 @@ namespace BadNorthMixedSquad1_0
         public const float FormationLanceReach = 0.35f;
         const float FormationThrustDistance = 0.70f;   // 阵型架矛刺出距离（0.45→0.70：矛尖越过盾线）
 
+        // ===== 第二轮（2026-08-25 实测反馈：对盾兵杀伤弱 / 冲刺后被杀 / 轻微不顺畅）=====
+        // 冲锋破盾：重型冲锋冲击力远超快戳，盾牌格挡从 ×0.2 放宽到 ×0.5、眩晕全吃（盾挡不住冲撞的眩晕）——
+        // 对盾墙有真实威慑；普通刺击（矛尖快戳）仍按原版 ×0.2/×0.4（平衡保留）。
+        const float ChargeBlockDamageMult = 0.5f;
+        const float ChargeBlockStunMult = 1.0f;
+        // 冲锋能量回复/秒（借鉴原版 PikeCharge energyRegainSpeed=0.75）：每 tick 衰减后回复、封顶 1，
+        // 防止"一次冲过十几人能量衰到 0"导致尾部命中只有 0.1 伤害——保持扫过一排的持续杀伤力。
+        const float ChargeEnergyRegen = 0.75f;
+        // 阵型穿透冲锋穿透余量（0.8m 取代通用 2.0m）：冲锋停在最深目标附近，不一头扎进敌阵深处被围杀
+        // （普通冲锋/自由模式仍用 ChargeOvershoot=2.0m 保持穿透冲击阵营的表现）。
+        const float PenetrationOvershoot = 0.8f;
+
         enum Phase { Idle, WindUp, Charging, Retreat, Cooldown }
 
         Phase _phase = Phase.Idle;
@@ -76,6 +88,8 @@ namespace BadNorthMixedSquad1_0
         float _actScanTimer;
         float _chargeElapsed;          // 冲锋已推进时长（s，加速曲线用）
         float _chargeProgress;         // 冲锋已推进距离（m，沿 _chargeStartPos→_chargeDirection）
+        bool _isFormationCharge;       // 本次冲锋是否为阵型穿透冲锋（深锥形区目标）→ 用小穿透余量防深陷敌阵
+        float _chargeOvershoot = ChargeOvershoot;   // 本次冲锋实际穿透余量（普通 2.0m / 阵型穿透 0.8m）
         // 冲锋/后退渲染同步缓冲——DoCharging/DoRetreat 每帧写入的 navPos 快照，
         // LateUpdate 里重新断言并硬同步 transform（防大脑/导航在 Update 后被改写造成"橡皮筋"回弹）。
         bool _renderSnapPending;
@@ -211,6 +225,13 @@ namespace BadNorthMixedSquad1_0
         public bool IsChargeBusy()
         {
             return _phase == Phase.WindUp || _phase == Phase.Charging || _phase == Phase.Retreat;
+        }
+
+        /// <summary>是否已收到冲阵号令（TacticalFormation 解除阵型门控）。供 CommandLanceStabs 判断：
+        /// 已收到号令的矛兵不再启动架矛刺击，避免"刺一半突然收手转冲锋"的观感卡顿。</summary>
+        public bool IsChargeOrdered()
+        {
+            return _ordered;
         }
 
         bool IBrainAction.MaybeAct(Brain brain)
@@ -518,8 +539,19 @@ namespace BadNorthMixedSquad1_0
                 if (!target.shield) return false;   // 盾牌未举起
                 float facing = Vector3.Dot(shieldComp.shield.forward, -atk.direction.normalized);
                 if (facing <= 0.5f) return false;   // 背面/侧面命中不格挡
-                atk.damage *= 0.2f;
-                atk.stun *= 0.4f;
+                // 冲锋破盾 vs 普通刺击：冲锋的 monoAttacker=本组件（重型冲撞）→ 格挡放宽到 ×0.5、眩晕全吃
+                // （盾挡不住冲撞的冲击眩晕）；近战刺击（monoAttacker=Swordsman）保持原版 ×0.2/×0.4。
+                bool isChargeAttack = ReferenceEquals(atk.monoAttacker, this);
+                if (isChargeAttack)
+                {
+                    atk.damage *= ChargeBlockDamageMult;
+                    atk.stun *= ChargeBlockStunMult;
+                }
+                else
+                {
+                    atk.damage *= 0.2f;
+                    atk.stun *= 0.4f;
+                }
                 atk.soundSuffix = "Shield";
                 // 近战(Swordsman)攻击时原版 Shield.ModifyAttack 会自行播放 Deflect/Block 音效+火花；
                 // 冲锋/爆发（monoAttacker=本组件）原版不识别 → 由这里补足反馈，避免双音效。
@@ -575,6 +607,10 @@ namespace BadNorthMixedSquad1_0
         bool TryTriggerCharge(bool log)
         {
             if (_phase != Phase.Idle) return false;
+            // 架矛刺击中（swordsman.attack.active）→ 先让当前刺击自然结束（0.5s 周期），
+            // 下一轮 0.1s 扫描再触发冲锋——避免"刺一半突然收手转冲锋"的观感卡顿。
+            if (_swordsman != null && _swordsman.attack != null && _swordsman.attack.active)
+                return false;
             // M4 顺序联动门控：冲阵号令模式（EnableWaveCharge=true）下，混编阵型中的矛兵未收到"冲阵号令" → 待命；
             // 自由模式（false）则矛兵自由冲锋——回马枪（突刺→快速回盾后）仍由阵型钉位兜底
             bool waveMode = ModConfig.EnableWaveCharge != null && ModConfig.EnableWaveCharge.Value;
@@ -602,7 +638,9 @@ namespace BadNorthMixedSquad1_0
             // 只有大脑没有目标时才退回 6m 扫描兜底。
             // 阵型冲阵号令（waveMode && _ordered）：优先选正前方锥形区内**最远**敌人（贯穿整条敌阵，
             // 途经前排盾兵（能量×0.8 递减、盾牌背向不格挡）→ 终点爆发打到后排弓手/脆皮 = 更致命）。
+            // 阵型穿透冲锋用小穿透余量（_chargeOvershoot=0.8m），停在最深目标附近，不深陷敌阵被围杀。
             bool formationCharge = waveMode && _ordered && TacticalFormation.InFormation(_agent);
+            _isFormationCharge = false;
             Agent nearest = null;
             Vector3 dir = Vector3.zero;
             if (formationCharge)
@@ -612,6 +650,7 @@ namespace BadNorthMixedSquad1_0
                 {
                     nearest = deep;
                     dir = deepDir;
+                    _isFormationCharge = true;
                 }
             }
             if (nearest == null) nearest = GetBrainTarget();
@@ -753,6 +792,8 @@ namespace BadNorthMixedSquad1_0
                 _hitAgents.Clear();   // 新一回合：重置能量与命中去重
                 _chargeElapsed = 0f;
                 _chargeProgress = 0f;
+                // 阵型穿透冲锋（深锥形区目标）→ 小穿透余量（停在最深目标附近防深陷敌阵）；其余用通用 2.0m
+                _chargeOvershoot = _isFormationCharge ? PenetrationOvershoot : ChargeOvershoot;
                 // 锁定目标：向目标"被定位时"的单元格（navPos.wPos）冲刺，冲刺全程不追踪。
                 // 我方单位横向位移躲闪 → 冲到锁定格落空 → 技能前半段同样算用掉 → 后退迎击。
                 if (_targetAgent != null && _targetAgent.aliveState != null && _targetAgent.aliveState.active)
@@ -770,8 +811,8 @@ namespace BadNorthMixedSquad1_0
                     if (SpearVisual.TryGetAimRotation(_agent, _chargeStartPos + _chargeDirection * SpearLength, out _spearTargetRot))
                         _hasSpearTarget = true;
                 }
-                // 冲锋距离 = 到锁定格 + 矛长 + 穿透余量(1.5m)：穿透敌阵、冲击阵营，命中也冲完整段
-                _chargeDistance = Mathf.Max(0.5f, Vector3.Distance(_chargeStartPos, _chargeTargetPos) + SpearLength + ChargeOvershoot);
+                // 冲锋距离 = 到锁定格 + 矛长 + 穿透余量（普通 2.0m / 阵型穿透 0.8m）：穿透敌阵、冲击阵营，命中也冲完整段
+                _chargeDistance = Mathf.Max(0.5f, Vector3.Distance(_chargeStartPos, _chargeTargetPos) + SpearLength + _chargeOvershoot);
                 // 终点夹回：名义终点可能超出主岛可走网格（目标背靠海/悬崖/建筑时，矛长+穿透余量
                 // 会把终点送出岛外或撞进建筑 → 模型浮在海面/穿墙）。把冲锋距离截短到直线最远可走处：
                 // 至少到达目标锁定格，穿透段被夹回岸上/建筑前。
@@ -798,6 +839,12 @@ namespace BadNorthMixedSquad1_0
             _phaseTimer -= Time.deltaTime;
 
             _agent.LookInDirection(_chargeDirection, 720f, 20f);
+
+            // 冲锋期间驱动跑步动画：walkDir 指向冲锋方向 + speed=ChargeSpeed → Body 播奔跑而非站姿滑行。
+            // 大脑已被 exclusives 锁定（不会覆盖 walkDir），navPos 由本帧 target 直接推进（下一帧覆盖），
+            // 位置不受 walkDir 影响，只让身体动画跟上冲锋速度（此前 body=stand animSpeed=0.35 = 站姿滑行）。
+            _agent.walkDir = _chargeDirection;
+            _agent.speed = ChargeSpeed;
 
             // 每帧让长矛对准目标（矛尖朝敌人 chest）
             PointSpearAtTarget();
@@ -885,17 +932,29 @@ namespace BadNorthMixedSquad1_0
         {
             _phase = Phase.Retreat;
             _renderSnapPending = false;   // 后退帧重新记录快照
+            _agent.maxSpeed = RetreatSpeed;   // 回撤提速（与 DoRetreat 的 speed=RetreatSpeed 一致，驱动跑步动画）
             // navPos 失效保护：敌人被击飞/冲锋撞崖可能使 navPos 变空（wPos 访问会崩），直接收尾进冷却。
             if (!_agent.navPos.valid) { EndCharge(); return; }
             // 防"退到船/海"：不在主岛 navmesh 上就不后退（否则会退到船建模上，玩家打不到）
             if (!_agent.navPos.onMain) { EndCharge(); return; }
             ArrivalBurst();   // 抵达终点爆发（Pike Charge 风格的最后一撞）
             // M3：优先回退到本船战术阵型的中列格位（若存在阵型）；否则沿冲锋反方向回退 RetreatDistance。
+            // 安全校验：格位若已越过冲锋起点（在敌阵方向 = 盾线已被突破/格位不安全），退回冲锋起点（盾后），
+            // 避免退到敌阵里被围杀（实测"冲刺后就被击杀"主因之一是深陷敌阵后回退落点仍不安全）。
             Vector3 retreatTarget = _agent.navPos.wPos - _chargeDirection * RetreatDistance;
             try
             {
                 var slot = TacticalFormation.GetFormationSlot(_agent);
-                if (slot.HasValue) retreatTarget = slot.Value;
+                if (slot.HasValue)
+                {
+                    Vector3 slotToStart = _chargeStartPos - slot.Value;
+                    slotToStart.y = 0f;
+                    // dot > 0 = 格位在冲锋起点之后（己方盾后侧）→ 回格位；否则回起点（盾后安全点）
+                    if (Vector3.Dot(_chargeDirection, slotToStart) > 0f)
+                        retreatTarget = slot.Value;
+                    else
+                        retreatTarget = _chargeStartPos;
+                }
             }
             catch { }
             _retreatEndPos = retreatTarget;
@@ -913,6 +972,11 @@ namespace BadNorthMixedSquad1_0
             Vector3 to = _retreatEndPos - _agent.navPos.wPos;   // 指向后退终点
             float dist = to.magnitude;
             if (dist < 0.15f) { EndCharge(); return; }          // 已回退到位，抬枪迎击
+
+            // 后退期间驱动移动动画（Body 播跑步/碎步而非站姿滑行）
+            Vector3 retreatDir = to.normalized;
+            _agent.walkDir = retreatDir;
+            _agent.speed = RetreatSpeed;
 
             // 回马枪：以快于冲锋的速度（RetreatSpeed）快速退回盾后阵位，贴着 navmesh 移动；返回段不结算伤害
             Vector3 step = to.normalized * (RetreatSpeed * Time.deltaTime);
@@ -935,8 +999,11 @@ namespace BadNorthMixedSquad1_0
                 _renderSnapNav = np;
             }
 
-            // 稳住阵脚：面朝敌人 + 矛保持迎击（朝敌）
-            if (_targetAgent != null && _targetAgent.aliveState != null && _targetAgent.aliveState.active)
+            // 转向策略：长距离回撤（回盾后阵位 >1.2m）→ 转身跑回（面向回撤方向）；短距离（<1.2m）→ 面朝敌人
+            // 后退迎击（回马枪姿态，矛对敌）；矛保持朝敌迎击。
+            if (dist >= 1.2f)
+                _agent.LookInDirection(retreatDir, 720f, 20f);
+            else if (_targetAgent != null && _targetAgent.aliveState != null && _targetAgent.aliveState.active)
                 _agent.LookInDirection((_targetAgent.transform.position - _agent.transform.position).normalized, 720f, 20f);
             PointSpearAtTarget();
         }
@@ -995,6 +1062,29 @@ namespace BadNorthMixedSquad1_0
                 else if (meleeMove && _agent.navPos.valid)
                 {
                     _agent.transform.position = _agent.navPos.wPos;
+                    // 刺击期消除"蠕动"（实测 clip=Swordsman_Walk + agentYaw 漂移）：
+                    // ① 朝向钉死：FixedUpdateAgent.ApplyLook 每物理帧按陈旧 look 目标转动身体，
+                    //    与 AttackUpdate 前缀的 SetDirection 瞬移抢位置 = 身体左右摆动。
+                    //    渲染帧末尾重新断言锁定朝向，并把 look 目标钉在锁定方向（speed=0 不再转走）。
+                    if (_thrustRotLocked && _hasSpearTarget)
+                    {
+                        _agent.SetDirection(_thrustDirWorld);
+                        try { _agent.LookInDirection(_thrustDirWorld, 0f, 0f); } catch { }
+                    }
+                    // ② 强制站姿：navPos 停住后 Body 要等一个 stepTime(~0.2s) 才从 stepping 切回
+                    //    standing，而刺击只有 0.5s → 身体用走路动画原地踏步 = 上下起伏"蠕动"。
+                    //    强制 standing + 切 Idle + Speed=0，停掉走步动画（滑动/眩晕期不强制）。
+                    try
+                    {
+                        if (_agent.body != null && _agent.body.standing != null && !_agent.body.standing.active &&
+                            (_agent.body.sliding == null || !_agent.body.sliding.active))
+                        {
+                            _agent.body.standing.SetActive(true);
+                            try { _agent.PlayAnimation("Idle"); } catch { }
+                        }
+                        try { _agent.animator.SetFloat("Speed", 0f); } catch { }
+                    }
+                    catch { }
                 }
             }
 
@@ -1061,6 +1151,9 @@ namespace BadNorthMixedSquad1_0
                     int lvl = _squad != null ? _squad.level : 0;
                     float dmg = StabDamage * (1f + lvl * LevelDamageScale) * _energy;
                     _energy *= EnergyDecayPerHit;
+                    // 能量回复（借鉴原版 PikeCharge energyRegainSpeed=0.75）：每 tick 衰减后回复、封顶 1，
+                    // 防止"一次冲过十几人能量衰到 0"尾部命中只有 0.1 伤害——保持扫过一排的持续杀伤力。
+                    _energy = Mathf.Min(1f, _energy + ChargeEnergyRegen * Time.deltaTime);
                     var s = new AttackSettings { damage = dmg, knockback = StabKnockback, launchImpulse = StabLaunch, stun = StabStun };
                     Vector3 d = _chargeDirection;   // 沿锁定冲锋方向撞飞（比"朝敌人当前位置"更稳定）
                     d.y = 0f;
@@ -1271,7 +1364,8 @@ namespace BadNorthMixedSquad1_0
         }
 
         /// <summary>阵型穿透目标：正前方锥形区（±~33°）内**最远**的存活敌人——冲锋线贯穿整条敌阵，
-        /// 途经前排（盾牌背向不格挡）→ 终点爆发波及后排弓手/脆皮。只判地形通畅（建筑后保留：能冲出威慑距离）。
+        /// 途经前排（盾牌背向不格挡）→ 终点爆发波及后排弓手/脆皮。要求直线全程可走且不被建筑遮挡
+        /// （穿透冲锋必须真正到达目标，建筑挡路的深目标排除，否则冲锋被夹回、打不到后排）。
         /// 无锥形区目标 → false（回退大脑目标/就近扫描）。</summary>
         bool FindDeepestEnemyInCone(out Vector3 dir, out Agent target, bool log)
         {
@@ -1300,7 +1394,9 @@ namespace BadNorthMixedSquad1_0
                 if (a == null || a == _agent || a.isViking) continue;
                 if (a.aliveState != null && !a.aliveState.active) continue;
                 if (!a.navPos.valid) continue;
-                if (!IsTerrainPathClear(_agent.navPos.wPos, a.navPos.wPos)) continue;
+                // 穿透冲锋必须整条直线可走且无建筑遮挡（IsStraightPathWalkable 含建筑判定），
+                // 保证冲锋线能贯穿到该目标；被建筑挡路的深目标排除（否则被夹回、终点打不到后排）。
+                if (!IsStraightPathWalkable(_agent.navPos.wPos, a.navPos.wPos)) continue;
                 Vector3 to = a.transform.position - _agent.transform.position; to.y = 0f;
                 if (to.sqrMagnitude < 0.01f) continue;
                 to.Normalize();
